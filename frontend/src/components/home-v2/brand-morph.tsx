@@ -207,6 +207,7 @@ export function BrandMorph({ children }: { children: ReactNode }) {
       {active &&
         geometry?.letters.map((letter, i) => (
           <FlyingLetter
+            aloft={phase === "flight"}
             delay={ENTRANCE.lead + i * ENTRANCE.step}
             geometry={letter}
             hold={(i / Math.max(geometry.letters.length - 1, 1)) * STAGGER}
@@ -222,12 +223,17 @@ export function BrandMorph({ children }: { children: ReactNode }) {
 /* ---------------------------------------------------------------- the flight */
 
 function FlyingLetter({
+  aloft,
   delay,
   geometry,
   hold,
   landed,
   scrollY,
 }: {
+  /** In transit, so the glyph is drawn over the bar rather than under it — the
+   *  layer it needs at rest is not the one it needs on the way up. See the
+   *  z-index note on `.hv2-brandmorph` in styles/home-v2.css. */
+  aloft: boolean;
   /** When this glyph takes its turn in the load entrance — see ENTRANCE. */
   delay: number;
   geometry: LetterGeometry;
@@ -306,6 +312,7 @@ function FlyingLetter({
     <motion.div
       aria-hidden
       className="hv2-brandmorph"
+      data-aloft={aloft || undefined}
       /* Hidden, not unmounted: the glyph keeps its place in the flight so
          scrolling back up picks it up where it was, rather than replaying the
          load entrance from behind its baseline halfway down the page. */

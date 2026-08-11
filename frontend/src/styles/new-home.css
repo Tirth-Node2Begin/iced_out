@@ -628,6 +628,21 @@
   pointer-events: none;
 }
 
+/* A mega panel hanging open is the top surface on the page, so for as long as
+   one is the scope has to clear the single layer that deliberately sits above
+   it: the wordmark flight (.hv2-brandmorph, 90) on the site root and /about.
+   At rest that flight is already below the bar, which is what fixed the panel
+   being painted over at the top of the page; this covers the narrow window
+   where a panel is held open while the page is still moving and the glyphs are
+   genuinely in transit. Selecting on the open bar rather than a class of its
+   own keeps the state in one place — `data-menu-open` in primary-nav.tsx —
+   and the `:has()` argument makes this specific enough to win over both the
+   80 chrome.css sets and the 100 on the product route.
+   Still under the overlays that portal out of the bar (120+). */
+.nh-nav-scope:has(.nh-nav[data-menu-open="true"]) {
+  z-index: 110;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .nh-nav__mark,
   .nh-nav__chevron,

@@ -143,8 +143,10 @@
    — everything else about the trip is measured, not declared. */
 .nh-about-root .hv2-brandmorph {
   position: fixed;
-  /* Over the bar, under its overlays — same reasoning as the site root. */
-  z-index: 90;
+  /* Under the bar at rest, over it in transit — same reasoning as the site
+     root, and the same bug it fixes: this route's hero headline is drawn by
+     the flight too, so at rest it was painting over the mega panel. */
+  z-index: 60;
   top: 0;
   left: 0;
   /* the bar's brand link keeps the clicks — its wordmark is still in flow
@@ -154,6 +156,13 @@
   font-weight: 500;
   white-space: nowrap;
   will-change: transform;
+}
+
+/* Clearing the bar's frosted plate on the way in, exactly as the site root
+   does — and giving way again to a mega panel, which lifts the scope above
+   this. */
+.nh-about-root .hv2-brandmorph[data-aloft] {
+  z-index: 90;
 }
 
 /* A block, so the word's line box starts flush with the container's top edge

@@ -232,13 +232,16 @@ body:has(.hv2) {
   position: fixed;
   top: 0;
   left: 0;
-  /* Over the bar (.nh-nav-scope, 80), because the last leg of the trip is flown
-     *through* it: the bar fades a frosted plate in as soon as the page moves,
-     and underneath it the glyphs were swallowed just before they arrived. Still
-     under the overlays that portal out of the bar (120+), so the search dock and
-     the menu sheet cover the flight as they should.
-     Nothing is left up here at the end — see [data-landed] below. */
-  z-index: 90;
+  /* At rest these glyphs are not chrome — they *are* the hero's headline, held
+     out of flow so they can fly later. So at rest they belong where the
+     headline belongs: over the page (every section on this route tops out well
+     below this) and under the bar (.nh-nav-scope, 80). Sitting over the bar at
+     rest put hero-sized type straight across the mega panel, which hangs off
+     the bar's bottom edge — the menu read as a translucent hole with the
+     headline bleeding through it, at the one scroll position (the top of the
+     page) where every shopper opens it.
+     The flight is the exception, and only the flight — see [data-aloft]. */
+  z-index: 60;
   /* the bar's brand link keeps the clicks — its wordmark is still in flow
      underneath this, it is simply not inked */
   pointer-events: none;
@@ -246,6 +249,17 @@ body:has(.hv2) {
   color: var(--hv2-ink);
   white-space: nowrap;
   will-change: transform;
+}
+
+/* In transit the last leg is flown *through* the bar: it fades a frosted plate
+   in as soon as the page moves, and underneath that the glyphs were swallowed
+   just before they arrived. Still under the overlays that portal out of the bar
+   (120+), so the search dock and the menu sheet cover the flight as they
+   should — and under the bar itself while a mega panel is open, which lifts the
+   whole scope past this (see `[data-menu-open]` in styles/new-home.css).
+   Nothing is left up here at the end — see [data-landed] below. */
+.hv2-brandmorph[data-aloft] {
+  z-index: 90;
 }
 
 /* A block, so the word's line box starts flush with the container's top edge
