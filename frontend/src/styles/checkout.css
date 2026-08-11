@@ -14,6 +14,56 @@
    `co-` is checkout and payment. `od-` is the order screen.
    ========================================================================= */
 
+/* --------------------------------------------------------- 0. the surface */
+/* Checkout is a modal, not a route (`checkout-modal.tsx`). Everything below is
+   the same three steps it always was; this block is only the sheet they are
+   printed on.
+
+   The tokens are redeclared because the dialog is portalled to `<body>`, well
+   outside the `.io-scope` that owns the palette. `.io-modal` already carries
+   most of them (chrome.css §8.14) — these are the ones checkout uses and that
+   block does not have, and without them the chip counters lose their fill and
+   every colour transition falls back to `ease`. */
+.io-modal--checkout {
+  --nh-ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
+  --nh-chip-bg: rgba(22, 25, 27, 0.72);
+  --nh-chip-fg: #eef0f0;
+  --nh-surface-3: #0a0b0c;
+
+  width: min(1180px, calc(100vw - 32px));
+  max-height: min(880px, calc(100vh - 40px));
+}
+
+/* The head is the frame the page used to carry: a title, one line, and the way
+   out. The step count is not repeated here — the rail under it counts. */
+.io-modal--checkout .io-modal__head {
+  padding-bottom: 16px;
+}
+
+.co-modal__body {
+  padding: 18px 22px 22px;
+}
+
+/* The nested surfaces — the card sheet and the full-bag list — open OVER this
+   one. Radix stacks them in the DOM but not in z-index, so without this their
+   own backdrop paints UNDER the checkout it is supposed to be dimming. */
+.io-modal__overlay--top {
+  z-index: 150;
+}
+
+.io-modal--pay,
+.io-modal--wide {
+  z-index: 151;
+}
+
+/* The route that opens the modal and steps aside — on screen for one frame,
+   and still not allowed to be a flash of nothing. */
+.co-route {
+  display: grid;
+  min-height: 60vh;
+  place-items: center;
+}
+
 /* ------------------------------------------------------------- 1. the shell */
 /* Decisions on the left, money on the right, and the money never scrolls out
    of reach — the running total is the one thing a shopper checks against every
@@ -23,6 +73,14 @@
   align-items: start;
   gap: clamp(1rem, 2vw, 1.5rem);
   grid-template-columns: minmax(0, 1fr) 372px;
+}
+
+/* Inside the modal the scroll container is the body, not the window, so the
+   summary sticks to the top of THAT — the page's offset was the height of a
+   nav bar this surface does not have (and `--io-nav-h` is not even declared
+   out here, which made the whole `top` invalid and sticky a no-op). */
+.co-modal__body .co__aside {
+  top: 0;
 }
 
 .co__main {
@@ -59,7 +117,7 @@
 }
 
 /* ------------------------------------------------------------ 1b. the rail */
-/* Four steps, one at a time, against a rail that answers the two questions a
+/* Three steps, one at a time, against a rail that answers the two questions a
    wizard always gets asked: how far in am I, and what did I already say. The
    summary under each label is the second answer — a rail that only counts is a
    progress bar with delusions, and a shopper cannot check a delivery address
@@ -76,7 +134,11 @@
   margin: 0;
   padding: 0;
   gap: 6px;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  /* Column per step, however many there are — the count lives in `STEPS`, and
+     a hard-coded 4 here is how a rail ends up with an empty fourth track the
+     day one of them is folded into another. */
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
   list-style: none;
 }
 
@@ -150,10 +212,16 @@
   min-width: 0;
 }
 
+/* Ellipsised like the summary under it: a step label is as long as its name
+   ("Personal/Receiver Details"), and a rail whose tracks are sized by their
+   longest word stops being three equal steps. */
 .co-rail__label strong {
+  overflow: hidden;
   font-size: 12.5px;
   font-weight: 500;
   letter-spacing: -0.005em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .co-rail__item[data-state="waiting"] .co-rail__label strong {
@@ -189,10 +257,9 @@
 }
 
 @media (max-width: 860px) {
-  /* Four labelled steps do not fit a phone. The rail keeps the count and the
+  /* Three labelled steps do not fit a phone. The rail keeps the count and the
      current step's own header carries the title, so nothing is lost. */
   .co-rail__list {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 2px;
   }
 
@@ -402,6 +469,31 @@
   box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.6);
 }
 
+/* The chip the fields currently agree with — lit the same way a chosen radio
+   card is (§2.4), because it is one: which of these destinations is this. */
+.co-saved__chip[data-selected] {
+  background: #1f2224;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.4);
+}
+
+.co-saved__chip[data-selected] svg {
+  color: var(--nh-ink);
+}
+
+/* The one chip that is not a destination but a way to type one. Dashed, so it
+   reads as the empty slot at the end of the row rather than a third address. */
+.co-saved__chip--new {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  outline: 1px dashed rgba(255, 255, 255, 0.14);
+  outline-offset: -1px;
+}
+
+.co-saved__chip--new[data-selected] {
+  background: #1f2224;
+  outline-color: transparent;
+}
+
 .co-saved__chip svg {
   margin-top: 3px;
   color: var(--nh-muted);
@@ -426,75 +518,89 @@
   white-space: nowrap;
 }
 
-/* --------------------------------------------------------------- 2e. review */
-/* The payment step quotes the three answers it is about to commit, each with a
-   way back to where it was given. A confirmation that hides what it confirms
-   is a button, not a review. */
-.co-review {
+/* ------------------------------------------------------------- 2e. the read */
+/* Step 01 answered, printed rather than typed. Same six-track grid as the
+   fields it replaces, so pressing Edit swaps the contents of the block without
+   moving anything below it. */
+.co-read {
+  position: relative;
   display: grid;
-  gap: 2px;
-}
-
-.co-review__row {
-  display: grid;
-  align-items: baseline;
-  padding: 11px 14px;
+  padding: 16px 18px;
   border-radius: var(--nh-radius-card);
-  gap: 4px 14px;
-  grid-template-columns: 96px minmax(0, 1fr) auto;
+  gap: 14px 12px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   background: var(--nh-card-bg);
   box-shadow: inset 0 0 0 1px var(--nh-hairline);
 }
 
-.co-review__label {
+.co-read__item {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  grid-column: span 3;
+}
+
+/* The name takes the row it would have taken as a field — and stops short of
+   the Edit button rather than running under it. */
+.co-read__item--wide {
+  grid-column: 1 / -1;
+  padding-right: 76px;
+}
+
+.co-read__item span {
   color: var(--nh-muted);
   font-size: 10px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
-.co-review__body {
-  display: grid;
-  gap: 3px;
-  min-width: 0;
-}
-
-.co-review__body span {
+.co-read__item strong {
   overflow: hidden;
-  color: var(--nh-ink-soft);
-  font-size: 12.5px;
-  line-height: 1.45;
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: -0.005em;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.co-review__body span:first-child {
-  color: var(--nh-ink);
-}
-
-.co-review__edit {
+.co-read__edit {
+  position: absolute;
+  top: 14px;
+  right: 14px;
   display: inline-flex;
   align-items: center;
-  padding: 0;
+  padding: 6px 11px;
   border: 0;
-  gap: 5px;
-  background: none;
-  color: var(--nh-muted);
+  border-radius: 999px;
+  gap: 6px;
+  background: var(--nh-ghost-bg);
+  color: var(--nh-ink-soft);
   font: inherit;
   font-size: 11.5px;
   cursor: pointer;
-  transition: color 0.3s var(--nh-ease-soft);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  transition:
+    background-color 0.3s var(--nh-ease-soft),
+    color 0.3s var(--nh-ease-soft);
 }
 
-.co-review__edit:hover {
+.co-read__edit:hover {
+  background: var(--nh-ghost-bg-hover);
   color: var(--nh-ink);
 }
 
-@media (max-width: 560px) {
-  .co-review__row {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
+.co-read__edit:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.6);
+}
 
-  .co-review__label {
+.co-read__done {
+  justify-self: start;
+}
+
+@media (max-width: 620px) {
+  .co-read__item,
+  .co-read__item--wide {
     grid-column: 1 / -1;
   }
 }
@@ -550,18 +656,13 @@
     box-shadow 0.3s var(--nh-ease-soft);
 }
 
-.co-field select {
-  appearance: none;
-  cursor: pointer;
-}
-
 .co-field input::placeholder {
   color: var(--nh-muted-2);
 }
 
 .co-field :is(input, select):focus-visible {
   outline: none;
-  background: #1f2224;
+  background-color: #1f2224;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.42);
 }
 
@@ -570,7 +671,7 @@
    so the hook is `aria-invalid` rather than `:invalid` — one source for the
    outline, the message and what a screen reader is told. */
 .co-field :is(input, select)[aria-invalid="true"] {
-  background: rgba(229, 72, 77, 0.06);
+  background-color: rgba(229, 72, 77, 0.06);
   box-shadow: inset 0 0 0 1px rgba(229, 72, 77, 0.55);
 }
 
@@ -612,7 +713,7 @@
 }
 
 .co-cardform .co-field :is(input, select) {
-  background: var(--nh-surface-2);
+  background-color: var(--nh-surface-2);
 }
 
 @media (max-width: 620px) {
@@ -622,12 +723,197 @@
   }
 }
 
+/* ------------------------------------------------------------ 3b. combobox */
+/* State and city are answered from a list of thirty-six and a list that
+   depends on it, which a native `<select>` serves badly: the OS draws the
+   popup, so none of the tokens on this page reach it, and there is no way to
+   type three letters and land. The control is the shadcn combobox — Radix
+   popover, cmdk filtering — and everything below is it wearing checkout's
+   clothes instead of the registry's Tailwind defaults, which resolve to the
+   LIGHT palette in this app. Unlayered, so it outranks those utilities in the
+   cascade whatever their specificity. */
+.co-combo {
+  display: flex;
+  width: 100%;
+  height: 46px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 13px 0 14px;
+  border: 0;
+  border-radius: var(--nh-radius-card);
+  gap: 10px;
+  background: var(--nh-card-bg);
+  color: var(--nh-ink);
+  font: inherit;
+  font-size: 14px;
+  letter-spacing: -0.005em;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  transition:
+    background-color 0.3s var(--nh-ease-soft),
+    box-shadow 0.3s var(--nh-ease-soft);
+}
+
+.co-combo > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.co-combo svg {
+  flex: none;
+  color: var(--nh-muted);
+}
+
+.co-combo__placeholder {
+  color: var(--nh-muted-2);
+}
+
+.co-combo:hover:not(:disabled),
+.co-combo[aria-expanded="true"] {
+  background: #1f2224;
+}
+
+.co-combo:focus-visible {
+  outline: none;
+  background: #1f2224;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.42);
+}
+
+.co-combo:disabled {
+  color: var(--nh-muted-2);
+  cursor: default;
+  opacity: 0.6;
+}
+
+.co-combo[aria-invalid="true"] {
+  background: rgba(229, 72, 77, 0.06);
+  box-shadow: inset 0 0 0 1px rgba(229, 72, 77, 0.55);
+}
+
+/* The panel is portalled to `<body>`, outside `.io-scope`, so it carries its
+   own copy of the tokens the way `.io-modal` does. */
+.co-combo__panel {
+  --nh-surface-2: #16181a;
+  --nh-card-bg: #1a1c1e;
+  --nh-ink: #f1f3f3;
+  --nh-ink-soft: #d5d9da;
+  --nh-muted: #8f9598;
+  --nh-muted-2: #6e7477;
+  --nh-hairline: rgba(255, 255, 255, 0.13);
+
+  z-index: 150;
+  /* Sized to the field it belongs to — a panel wider than its trigger reads as
+     a menu for the whole row rather than an answer to one question. */
+  width: var(--radix-popover-trigger-width);
+  min-width: 220px;
+  padding: 0;
+  border-radius: var(--nh-radius-card, 16px);
+  background: var(--nh-surface-2);
+  color: var(--nh-ink);
+  box-shadow:
+    inset 0 0 0 1px var(--nh-hairline),
+    0 26px 60px -22px rgba(0, 0, 0, 0.92);
+}
+
+.co-combo__panel [data-slot="command"] {
+  padding: 6px;
+  border-radius: inherit;
+  background: transparent;
+  color: inherit;
+}
+
+.co-combo__panel [data-slot="command-input-wrapper"] {
+  padding: 2px 2px 6px;
+}
+
+.co-combo__panel [data-slot="input-group"] {
+  height: 36px;
+  border: 0;
+  border-radius: 11px;
+  background: var(--nh-card-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.co-combo__panel [data-slot="command-input"] {
+  color: var(--nh-ink);
+  font-size: 13px;
+}
+
+.co-combo__panel [data-slot="command-input"]::placeholder {
+  color: var(--nh-muted-2);
+}
+
+.co-combo__panel [data-slot="command-list"] {
+  max-height: 264px;
+  padding: 2px;
+  scrollbar-width: thin;
+}
+
+/* Transparent, and said out loud: cmdk writes `data-selected="false"` onto the
+   rows it is NOT highlighting, which the registry's `data-selected:bg-muted`
+   still matches — leaving every unhighlighted row painted in the light theme's
+   muted grey over a black panel. */
+.co-combo__panel [data-slot="command-item"] {
+  padding: 9px 11px;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--nh-ink-soft);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.co-combo__panel [data-slot="command-item"][data-selected="true"] {
+  background: var(--nh-card-bg);
+  color: var(--nh-ink);
+}
+
+.co-combo__panel [data-slot="command-item"] svg {
+  color: var(--nh-ink);
+}
+
+.co-combo__panel [data-slot="command-empty"] {
+  padding: 20px 12px;
+  color: var(--nh-muted);
+  font-size: 12.5px;
+}
+
 /* --------------------------------------------------------------- 4. choices */
 /* Delivery speed and payment method share one control: a full-width card whose
-   whole surface is the hit area, not a 14px radio dot with a label beside it. */
+   whole surface is the hit area, not a 14px radio dot with a label beside it.
+   They also now share one STEP, which is what `.co-group` is for — two radio
+   groups under one heading need to say which is which, or the second one reads
+   as three more speeds. */
+.co-group {
+  display: grid;
+  gap: 9px;
+}
+
+.co-group__label {
+  margin: 0;
+  color: var(--nh-muted);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
 .co-choices {
   display: grid;
   gap: 8px;
+}
+
+/* Two of anything go side by side. A pair of full-width bars reads as the top
+   of a list that might continue below the fold; two halves are visibly all
+   there is, which is the whole question when the choice is standard/express. */
+.co-choices--split {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 620px) {
+  .co-choices--split {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .co-choice {
@@ -873,15 +1159,15 @@
   text-transform: uppercase;
 }
 
+/* No scroller. The summary is read against the total under it, and a list that
+   hides its own end behind a gesture is the one shape that cannot be — it
+   prints the first few lines whole and sends the rest to `.co-bag`. */
 .co-summary__lines {
   display: grid;
   margin: 0;
   padding: 0;
   gap: 10px;
   list-style: none;
-  max-height: 268px;
-  overflow-y: auto;
-  scrollbar-width: thin;
 }
 
 .co-summary__lines li {
@@ -954,6 +1240,38 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* The door to the rest of the bag. A row rather than a link, because it is
+   standing where the next line would have been. */
+.co-summary__more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: var(--nh-radius-card);
+  gap: 7px;
+  background: var(--nh-card-bg);
+  color: var(--nh-ink-soft);
+  font: inherit;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  transition:
+    background-color 0.3s var(--nh-ease-soft),
+    color 0.3s var(--nh-ease-soft);
+}
+
+.co-summary__more:hover {
+  background: #1f2224;
+  color: var(--nh-ink);
+}
+
+.co-summary__more:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.6);
+}
+
 .co-summary__totals {
   display: grid;
   margin: 0;
@@ -1005,6 +1323,60 @@
   font-size: 11.5px;
   line-height: 1.45;
   text-align: center;
+}
+
+/* ------------------------------------------------------------- 8b. the bag */
+/* Everything in the bag, on one surface. It lays out in COLUMNS rather than as
+   one long list, which is the entire reason it exists — the summary already
+   had a list, and the complaint about it was the scrolling. A normal bag lands
+   as two or three columns of cards with nothing to reach for. */
+.io-modal--wide {
+  width: min(900px, calc(100vw - 32px));
+}
+
+.co-bag {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
+}
+
+.co-bag__line {
+  display: grid;
+  align-items: center;
+  padding: 11px 13px;
+  border-radius: var(--nh-radius-card);
+  gap: 12px;
+  grid-template-columns: 52px minmax(0, 1fr);
+  background: var(--nh-card-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.co-bag__body {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.co-bag__body strong {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.co-bag__body small {
+  color: var(--nh-muted);
+  font-size: 11.5px;
+}
+
+.co-bag__body b {
+  margin-top: 2px;
+  font-size: 12.5px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ----------------------------------------------------------------- 9. trust */

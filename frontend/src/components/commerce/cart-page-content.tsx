@@ -2,23 +2,32 @@
 
 import { ArrowRight, Minus, Plus, ShoppingBag } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
 import { CouponField } from "@/components/commerce/coupon-field";
 import { ProductImage } from "@/components/commerce/product-image";
 import { PageFrame } from "@/components/layout/page-frame";
 import { formatPrice } from "@/features/02-products";
 import { useCart } from "@/features/04-cart/cart-context";
+import { useCheckoutModal } from "@/features/04-cart/checkout-modal-context";
 
 /** The threshold the footer already advertises — quoted, not re-invented. */
 const FREE_DELIVERY_OVER = 4999;
 
 export function CartPageContent() {
-  const router = useRouter();
+  const { openCheckout } = useCheckoutModal();
   const { lines, itemCount, subtotal, coupon, discount, total, setQuantity, removeItem } =
     useCart();
 
   const empty = lines.length === 0;
+
+  /* Carried in the empty state too. Zero pieces at zero is a number the bag can
+     prove, and it is the pair the shopper watches move — withholding it until
+     the first line lands leaves the hero half-built on the screen they are most
+     likely to arrive on, then jumps the layout under them when they add. */
+  const spec = [
+    { label: "Pieces", value: String(itemCount).padStart(2, "0") },
+    { label: "Subtotal", value: formatPrice(subtotal) },
+  ];
 
   return (
     <PageFrame
@@ -28,14 +37,7 @@ export function CartPageContent() {
           ? "Nothing reserved yet. Pieces stay in the bag for this session."
           : "Sizes are held while you check out, not reserved indefinitely."
       }
-      spec={
-        empty
-          ? undefined
-          : [
-              { label: "Pieces", value: String(itemCount).padStart(2, "0") },
-              { label: "Subtotal", value: formatPrice(subtotal) },
-            ]
-      }
+      spec={spec}
       title={
         <>
           Your <em>bag</em>
@@ -165,7 +167,7 @@ export function CartPageContent() {
 
             <button
               className="io-btn io-btn--solid io-btn--wide"
-              onClick={() => router.push("/checkout")}
+              onClick={openCheckout}
               type="button"
             >
               Secure checkout

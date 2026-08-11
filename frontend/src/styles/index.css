@@ -4,6 +4,9 @@
 /* Ships with the root layout because every route group has a loading boundary
    and the indicator has to be styled before the chunk that stalled arrives. */
 @import "./components/route-loading.css";
+/* Same reason: the Toaster is mounted in `AppProviders`, so it is on every
+   route and portals outside every route group's scope. */
+@import "./components/toast.css";
 
 @source "../app/**/*.{ts,tsx}";
 @source "../features/**/*.{ts,tsx}";

@@ -8,6 +8,7 @@ import { SavedImage } from "@/components/commerce/saved-image";
 import { PageFrame } from "@/components/layout/page-frame";
 import { formatPrice } from "@/features/02-products";
 import { useCart } from "@/features/04-cart/cart-context";
+import { useCheckoutModal } from "@/features/04-cart/checkout-modal-context";
 import { resolveSavedItems, type SavedItem } from "@/features/05-wishlist/saved-items";
 import { useWishlist } from "@/features/05-wishlist/wishlist-context";
 
@@ -272,6 +273,8 @@ function SavedRow({ item }: { item: SavedItem }) {
  * no link at all.
  */
 function SavedFoot({ itemCount, subtotal }: { itemCount: number; subtotal: number }) {
+  const { openCheckout } = useCheckoutModal();
+
   return (
     /* The live region is the foot itself, not the tally inside it: a region
        that is inserted at the same moment its text appears is announced by
@@ -296,10 +299,14 @@ function SavedFoot({ itemCount, subtotal }: { itemCount: number; subtotal: numbe
             <Link className="io-btn io-btn--ghost io-btn--sm" href="/cart">
               View bag
             </Link>
-            <Link className="io-btn io-btn--solid io-btn--sm" href="/checkout">
+            <button
+              className="io-btn io-btn--solid io-btn--sm"
+              onClick={openCheckout}
+              type="button"
+            >
               Checkout
               <ArrowRight aria-hidden size={15} />
-            </Link>
+            </button>
           </div>
         </>
       )}

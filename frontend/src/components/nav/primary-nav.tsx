@@ -16,6 +16,7 @@ import {
   type ReactNode,
 } from "react";
 
+import { BrandMark } from "@/components/brand/brand-mark";
 import { useBrandMorph } from "@/components/home-v2/brand-morph";
 import { MEGA_MENU, NAV_LINKS, type NavLink } from "@/components/new-home/data";
 import { EASE_OUT } from "@/components/new-home/motion-primitives";
@@ -417,7 +418,7 @@ export function PrimaryNav({
               onFocus={() => warmRoute(logoHref)}
               onMouseEnter={() => warmRoute(logoHref)}
             >
-              <BrandMark />
+              <BrandMark className="nh-nav__mark" />
               {/* On the site root the hero's headline flies up and lands on this
                   slot, so the bar hands its geometry over. It keeps *drawing*
                   the wordmark until the flight actually lifts, though — at rest
@@ -723,12 +724,3 @@ function NavItem({
   );
 }
 
-/** The faceted mark beside the wordmark — four chips reading as a cut stone. */
-function BrandMark() {
-  return (
-    <svg aria-hidden className="nh-nav__mark" fill="none" viewBox="0 0 24 24">
-      <path d="M12 2 3 9l9 13 9-13-9-7Z" stroke="currentColor" strokeLinejoin="round" strokeWidth="1.4" />
-      <path d="M3 9h18M12 2v20" stroke="currentColor" strokeOpacity="0.5" strokeWidth="1.1" />
-    </svg>
-  );
-}

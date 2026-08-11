@@ -3,12 +3,12 @@
 import * as Dialog from "@radix-ui/react-dialog";
 import { ArrowRight, Minus, Plus, ShoppingBag, X } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
 import { CouponField } from "@/components/commerce/coupon-field";
 import { ProductImage } from "@/components/commerce/product-image";
 import { formatPrice } from "@/features/02-products";
 import { useCart } from "@/features/04-cart/cart-context";
+import { useCheckoutModal } from "@/features/04-cart/checkout-modal-context";
 
 /**
  * The confirmation "add to bag" opens.
@@ -20,7 +20,7 @@ import { useCart } from "@/features/04-cart/cart-context";
  * after adding, and nothing else is.
  */
 export function CartDrawer() {
-  const router = useRouter();
+  const { openCheckout } = useCheckoutModal();
   const { lines, isOpen, itemCount, subtotal, coupon, discount, total, removeItem, setQuantity, setOpen } =
     useCart();
 
@@ -147,8 +147,10 @@ export function CartDrawer() {
                 <button
                   className="io-btn io-btn--solid io-btn--wide"
                   onClick={() => {
+                    /* The drawer goes first. Two stacked surfaces both holding
+                       a scroll lock is one of them getting it wrong on close. */
                     setOpen(false);
-                    router.push("/checkout");
+                    openCheckout();
                   }}
                   type="button"
                 >

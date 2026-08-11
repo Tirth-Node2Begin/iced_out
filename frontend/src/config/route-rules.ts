@@ -14,6 +14,11 @@ export const protectedRouteRules: RouteRule[] = [
      visitor's own browser. The customer boundary starts at checkout, which is
      the first screen with an address, a payment and an order on it. */
   { pattern: /^\/checkout(?:\/|$)/, audience: "customer" },
+  /* The screen a purchase lands on. It carries the delivery address, the
+     contact and the payment reference, so it belongs behind the same wall as
+     the archive — the parcel's own progress is public through /track/<token>,
+     which is a shareable link precisely because it names none of that. */
+  { pattern: /^\/orders(?:\/|$)/, audience: "customer" },
   { pattern: /^\/account(?:\/|$)/, audience: "customer" },
   { pattern: /^\/admin\/payments(?:\/|$)/, audience: "staff", permission: "payments.view" },
   { pattern: /^\/admin\/orders(?:\/|$)/, audience: "staff", permission: "orders.view" },

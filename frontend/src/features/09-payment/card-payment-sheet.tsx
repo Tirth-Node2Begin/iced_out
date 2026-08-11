@@ -101,7 +101,9 @@ export function CardPaymentSheet({
   return (
     <Dialog.Root onOpenChange={close} open={open}>
       <Dialog.Portal>
-        <Dialog.Overlay className="io-modal__overlay" />
+        {/* `--top`, because this opens over the checkout modal — see the layer
+            note in checkout.css §0. */}
+        <Dialog.Overlay className="io-modal__overlay io-modal__overlay--top" />
         <Dialog.Content className="io-modal io-modal--pay">
           <div className="io-modal__head">
             <div>

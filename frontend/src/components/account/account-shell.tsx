@@ -2,21 +2,19 @@
 
 import {
   Bell,
-  Heart,
   LifeBuoy,
   LockKeyhole,
   MapPin,
   MessageSquareText,
   Package,
-  ShieldCheck,
   UserRound,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
+import { BrandMark } from "@/components/brand/brand-mark";
 import { PageFrame } from "@/components/layout/page-frame";
-import { useAddresses } from "@/features/01-users/addresses-context";
 import { useProfile } from "@/features/01-users/profile-context";
 import { useOrders } from "@/features/07-orders/orders-context";
 import { useCart } from "@/features/04-cart/cart-context";
@@ -42,12 +40,26 @@ const ROOT = "/account/profile";
 const LINKS = [
   { href: ROOT, label: "Profile", title: "profile", icon: UserRound },
   { href: "/account/orders", label: "Orders", title: "orders", icon: Package, count: "orders" },
-  { href: "/account/wishlist", label: "Saved", title: "saved pieces", icon: Heart, count: "saved" },
   { href: "/account/addresses", label: "Addresses", title: "addresses", icon: MapPin },
   { href: "/account/feedback", label: "Feedback", title: "feedback", icon: MessageSquareText },
   { href: "/account/notifications", label: "Notifications", title: "notifications", icon: Bell },
   { href: "/account/support", label: "Support", title: "support", icon: LifeBuoy },
   { href: "/account/security", label: "Security", title: "security", icon: LockKeyhole },
+] as const;
+
+/**
+ * The house, as printed in the rail.
+ *
+ * Fixed copy on purpose — none of it is a fact about this session, so none of
+ * it is read from a store. It matches what the rest of the site already says
+ * (the campaign's city, the storefront's market and currency, the support
+ * address on `/contact`), and those are the four places to change if it moves.
+ */
+const HOUSE = [
+  { label: "House", value: "Iced_out" },
+  { label: "Studio", value: "Bengaluru, IN" },
+  { label: "Market", value: "India · INR" },
+  { label: "Care", value: "support@iced-out.example" },
 ] as const;
 
 /** Routes with a headline but no rail entry — a return is opened from an order,
@@ -87,14 +99,10 @@ export function AccountShell({ children }: { children: ReactNode }) {
   const { itemCount } = useCart();
   const { productIds: saved } = useWishlist();
   const { orders } = useOrders();
-  const { profile, initials } = useProfile();
-  const { defaultAddress } = useAddresses();
+  const { profile } = useProfile();
 
-  const counts = { orders: orders.length, saved: saved.length };
+  const counts = { orders: orders.length };
 
-  /* Newest first, so this is the order just placed rather than the oldest
-     fixture that happens to be compiled in. */
-  const latest = orders[0];
   const title =
     LINKS.find((link) => isCurrent(link.href, pathname))?.title ??
     EXTRA_TITLES.find((entry) => isCurrent(entry.href, pathname))?.title ??
@@ -118,43 +126,45 @@ export function AccountShell({ children }: { children: ReactNode }) {
     >
       <div className="io-profile">
         <aside className="io-side">
+          {/* The house, not the shopper.
+              The name and the "Verified customer" line went because the
+              account already says both louder and closer to the point: the
+              frame's headline is addressed to whoever is signed in, and the
+              profile tab is one row down in the menu and owns the record. The
+              rows below are fixed copy — nothing in them is read from a store,
+              so nothing in them can go stale mid-session. */}
           <div className="io-identity">
-            <div className="io-identity__top">
-              {/* Plain <img>: the source is a data URL written this session, so
-                  there is nothing for the image pipeline to optimise. */}
+            {/* Outside the <dl>: a wrapper in there is only valid around a
+                dt/dd pair, and this is a heading for the list, not a row in
+                it. */}
+            <p className="io-identity__brand">
+              <BrandMark className="io-identity__mark" />
+              ICED_OUT
+              {/* The one live thing left in the card, and the reason it reads
+                  as *your* account rather than a plaque: the disc shows the
+                  photo saved on the profile tab the moment one exists. Until
+                  then it is the empty state, not the name in two letters —
+                  initials are the shopper's detail, and this card deliberately
+                  prints none.
+                  Plain <img>: the source is a data URL written this session,
+                  so there is nothing for the image pipeline to optimise. */}
               {profile.photo ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img alt="" className="io-identity__photo" src={profile.photo} />
               ) : (
-                <span aria-hidden className="io-identity__avatar">
-                  {initials}
+                <span aria-hidden className="io-identity__photo io-identity__photo--empty">
+                  <UserRound size={15} strokeWidth={1.6} />
                 </span>
               )}
-              <div>
-                <p className="io-identity__name">{profile.name}</p>
-                <p className="io-identity__state">
-                  <ShieldCheck aria-hidden size={11} strokeWidth={1.8} />
-                  Verified customer
-                </p>
-              </div>
-            </div>
+            </p>
 
-            {/* "Member — since 2026" and "Sessions — this device" were two
-                strings, not two facts: neither was read from anything, and
-                neither answered a question anyone opens the account to ask.
-                These two are read from the stores and are the live ones —
-                where the last order got to, and where the next one lands. The
-                frame above already prints the three counts, so nothing here
-                repeats them. */}
             <dl>
-              <div>
-                <dt>Last order</dt>
-                <dd>{latest ? latest.status : "None yet"}</dd>
-              </div>
-              <div>
-                <dt>Delivers to</dt>
-                <dd>{defaultAddress ? defaultAddress.label : "Not set"}</dd>
-              </div>
+              {HOUSE.map(({ label, value }) => (
+                <div key={label}>
+                  <dt>{label}</dt>
+                  <dd>{value}</dd>
+                </div>
+              ))}
             </dl>
           </div>
 

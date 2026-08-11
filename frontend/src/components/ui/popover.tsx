@@ -20,11 +20,21 @@ function PopoverTrigger({
 function PopoverContent({
   className,
   align = "center",
+  container,
   sideOffset = 4,
   ...props
-}: React.ComponentProps<typeof PopoverPrimitive.Content>) {
+}: React.ComponentProps<typeof PopoverPrimitive.Content> & {
+  /**
+   * Where the portal lands. Defaults to `<body>`, which is right everywhere
+   * except inside a modal dialog: that dialog puts `pointer-events: none` on
+   * the body and re-enables it only within itself, so a popover portalled past
+   * it renders perfectly and cannot be clicked. Pass the dialog's own element
+   * and the popover is inside the layer that is still alive.
+   */
+  container?: HTMLElement | null;
+}) {
   return (
-    <PopoverPrimitive.Portal>
+    <PopoverPrimitive.Portal container={container ?? undefined}>
       <PopoverPrimitive.Content
         data-slot="popover-content"
         align={align}

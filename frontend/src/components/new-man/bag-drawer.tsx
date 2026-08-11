@@ -19,6 +19,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
 import { EASE_OUT } from "@/components/new-home/motion-primitives";
 import { formatPrice } from "@/features/02-products";
 import { useCart } from "@/features/04-cart/cart-context";
+import { useCheckoutModal } from "@/features/04-cart/checkout-modal-context";
 
 /**
  * The bag, as the panel "add to bag" opens on the /new-man routes.
@@ -54,6 +55,7 @@ function BagPanel() {
   const dialog = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const reduce = useReducedMotion();
+  const { openCheckout } = useCheckoutModal();
 
   const {
     lines,
@@ -366,7 +368,14 @@ function BagPanel() {
               <div className="nmb__actions">
                 <button
                   className="nmb__btn nmb__btn--solid"
-                  onClick={() => leaveTo("/checkout")}
+                  onClick={() => {
+                    /* Not `leaveTo` any more — there is no route to leave to.
+                       The panel still closes first, for the same reason it did:
+                       leaving it mounted keeps its scroll lock on a page the
+                       shopper is now looking at through the checkout. */
+                    close();
+                    openCheckout();
+                  }}
                   type="button"
                 >
                   Secure checkout

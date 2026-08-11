@@ -28,10 +28,10 @@ import type { CheckoutDraft } from "@/features/04-cart/checkout-context";
 
 export type Errors = Partial<Record<string, string>>;
 
-export type StepId = "contact" | "address" | "delivery" | "payment";
+export type StepId = "contact" | "address" | "payment";
 
 /** The order the steps are asked in, and the only place that order is written. */
-export const STEP_ORDER: StepId[] = ["contact", "address", "delivery", "payment"];
+export const STEP_ORDER: StepId[] = ["contact", "address", "payment"];
 
 /* Deliberately permissive: it has to accept `x@y.co`, subdomains and a `+tag`,
    and it is not the thing that proves an address is real — the confirmation
@@ -82,8 +82,8 @@ function addressErrors(draft: CheckoutDraft): Errors {
   if (draft.address.trim().length < 6) {
     errors.address = "Include the flat or building and the street.";
   }
-  if (draft.city.trim().length < 2) errors.city = "Which city?";
-  if (draft.state.trim().length < 2) errors.state = "Which state?";
+  if (draft.state.trim().length < 2) errors.state = "Pick the state from the list.";
+  if (draft.city.trim().length < 2) errors.city = "Pick the city from the list.";
 
   const pin = digitsOf(draft.postalCode);
   if (pin.length === 0) {
@@ -106,17 +106,25 @@ function deliveryErrors(draft: CheckoutDraft): Errors {
 }
 
 /**
- * The payment STEP validates a choice, and nothing else.
+ * The last STEP validates two choices, and nothing else.
  *
- * Checkout selects the method; it does not take the money. Card details are
- * keyed on the payment surface that opens when the shopper presses pay, and
- * Razorpay takes its own on its own frame — so there is nothing on this page
- * for the step to check beyond "is one of the three actually picked".
+ * Delivery speed and payment method are asked together — they are the two
+ * questions left once the destination is known, and splitting them across two
+ * screens made a shopper leave a step to answer a question the previous one had
+ * already priced.
+ *
+ * Neither can take money here. Checkout selects the method; card details are
+ * keyed on the payment surface that opens when the shopper presses checkout,
+ * and Razorpay takes its own on its own frame — so there is nothing on this
+ * page to check beyond "is one of each actually picked".
  */
 function paymentErrors(draft: CheckoutDraft): Errors {
-  return PAYMENT_IDS.includes(draft.paymentMethod)
-    ? {}
-    : { paymentMethod: "Choose how this order is paid for." };
+  return {
+    ...deliveryErrors(draft),
+    ...(PAYMENT_IDS.includes(draft.paymentMethod)
+      ? {}
+      : { paymentMethod: "Choose how this order is paid for." }),
+  };
 }
 
 const PAYMENT_IDS: string[] = ["cod", "card", "razorpay"];
@@ -171,8 +179,6 @@ export function validateStep(step: StepId, draft: CheckoutDraft): Errors {
       return contactErrors(draft);
     case "address":
       return addressErrors(draft);
-    case "delivery":
-      return deliveryErrors(draft);
     case "payment":
       return paymentErrors(draft);
   }

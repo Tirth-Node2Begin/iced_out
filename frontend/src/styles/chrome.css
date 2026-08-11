@@ -924,8 +924,29 @@
    the bar points at open the same way: eyebrow, one-line title, a short spec
    row, then the content. */
 .io-page {
+  position: relative;
+  isolation: isolate;
   padding-block: clamp(2.5rem, 6vw, 5rem) clamp(4rem, 9vw, 7rem);
   background: var(--nh-surface);
+  overflow-x: clip;
+}
+
+/* The hero band, sunk below the page rather than lit above it. A headline this
+   size wants a darker floor than the content under it — the drop into black at
+   the top and the recovery to --nh-surface by the time the body starts is what
+   separates the masthead from the page without drawing a rule across it.
+   The faint bloom on top of that black keeps the centre from going dead flat.
+   It starts behind the sticky bar so the bar dissolves into the band. */
+.io-page::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: calc(var(--io-nav-h, 74px) * -1) 0 auto;
+  height: clamp(420px, 54vw, 720px);
+  pointer-events: none;
+  background:
+    radial-gradient(78% 62% at 50% 8%, rgba(255, 255, 255, 0.05), transparent 68%),
+    linear-gradient(to bottom, #050506 0%, rgba(5, 5, 6, 0.86) 46%, transparent 100%);
 }
 
 .io-page__wrap {
@@ -937,9 +958,13 @@
 /* Above the headline, not beside it: it is the way out of this screen, and it
    has to be the first thing read on the way in — before a title that is 4rem
    tall and reads as the top of the page. */
+/* On the centre axis with the masthead it introduces — left-aligned above a
+   centred stack, it reads as a stray control from another layout. */
 .io-page__back {
-  display: inline-flex;
+  display: flex;
+  width: fit-content;
   align-items: center;
+  margin-inline: auto;
   margin-bottom: clamp(1rem, 2vw, 1.5rem);
   padding: 7px 13px 7px 11px;
   border-radius: 999px;
@@ -976,30 +1001,35 @@
   transform: translateX(-2px);
 }
 
+/* Centred masthead. The stack — eyebrow, headline, lede, spec — sits on one
+   axis with air on both sides, and nothing rules it off from the page: the
+   band behind it does that job, so the hero ends by fading rather than by a
+   line drawn under it. */
 .io-page__head {
-  display: grid;
-  align-items: end;
-  padding-bottom: clamp(1.5rem, 3vw, 2.25rem);
-  gap: clamp(1.25rem, 3vw, 3rem);
-  grid-template-columns: minmax(0, 1fr) auto;
-  box-shadow: inset 0 -1px 0 0 var(--nh-hairline);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-block: clamp(1.5rem, 4vw, 3.5rem) clamp(2.5rem, 5vw, 4.5rem);
+  text-align: center;
 }
 
 .io-page__eyebrow {
   display: flex;
   align-items: center;
-  margin: 0 0 14px;
+  justify-content: center;
+  margin: 0 0 clamp(16px, 2vw, 24px);
   color: var(--nh-muted);
   font-size: 10.5px;
   gap: 9px;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.22em;
   text-transform: uppercase;
 }
 
 .io-page__eyebrow::before {
   content: "";
-  width: 5px;
-  height: 5px;
+  width: 4px;
+  height: 4px;
   border-radius: 999px;
   background: currentColor;
 }
@@ -1007,13 +1037,18 @@
 /* The two-cut headline of new_style §3.2 — a heavy condensed first half, a
    light extended second half. It is the house voice; every title uses it. */
 .io-page__title {
+  max-width: 16ch;
   margin: 0;
-  font-size: clamp(2.2rem, 5.2vw, 4.25rem);
+  font-size: clamp(2.6rem, 7vw, 6rem);
   font-weight: 700;
   font-stretch: 100%;
-  letter-spacing: -0.035em;
-  line-height: 0.94;
+  letter-spacing: -0.045em;
+  line-height: 0.88;
   text-transform: uppercase;
+  text-wrap: balance;
+  /* The headline is the one place on the screen that is allowed pure white;
+     everything else reads off --nh-ink. It is what makes the two cuts split. */
+  color: var(--text-emphasis);
 }
 
 .io-page__title em {
@@ -1021,14 +1056,18 @@
   font-weight: 300;
   font-stretch: 112%;
   letter-spacing: -0.015em;
+  color: var(--nh-ink-soft);
 }
 
+/* Held to a short measure on the centre axis — centred text only reads as
+   composed while the ragged edges stay symmetrical, which a 52ch line at this
+   width does not do. */
 .io-page__lede {
-  max-width: 46ch;
-  margin: 16px 0 0;
+  max-width: 44ch;
+  margin: clamp(18px, 2.2vw, 26px) auto 0;
   color: var(--nh-muted);
-  font-size: 14px;
-  line-height: 1.55;
+  font-size: clamp(13.5px, 1vw, 15px);
+  line-height: 1.65;
 }
 
 /* Spec labels, not stats: the same register the hero corners use, so numbers
@@ -1036,13 +1075,23 @@
 .io-page__spec {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px 34px;
-  padding-bottom: 6px;
+  justify-content: center;
+  margin-top: clamp(1.75rem, 3.5vw, 2.75rem);
+  gap: 14px 0;
+  text-align: center;
 }
 
 .io-page__spec div {
   display: grid;
-  gap: 6px;
+  gap: 8px;
+}
+
+/* Ruled apart rather than spaced apart: two numbers 34px from each other read
+   as one run-on figure, and the bag shows exactly that pair. */
+.io-page__spec div + div {
+  margin-left: clamp(1.25rem, 2.6vw, 2.5rem);
+  padding-left: clamp(1.25rem, 2.6vw, 2.5rem);
+  box-shadow: inset 1px 0 0 0 var(--nh-hairline);
 }
 
 .io-page__spec dt {
@@ -1066,80 +1115,123 @@
 }
 
 @media (max-width: 760px) {
-  .io-page__head {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .io-page__spec {
-    gap: 10px 26px;
+  .io-page__spec div + div {
+    margin-left: 1.25rem;
+    padding-left: 1.25rem;
   }
 }
 
 /* ---- 5.1 empty state ---------------------------------------------------- */
-/* Runs the full measure of the page, like every other block on it.
-   The width is spent rather than left blank: the message holds the left, the
-   one action sits out at the right edge, and the two are read as a single
-   line. A capped panel floating in the middle of an empty page reads as a
-   layout that failed to load — but so does a full-width one with four words
-   in its top-left corner, which is why this is two tracks and not one. */
+/* One class, two registers — and until now, two competing declarations of it
+   (§5.1 and §8.10) that overrode each other's alignment, padding and surface.
+   That is what stranded the bag's action out at the right edge while its copy
+   sat centred: the copy was reading `text-align: center` from one block and
+   the action was sitting in a `1fr auto` track from the other.
+   Declared once here, and the register is chosen by what is inside:
+
+     note   — a <strong> and a line of text, sitting inside a section that
+              already has its own heading (no saved addresses, no FAQ match).
+     screen — .io-empty__copy with a glyph, an <h2> and an action: the whole
+              content area of a page that has nothing in it.
+
+   Both compose on one centre axis, because the masthead above them does. */
 .io-empty {
   display: grid;
-  align-items: center;
-  padding: clamp(2.5rem, 5vw, 4rem) clamp(1.75rem, 4vw, 3.5rem);
-  border-radius: var(--nh-radius-lg);
-  gap: clamp(1.5rem, 4vw, 3.5rem);
-  grid-template-columns: minmax(0, 1fr) auto;
-  background: var(--nh-surface-2);
+  justify-items: center;
+  padding: 34px 24px;
+  border-radius: var(--nh-radius-card);
+  gap: 8px;
+  background: var(--nh-card-bg);
+  color: var(--nh-muted);
+  font-size: 12.5px;
+  line-height: 1.6;
+  text-align: center;
+  text-wrap: pretty;
   box-shadow: inset 0 0 0 1px var(--nh-hairline);
 }
 
+/* The note's first line. It carries the state; the text under it says what to
+   do about it, so it is the only thing here at full ink. */
+.io-empty strong {
+  color: var(--nh-ink);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+/* ---- the screen register ------------------------------------------------ */
+/* Keyed off the copy block rather than a modifier class, so the eight screens
+   already shipping this markup pick it up without being edited one by one. */
+.io-empty:has(.io-empty__copy) {
+  align-content: center;
+  min-height: clamp(300px, 42vh, 460px);
+  padding: clamp(3rem, 6vw, 5rem) clamp(1.5rem, 4vw, 3rem);
+  border-radius: var(--nh-radius-lg);
+  gap: clamp(1.75rem, 3.5vw, 2.5rem);
+  background: var(--nh-surface-2);
+  font-size: 14px;
+}
+
+/* The measure is capped and centred inside a panel that stays full-width: a
+   narrow panel floating mid-page reads as a layout that failed to load, and a
+   full-width one with its words strung across 1400px reads as a table row.
+   Cap the words, not the panel. */
 .io-empty__copy {
   display: grid;
-  justify-items: start;
-  gap: 10px;
+  max-width: 46ch;
+  justify-items: center;
+  gap: 12px;
 }
 
 .io-empty__glyph {
   display: grid;
-  width: 46px;
-  height: 46px;
-  margin-bottom: 8px;
+  width: 54px;
+  height: 54px;
+  margin-bottom: clamp(6px, 1vw, 12px);
   border-radius: 999px;
-  color: var(--nh-muted);
+  color: var(--nh-ink-soft);
   place-items: center;
   background: var(--nh-ghost-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
 }
 
 .io-empty h2 {
   margin: 0;
-  font-size: clamp(1.4rem, 2.6vw, 2rem);
+  font-size: clamp(1.35rem, 2.4vw, 1.85rem);
   font-weight: 300;
   font-stretch: 110%;
   letter-spacing: -0.025em;
+  line-height: 1.15;
+  color: var(--nh-ink);
+  text-wrap: balance;
 }
 
 .io-empty p {
-  max-width: 54ch;
+  max-width: 46ch;
   margin: 0;
   color: var(--nh-muted);
   font-size: 14px;
-  line-height: 1.55;
+  line-height: 1.6;
 }
 
-/* Two places the block is not full-width: a phone, and the 430px bag drawer.
-   Both stack, and the action returns to the left edge under the copy. */
-.io-drawer .io-empty {
-  padding: clamp(1.75rem, 5vw, 2.25rem);
-  gap: 14px;
-  grid-template-columns: minmax(0, 1fr);
-  justify-items: start;
+/* The action is the last thing in the stack and the only bright object in it,
+   so it does not need a track of its own to be found. */
+.io-empty .io-btn {
+  margin-top: 4px;
+}
+
+/* The 430px drawer is the one place this runs in a column too narrow for the
+   screen register's floor — it keeps the composition and drops the height. */
+.io-drawer .io-empty:has(.io-empty__copy) {
+  min-height: 0;
+  padding: clamp(2rem, 8vw, 2.75rem) 1.25rem;
+  gap: 1.25rem;
 }
 
 @media (max-width: 760px) {
-  .io-empty {
-    gap: 20px;
-    grid-template-columns: minmax(0, 1fr);
-    justify-items: start;
+  .io-empty:has(.io-empty__copy) {
+    min-height: 0;
+    padding: clamp(2.5rem, 9vw, 3.25rem) 1.25rem;
   }
 }
 
@@ -2257,54 +2349,56 @@
   box-shadow: inset 0 0 0 1px var(--nh-hairline);
 }
 
-.io-identity__top {
-  display: grid;
+/* The mark and the wordmark, sat on the hairline that opens the house block.
+   Negative bottom margin pulls the <dl> up against it: the two are one panel
+   with a rule through it, not a label floating above a card.
+
+   The shopper's name and verified line used to sit above this and are gone —
+   the frame's headline and the profile tab both say it better — so the rules
+   that dressed them (`__top`, `__avatar`, `__name`, `__state`) went with the
+   markup rather than staying as dead selectors. The photo stayed and moved
+   into this row; `margin-left: auto` on it pushes it to the far end. */
+.io-identity__brand {
+  display: flex;
   align-items: center;
-  gap: 13px;
-  grid-template-columns: 48px minmax(0, 1fr);
+  margin: 0 0 -4px;
+  padding: 0 2px 10px;
+  border-bottom: 1px solid var(--nh-hairline);
+  font-size: 12px;
+  font-weight: 500;
+  gap: 9px;
+  letter-spacing: 0.14em;
 }
 
-.io-identity__avatar {
-  display: grid;
-  width: 48px;
-  height: 48px;
-  border-radius: 999px;
-  color: var(--nh-solid-fg);
-  font-size: 14px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  place-items: center;
-  background: var(--nh-solid-bg);
+/* A shade larger than the nav's, because here it leads the card instead of
+   sitting beside a wordmark that is already carrying it. */
+.io-identity__mark {
+  width: 18px;
+  height: 18px;
+  flex: none;
 }
 
-/* Same disc as the initials, once a real face has been uploaded. The ring is an
-   outline rather than a border so it does not add to the 48px the grid
-   column was measured for. */
+/* The disc an uploaded photo lands in. The ring is an outline rather than a
+   border so it does not add to the 30px the row was measured for, and the size
+   is fixed either way — the placeholder holds exactly the space the photo will
+   take, so saving one does not shift the row it sits in. */
 .io-identity__photo {
-  width: 48px;
-  height: 48px;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  margin-left: auto;
   border-radius: 999px;
   outline: 1px solid var(--nh-hairline);
   outline-offset: -1px;
   object-fit: cover;
 }
 
-.io-identity__name {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 500;
-  letter-spacing: -0.015em;
-}
-
-.io-identity__state {
-  display: flex;
-  align-items: center;
-  margin: 5px 0 0;
+/* The empty state — a neutral glyph, not the name in two letters. */
+.io-identity__photo--empty {
+  display: grid;
   color: var(--nh-muted);
-  font-size: 10.5px;
-  gap: 6px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  place-items: center;
+  background: var(--nh-card-bg);
 }
 
 .io-identity dl {
@@ -2334,6 +2428,11 @@
   margin: 0;
   font-size: 12.5px;
   font-variant-numeric: tabular-nums;
+  /* The support address is longer than the rail is wide at the narrow end, and
+     a row is a label opposite a value — so it wraps under itself rather than
+     pushing the label off. */
+  overflow-wrap: anywhere;
+  text-align: right;
 }
 
 .io-side__nav {
@@ -3309,24 +3408,10 @@
   }
 }
 
-.io-empty {
-  display: grid;
-  padding: 34px 20px;
-  border-radius: var(--nh-radius-card);
-  gap: 8px;
-  justify-items: center;
-  background: var(--nh-card-bg);
-  color: var(--nh-muted);
-  font-size: 12.5px;
-  text-align: center;
-  box-shadow: inset 0 0 0 1px var(--nh-hairline);
-}
-
-.io-empty strong {
-  color: var(--nh-ink);
-  font-size: 14px;
-  font-weight: 500;
-}
+/* The second `.io-empty` block that used to live here is gone — it redeclared
+   the same class §5.1 already owns and won on source order, which is what
+   broke the alignment of every page-level empty screen in the app. Both
+   registers are declared together in §5.1 now. */
 
 /* ---- 8.11 disclosure rows (FAQ) ----------------------------------------- */
 .io-faqs {

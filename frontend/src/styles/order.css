@@ -1,0 +1,529 @@
+/* ============================================================================
+   ICED_OUT — the order screen
+
+   Where a purchase lands. Not the archive entry at `/account/orders/<id>`,
+   which is a record being read back months later; this is the ten seconds
+   after pressing pay, so the shape is different: one line saying it worked,
+   then the four statuses at their OPENING values, then the journey drawn as a
+   track with a position on it, and only then the receipt.
+
+   Everything sits flat on the page ground. There is no gradient plate and no
+   second display headline — the page frame states the order once, and every
+   figure below it appears exactly once.
+
+   It speaks the same language as the rest of the storefront — the new_style.md
+   token list resolved through `.io-scope` (§2 colour, §4 shape), every 1px edge
+   an inset box-shadow rather than a border (§5.2), colour on `--nh-ease-soft`
+   and transform on `--nh-ease` (§6.6).
+
+   Layering, page outwards:  page #101113 → section #16181a → inner card #1a1c1e
+
+   Prefix is `op-`, and it is scoped to this route. `co-` (checkout) and `od-`
+   (the archive entry) are separate vocabularies and stay that way.
+   ========================================================================= */
+
+.op {
+  display: grid;
+  gap: clamp(0.75rem, 1.5vw, 1.1rem);
+}
+
+/* ------------------------------------------------------------ 1. the outcome */
+/* A LINE, not a hero. The page frame above already carries the eyebrow, the
+   order number, the date and the three figures, so a second display headline on
+   a gradient plate was those same facts again at twice the size — and a
+   gradient behind them made the one flat page ground look like two.
+   What is left is what the frame cannot say: it worked, and what to do next.
+   Two temperatures, one shape: a failure is not a smaller event than a success
+   and is not demoted to a strip of red text. */
+.op-flag {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: var(--nh-radius-card);
+  gap: 12px;
+  background: var(--nh-surface-2);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.op-flag__mark {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border-radius: 999px;
+  background: var(--nh-solid-bg);
+  color: var(--nh-solid-fg);
+  place-items: center;
+}
+
+.op-flag__text {
+  flex: 1 1 240px;
+  margin: 0;
+  font-size: 13.5px;
+  letter-spacing: -0.01em;
+  line-height: 1.5;
+}
+
+.op-flag[data-state="failed"] {
+  box-shadow: inset 0 0 0 1px rgba(229, 72, 77, 0.32);
+}
+
+.op-flag[data-state="failed"] .op-flag__mark {
+  background: rgba(229, 72, 77, 0.16);
+  color: #f0a9ab;
+  box-shadow: inset 0 0 0 1px rgba(229, 72, 77, 0.42);
+}
+
+.op-flag[data-state="failed"] .op-flag__text {
+  color: #f0a9ab;
+}
+
+.op-flag__alert {
+  flex: 1 1 100%;
+}
+
+/* -------------------------------------------------------- 2. the four states */
+/* The board is the reason this screen exists. Four tiles, always four, each
+   showing where its own system has got to — including "Not assigned", which is
+   an answer. An empty tile would leave a shopper hunting for a tracking number
+   that has not been created. */
+.op-board {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.op-tile {
+  display: grid;
+  align-content: start;
+  padding: 14px 15px 15px;
+  border-radius: var(--nh-radius-card);
+  gap: 9px;
+  background: var(--nh-surface-2);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.op-tile__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.op-tile__glyph {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  border-radius: 8px;
+  background: var(--nh-card-bg);
+  color: var(--nh-muted);
+  place-items: center;
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.op-tile__label {
+  color: var(--nh-muted);
+  font-size: 9.5px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.op-tile__value {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  color: var(--nh-ink);
+  font-size: 15px;
+  font-weight: 500;
+  gap: 8px;
+  letter-spacing: -0.015em;
+}
+
+/* The dot is the state. It is the same 5px mark the badges elsewhere carry, so
+   a status here and a status in the archive table read as the same thing. */
+.op-tile__dot {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 999px;
+  background: var(--nh-muted-2);
+}
+
+.op-tile__note {
+  overflow: hidden;
+  margin: 0;
+  color: var(--nh-muted-2);
+  font-size: 11.5px;
+  line-height: 1.5;
+  text-overflow: ellipsis;
+}
+
+.op-tile[data-tone="ok"] .op-tile__value {
+  color: #79d4a3;
+}
+
+.op-tile[data-tone="ok"] .op-tile__dot {
+  background: #79d4a3;
+  box-shadow: 0 0 0 3px rgba(86, 190, 133, 0.16);
+}
+
+.op-tile[data-tone="live"] .op-tile__value {
+  color: #e6c37c;
+}
+
+.op-tile[data-tone="live"] .op-tile__dot {
+  background: #e6c37c;
+  box-shadow: 0 0 0 3px rgba(226, 178, 84, 0.16);
+}
+
+.op-tile[data-tone="danger"] {
+  box-shadow: inset 0 0 0 1px rgba(229, 72, 77, 0.32);
+}
+
+.op-tile[data-tone="danger"] .op-tile__value {
+  color: #f08c8f;
+}
+
+.op-tile[data-tone="danger"] .op-tile__dot {
+  background: #f08c8f;
+  box-shadow: 0 0 0 3px rgba(229, 72, 77, 0.16);
+}
+
+/* "Not started" and "Not assigned" are true and unremarkable, and they are
+   drawn that way — a grey that does not ask to be read as a problem. */
+.op-tile[data-tone="idle"] .op-tile__value {
+  color: var(--nh-ink-soft);
+  font-weight: 400;
+}
+
+@media (max-width: 900px) {
+  .op-board {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .op-board {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* --------------------------------------------------------------- 3. the rail */
+/* Horizontal, because the journey has a LENGTH and the parcel has a position on
+   it — six rows stacked down the page say "six facts", a track says "you are
+   here, and there is that much left". The connector belongs to the step it
+   leads INTO, so lighting a step lights the segment that arrives at it and
+   never the one leaving it into a step that has not happened. */
+.op-rail {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  gap: 0;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  list-style: none;
+}
+
+.op-rail__step {
+  position: relative;
+  padding: 0 10px;
+  text-align: center;
+}
+
+.op-rail__line {
+  position: absolute;
+  top: 13px;
+  right: 50%;
+  left: -50%;
+  height: 1px;
+  background: var(--nh-hairline);
+}
+
+.op-rail__step:first-child .op-rail__line {
+  display: none;
+}
+
+.op-rail__dot {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: 27px;
+  height: 27px;
+  margin: 0 auto;
+  border-radius: 999px;
+  background: var(--nh-card-bg);
+  color: var(--nh-muted-2);
+  place-items: center;
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  transition: background 0.28s var(--nh-ease-soft), color 0.28s var(--nh-ease-soft);
+}
+
+.op-rail__body {
+  margin: 10px 0 0;
+}
+
+.op-rail__body strong {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.op-rail__body small {
+  display: block;
+  margin-top: 4px;
+  color: var(--nh-muted-2);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+/* ---- the five states ---------------------------------------------------- */
+.op-rail__step[data-state="done"] .op-rail__dot {
+  background: var(--nh-solid-bg);
+  color: var(--nh-solid-fg);
+  box-shadow: none;
+}
+
+.op-rail__step[data-state="done"] .op-rail__line {
+  background: rgba(242, 244, 244, 0.42);
+}
+
+/* Where the order actually is. The ring is the loudest thing on the track and
+   it sits on ONE step, so the eye lands on the answer to "and now?". */
+.op-rail__step[data-state="current"] .op-rail__dot {
+  background: var(--nh-surface-2);
+  color: var(--nh-ink);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.5),
+    0 0 0 4px rgba(242, 244, 244, 0.07);
+}
+
+.op-rail__step[data-state="current"] .op-rail__line {
+  background: rgba(242, 244, 244, 0.42);
+}
+
+/* Cash on delivery: scheduled, not missing. Drawing it like a step that has not
+   happened is how a COD shopper reads their own order as unpaid. */
+.op-rail__step[data-state="due"] .op-rail__dot {
+  background: rgba(226, 178, 84, 0.14);
+  color: #e6c37c;
+  box-shadow: inset 0 0 0 1px rgba(226, 178, 84, 0.42);
+}
+
+.op-rail__step[data-state="due"] .op-rail__line {
+  background: rgba(242, 244, 244, 0.42);
+}
+
+.op-rail__step[data-state="failed"] .op-rail__dot {
+  background: rgba(229, 72, 77, 0.14);
+  color: #f0a9ab;
+  box-shadow: inset 0 0 0 1px rgba(229, 72, 77, 0.42);
+}
+
+.op-rail__step[data-state="failed"] .op-rail__line {
+  background: rgba(229, 72, 77, 0.42);
+}
+
+.op-rail__step[data-state="failed"] .op-rail__body strong {
+  color: #f0a9ab;
+}
+
+.op-rail__step[data-state="waiting"] .op-rail__body strong {
+  color: var(--nh-muted);
+  font-weight: 400;
+}
+
+/* Below this the track cannot hold six legible labels side by side, so it turns
+   the corner and becomes a column — same states, same connectors, read down. */
+@media (max-width: 860px) {
+  .op-rail {
+    grid-auto-columns: auto;
+    grid-auto-flow: row;
+  }
+
+  .op-rail__step {
+    display: grid;
+    padding: 0 0 16px;
+    gap: 12px;
+    grid-template-columns: 27px minmax(0, 1fr);
+    text-align: left;
+  }
+
+  .op-rail__step:last-child {
+    padding-bottom: 0;
+  }
+
+  .op-rail__line {
+    top: -16px;
+    right: auto;
+    bottom: auto;
+    left: 13px;
+    width: 1px;
+    height: 16px;
+  }
+
+  .op-rail__body {
+    margin: 3px 0 0;
+  }
+}
+
+/* ---------------------------------------------------------------- 4. the buy */
+.op-grid {
+  display: grid;
+  align-items: start;
+  gap: 10px;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+}
+
+@media (max-width: 900px) {
+  .op-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.op-lines {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  gap: 0;
+  list-style: none;
+}
+
+.op-lines li {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 12px 0;
+  gap: 16px;
+  box-shadow: inset 0 -1px 0 var(--nh-hairline);
+}
+
+.op-lines li:first-child {
+  padding-top: 0;
+}
+
+.op-lines__body strong {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.op-lines__body small {
+  display: block;
+  margin-top: 4px;
+  color: var(--nh-muted);
+  font-size: 11.5px;
+}
+
+.op-lines__price {
+  flex: none;
+  font-size: 13.5px;
+  letter-spacing: -0.015em;
+  font-variant-numeric: tabular-nums;
+}
+
+.op-totals {
+  display: grid;
+  margin: 14px 0 0;
+  gap: 8px;
+}
+
+.op-totals div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  color: var(--nh-muted);
+  font-size: 12.5px;
+}
+
+.op-totals dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.op-totals__sum {
+  margin-top: 4px;
+  padding-top: 12px;
+  box-shadow: inset 0 1px 0 var(--nh-hairline);
+}
+
+.op-totals__sum dt {
+  color: var(--nh-ink);
+  font-size: 13px;
+}
+
+.op-totals__sum dd {
+  color: var(--nh-ink);
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+}
+
+/* -------------------------------------------------------- 5. where it is going */
+.op-address {
+  margin-bottom: 14px;
+}
+
+.op-meta {
+  display: grid;
+  margin: 0;
+  gap: 10px;
+}
+
+.op-meta div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.op-meta dt {
+  flex: none;
+  color: var(--nh-muted);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.op-meta dd {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  gap: 7px;
+  font-size: 12.5px;
+  text-align: right;
+}
+
+.op-meta dd svg {
+  flex: none;
+  color: var(--nh-muted);
+}
+
+.op-meta__ref {
+  overflow: hidden;
+  font-family: ui-monospace, "SF Mono", "Roboto Mono", monospace;
+  font-size: 11.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------- 6. the doors */
+/* A row of exits on the page ground. It used to be a panel with a paragraph
+   explaining what the four status tiles state outright. */
+.op-doors {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 9px;
+  padding-top: 2px;
+}
+
+/* ------------------------------------------------------- 7. reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .op-rail__dot {
+    transition-duration: 0.01ms;
+  }
+}

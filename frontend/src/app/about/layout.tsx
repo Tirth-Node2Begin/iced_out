@@ -3,8 +3,12 @@ import type { ReactNode } from "react";
 import { Archivo } from "next/font/google";
 
 import "@/styles/new-home.css";
+/* The page opens with the site root's hero + statement panel; their rules are
+   scoped under `.hv2`, so the sheet is inert everywhere else on this route. */
+import "@/styles/home-v2.css";
 import "@/styles/about.css";
 
+import { AosProvider } from "@/components/home-v2/aos-provider";
 import { BrandMorph } from "@/components/home-v2/brand-morph";
 import { SmoothScroll } from "@/components/new-home/smooth-scroll";
 
@@ -28,7 +32,11 @@ export default function AboutLayout({ children }: { children: ReactNode }) {
        with the same provider for the flight to have two ends. */
     <div className={`nh-root nh-about-root ${archivo.variable}`}>
       <BrandMorph>
-        <SmoothScroll>{children}</SmoothScroll>
+        <SmoothScroll>
+          {/* The statement panel's year rails are AOS reveals — without the
+              provider they never leave their hidden start state. */}
+          <AosProvider>{children}</AosProvider>
+        </SmoothScroll>
       </BrandMorph>
     </div>
   );

@@ -3,11 +3,7 @@
 import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
 import { useRef } from "react";
 
-import {
-  AboutBlindsImage,
-  AboutReveal,
-  AboutSplitHeading,
-} from "@/components/about/about-motion";
+import { AboutBlindsImage, AboutReveal } from "@/components/about/about-motion";
 
 export function AboutStory() {
   const sectionRef = useRef<HTMLElement>(null);
@@ -22,25 +18,6 @@ export function AboutStory() {
   return (
     <section className="nh-about-story nh-section" id="manifesto" ref={sectionRef}>
       <div className="nh-wrap">
-        <div className="nh-about-story__head">
-          <AboutReveal>
-            <p className="nh-eyebrow">01 / The position</p>
-          </AboutReveal>
-          <AboutSplitHeading
-            className="nh-about-sectionTitle"
-            segments={[
-              { text: "Not more clothes.\n" },
-              { text: "Better reasons.", light: true },
-            ]}
-          />
-          <AboutReveal className="nh-about-story__lead" delay={0.14}>
-            <p>
-              We make a smaller wardrobe work harder: fewer pieces, deliberate proportions,
-              and materials chosen to collect a life instead of chasing a cycle.
-            </p>
-          </AboutReveal>
-        </div>
-
         <div className="nh-about-story__stage">
           <motion.p
             aria-hidden

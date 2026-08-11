@@ -13,7 +13,6 @@
      glass values, and having them in one place is what keeps the two reading
      as parts of the same object rather than two separately-tuned surfaces. */
   --cat-plate: rgba(20, 23, 25, 0.72);
-  --cat-plate-stuck: rgba(14, 16, 18, 0.88);
   --cat-edge: rgba(255, 255, 255, 0.11);
   --cat-edge-soft: rgba(255, 255, 255, 0.07);
   --cat-fill: rgba(255, 255, 255, 0.055);
@@ -40,29 +39,19 @@
 }
 
 /* ------------------------------------------------------------- filter bar */
-/* Sticks to the top of the viewport for exactly as long as the grid runs.
-   The bar on this surface is sticky too now (see SiteNav), so `top` is the
-   header's own height plus the breathing gap it used to be on its own —
-   without the clearance the plate pins underneath the bar and the controls are
-   covered for the whole length of the grid. `--nh-nav-h` is the same token the
-   bar sets its own height from, so the two cannot drift apart.
+/* The bar sits in normal flow between the section head and the grid, and stays
+   there: no `sticky`, no `fixed`. It scrolls off with the rest of the edit like
+   any other block, which is why there is no `top` offset to keep in step with
+   the header's height and no spacer standing in for it further down.
 
-   The bar retracts on the way down the page, which leaves the gap above the
-   plate empty while it is away. That is the right way round: the controls hold
-   the position they will be in when the bar comes back, rather than jumping a
-   header's height every time the shopper changes direction.
+   `position: relative` is doing one job only — it puts the bar on a stacking
+   context so the sort menu, which hangs out of the bottom edge, paints over the
+   product tiles rather than behind the first row of them.
 
-   It is a frosted plate rather than a solid one: the grid passing under it is
-   what tells you the page is still moving while the controls stay put. */
-.nh-root .nh-filter__sentinel {
-  height: 1px;
-  margin-bottom: -1px;
-  pointer-events: none;
-}
-
+   It is still a frosted plate rather than a solid one: the page showing faintly
+   through is what keeps it reading as one object with the tiles below. */
 .nh-root .nh-filter {
-  position: sticky;
-  top: calc(var(--nh-nav-h, 92px) + 10px);
+  position: relative;
   z-index: 40;
   display: flex;
   flex-wrap: wrap;
@@ -73,8 +62,8 @@
   border-radius: 999px;
   background: var(--cat-plate);
   /* Two shadows doing different jobs: the inset hairline draws the edge, and
-     the drop shadow lifts the plate off the grid running under it. Neither is
-     a border — a border would take a pixel out of the content box and shift
+     the drop shadow lifts the plate off the page behind it. Neither is a
+     border — a border would take a pixel out of the content box and shift
      every control inside by half a step. */
   box-shadow:
     inset 0 0 0 1px var(--cat-edge),
@@ -82,19 +71,6 @@
     0 16px 40px -26px rgba(0, 0, 0, 0.9);
   -webkit-backdrop-filter: blur(20px) saturate(1.3);
   backdrop-filter: blur(20px) saturate(1.3);
-  transition:
-    background-color 0.5s var(--nh-ease-soft),
-    box-shadow 0.5s var(--nh-ease-soft);
-}
-
-/* Pinned. Only the plate changes — never the height, or the space the bar
-   gives up in normal flow would change under the grid and jog the page. */
-.nh-root .nh-filter[data-stuck="true"] {
-  background: var(--cat-plate-stuck);
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.14),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.06),
-    0 24px 60px -28px rgba(0, 0, 0, 1);
 }
 
 .nh-root .nh-filter__group {

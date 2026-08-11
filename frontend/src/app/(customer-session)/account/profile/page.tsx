@@ -5,7 +5,6 @@ import {
   Bell,
   Camera,
   Check,
-  Heart,
   LifeBuoy,
   LockKeyhole,
   MapPin,
@@ -17,6 +16,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import { toast } from "sonner";
 
 import { AddAddressDialog } from "@/components/account/add-address-dialog";
 import { useAddresses } from "@/features/01-users/addresses-context";
@@ -49,7 +49,6 @@ const FIELDS = [
 /** Every other tab in the rail, as one press each. Profile is the page. */
 const QUICK_ACTIONS = [
   { href: "/account/orders", label: "Orders", note: "Track and re-order", icon: Package },
-  { href: "/account/wishlist", label: "Saved", note: "Pieces you kept", icon: Heart },
   { href: "/account/addresses", label: "Addresses", note: "Where orders go", icon: MapPin },
   { href: "/account/feedback", label: "Feedback", note: "Rate what arrived", icon: MessageSquareText },
   { href: "/account/notifications", label: "Notifications", note: "Your inbox", icon: Bell },
@@ -64,7 +63,6 @@ export default function ProfilePage() {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<CustomerProfile>(profile);
   const [photoError, setPhotoError] = useState<string | null>(null);
-  const [confirmed, setConfirmed] = useState(false);
   const [addingAddress, setAddingAddress] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -77,7 +75,6 @@ export default function ProfilePage() {
        left in the draft. */
     setDraft(profile);
     setPhotoError(null);
-    setConfirmed(false);
     setEditing(true);
   }
 
@@ -89,7 +86,6 @@ export default function ProfilePage() {
 
   function set(key: (typeof FIELDS)[number]["key"], value: string) {
     setDraft((current) => ({ ...current, [key]: value }));
-    setConfirmed(false);
   }
 
   async function pickPhoto(event: ChangeEvent<HTMLInputElement>) {
@@ -103,7 +99,6 @@ export default function ProfilePage() {
       const photo = await readPhotoFile(file);
       setDraft((current) => ({ ...current, photo }));
       setPhotoError(null);
-      setConfirmed(false);
     } catch (error) {
       setPhotoError(error instanceof Error ? error.message : "That image could not be read.");
     }
@@ -119,7 +114,12 @@ export default function ProfilePage() {
     });
     setEditing(false);
     setPhotoError(null);
-    setConfirmed(true);
+    /* An id, so a second save replaces the first toast instead of stacking an
+       identical one under it. */
+    toast.success("Profile saved.", {
+      id: "profile-saved",
+      description: "Orders placed from now on carry the updated details.",
+    });
   }
 
   /* No section header on this tab. The frame above already says "Your profile",
@@ -221,16 +221,10 @@ export default function ProfilePage() {
         </section>
       ) : (
         <>
-          {confirmed && (
-            <div className="io-note io-note--ok">
-              <Check aria-hidden size={16} strokeWidth={2} />
-              <p>
-                <strong>Profile saved.</strong>
-                Orders placed from now on carry the updated details.
-              </p>
-            </div>
-          )}
-
+          {/* The "Profile saved" banner used to live here. It pushed the whole
+              page down on save, so the card the eye was already on moved, and
+              it had no way out but editing again. The same sentence is a toast
+              now — see `submit`. */}
           <section className="io-panel io-idcard">
             {profile.photo ? (
               // eslint-disable-next-line @next/next/no-img-element

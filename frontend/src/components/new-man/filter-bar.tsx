@@ -13,14 +13,16 @@ import {
 import { EASE_OUT } from "@/components/new-home/motion-primitives";
 
 /**
- * The filter bar — one horizontal rail that sticks under the top of the
- * viewport for as long as the grid is on screen.
+ * The filter bar — one horizontal rail that sits in normal flow between the
+ * section head and the grid, and stays there.
  *
  * A bar rather than the vertical rail /new-drop uses: this page keeps the
  * full-bleed hero and editorial above it, so a column pinned beside the grid
- * would have nothing to align to. `position: sticky` alone does the pinning;
- * the header's height is the bar's `top` clearance in CSS (see new-man.css),
- * so there is still no scroll listener here to switch off.
+ * would have nothing to align to.
+ *
+ * Deliberately not pinned — neither sticky nor fixed. It scrolls off with the
+ * edit like any other block, so there is nothing here to observe and nothing in
+ * CSS that has to track the header's height.
  *
  * Every control states its own semantics: the categories are a radiogroup, the
  * two availability filters are checkboxes, and sort is a listbox. The active
@@ -55,164 +57,120 @@ export function FilterBar({
 }) {
   const dirty =
     category !== "all" || sort !== "featured" || inStockOnly || newOnly;
-  const [sentinelRef, stuck] = useStuck();
 
   return (
-    <>
-      {/* The sentinel is what tells the bar it has been pinned: it sits in
-          normal flow just above, so the moment it leaves the top of the
-          viewport the bar is stuck. Cheaper and steadier than reading
-          scrollY, and it needs no threshold to guess at. */}
-      <div aria-hidden className="nh-filter__sentinel" ref={sentinelRef} />
-
-      <div
-        aria-label="Filter the men's edit"
-        className="nh-filter"
-        data-stuck={stuck}
-        role="region"
-      >
-        <div className="nh-filter__group nh-filter__group--cats">
-          <span aria-hidden className="nh-filter__icon">
-            <SlidersHorizontal size={12} />
-          </span>
-          <div
-            aria-label="Filter by category"
-            className="nh-filter__chips"
-            role="radiogroup"
-          >
-            {CATEGORIES.map((item) => {
-              const active = category === item.value;
-              return (
-                <button
-                  aria-checked={active}
-                  className="nh-chip"
-                  key={item.value}
-                  onClick={() => onCategory(item.value)}
-                  role="radio"
-                  type="button"
-                >
-                  {active && (
-                    <motion.span
-                      aria-hidden
-                      className="nh-chip__bg"
-                      layoutId="nh-man-category"
-                      transition={{
-                        type: "spring",
-                        stiffness: 420,
-                        damping: 38,
-                        mass: 0.9,
-                      }}
-                    />
-                  )}
-                  <span className="nh-chip__label">{item.label}</span>
-                </button>
-              );
-            })}
-          </div>
+    <div aria-label="Filter the men's edit" className="nh-filter" role="region">
+      <div className="nh-filter__group nh-filter__group--cats">
+        <span aria-hidden className="nh-filter__icon">
+          <SlidersHorizontal size={12} />
+        </span>
+        <div
+          aria-label="Filter by category"
+          className="nh-filter__chips"
+          role="radiogroup"
+        >
+          {CATEGORIES.map((item) => {
+            const active = category === item.value;
+            return (
+              <button
+                aria-checked={active}
+                className="nh-chip"
+                key={item.value}
+                onClick={() => onCategory(item.value)}
+                role="radio"
+                type="button"
+              >
+                {active && (
+                  <motion.span
+                    aria-hidden
+                    className="nh-chip__bg"
+                    layoutId="nh-man-category"
+                    transition={{
+                      type: "spring",
+                      stiffness: 420,
+                      damping: 38,
+                      mass: 0.9,
+                    }}
+                  />
+                )}
+                <span className="nh-chip__label">{item.label}</span>
+              </button>
+            );
+          })}
         </div>
+      </div>
 
-        {/* This rule is the one that turns horizontal when the bar stacks, so
+      {/* This rule is the one that turns horizontal when the bar stacks, so
             the chips keep a row of their own. The controls travel together in
             their own flex row — which is also what lets them wrap on a phone
             without the column-direction parent trying to wrap into columns. */}
-        <span aria-hidden className="nh-filter__rule" />
+      <span aria-hidden className="nh-filter__rule" />
 
-        <div className="nh-filter__controls">
-          <div className="nh-filter__group nh-filter__group--toggles">
-            <CheckChip
-              checked={inStockOnly}
-              label="In stock"
-              onChange={() => onInStockOnly(!inStockOnly)}
-            />
-            <CheckChip
-              checked={newOnly}
-              label="New in"
-              onChange={() => onNewOnly(!newOnly)}
-            />
-          </div>
+      <div className="nh-filter__controls">
+        <div className="nh-filter__group nh-filter__group--toggles">
+          <CheckChip
+            checked={inStockOnly}
+            label="In stock"
+            onChange={() => onInStockOnly(!inStockOnly)}
+          />
+          <CheckChip
+            checked={newOnly}
+            label="New in"
+            onChange={() => onNewOnly(!newOnly)}
+          />
+        </div>
 
-          <span aria-hidden className="nh-filter__rule nh-filter__rule--v" />
+        <span aria-hidden className="nh-filter__rule nh-filter__rule--v" />
 
-          <div className="nh-filter__group">
-            <SortMenu onChange={onSort} value={sort} />
-          </div>
+        <div className="nh-filter__group">
+          <SortMenu onChange={onSort} value={sort} />
+        </div>
 
-          <span aria-hidden className="nh-filter__rule nh-filter__rule--v" />
+        <span aria-hidden className="nh-filter__rule nh-filter__rule--v" />
 
-          <div className="nh-filter__group nh-filter__group--meta">
-            {/* the live count is what tells a shopper a filter did anything at
+        <div className="nh-filter__group nh-filter__group--meta">
+          {/* the live count is what tells a shopper a filter did anything at
                 all; keying it on the number lets the digits swap rather than
                 silently rewrite themselves */}
-            <p aria-live="polite" className="nh-filter__count">
-              <span className="nh-filter__countBox">
-                <AnimatePresence initial={false} mode="popLayout">
-                  <motion.b
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    initial={{ opacity: 0, y: 10 }}
-                    key={shown}
-                    transition={{ duration: 0.28, ease: EASE_OUT }}
-                  >
-                    {String(shown).padStart(2, "0")}
-                  </motion.b>
-                </AnimatePresence>
-              </span>
-              <span className="nh-filter__countTail">
-                / {String(total).padStart(2, "0")} pieces
-              </span>
-            </p>
-
-            <AnimatePresence initial={false}>
-              {dirty && (
-                <motion.button
-                  animate={{ opacity: 1, width: "auto" }}
-                  className="nh-filter__reset"
-                  exit={{ opacity: 0, width: 0 }}
-                  initial={{ opacity: 0, width: 0 }}
-                  onClick={onReset}
-                  transition={{ duration: 0.3, ease: EASE_OUT }}
-                  type="button"
+          <p aria-live="polite" className="nh-filter__count">
+            <span className="nh-filter__countBox">
+              <AnimatePresence initial={false} mode="popLayout">
+                <motion.b
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  initial={{ opacity: 0, y: 10 }}
+                  key={shown}
+                  transition={{ duration: 0.28, ease: EASE_OUT }}
                 >
-                  <RotateCcw aria-hidden size={11} />
-                  Clear
-                </motion.button>
-              )}
-            </AnimatePresence>
-          </div>
+                  {String(shown).padStart(2, "0")}
+                </motion.b>
+              </AnimatePresence>
+            </span>
+            <span className="nh-filter__countTail">
+              / {String(total).padStart(2, "0")} pieces
+            </span>
+          </p>
+
+          <AnimatePresence initial={false}>
+            {dirty && (
+              <motion.button
+                animate={{ opacity: 1, width: "auto" }}
+                className="nh-filter__reset"
+                exit={{ opacity: 0, width: 0 }}
+                initial={{ opacity: 0, width: 0 }}
+                onClick={onReset}
+                transition={{ duration: 0.3, ease: EASE_OUT }}
+                type="button"
+              >
+                <RotateCcw aria-hidden size={11} />
+                Clear
+              </motion.button>
+            )}
+          </AnimatePresence>
         </div>
       </div>
-    </>
+    </div>
   );
-}
-
-/**
- * Reports whether the sticky bar is currently pinned, by watching a sentinel
- * that sits above it in normal flow. The margin matches the bar's own `top`,
- * so the flag flips exactly as the bar lands rather than a few pixels early —
- * which is now the header's height (92px) plus the 10px gap, one past the
- * landing point so the sentinel has cleared it rather than touched it. Keep it
- * in step with `.nh-filter { top }` in new-man.css.
- */
-function useStuck() {
-  const ref = useRef<HTMLDivElement>(null);
-  const [stuck, setStuck] = useState(false);
-
-  useEffect(() => {
-    const node = ref.current;
-    if (!node || typeof IntersectionObserver === "undefined") return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => setStuck(!entry.isIntersecting),
-      { rootMargin: "-103px 0px 0px 0px", threshold: 0 },
-    );
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, []);
-
-  // a tuple, not an object: a returned object carrying a `ref` reads to the
-  // react-hooks lint rule as a ref itself, and every access to its other
-  // fields is then reported as touching a ref during render
-  return [ref, stuck] as const;
 }
 
 /**
@@ -266,7 +224,12 @@ function SortMenu({
       >
         <span className="nh-sort__lead">Sort</span>
         <span className="nh-sort__value">{active.label}</span>
-        <ChevronDown aria-hidden className="nh-sort__caret" data-open={open} size={12} />
+        <ChevronDown
+          aria-hidden
+          className="nh-sort__caret"
+          data-open={open}
+          size={12}
+        />
       </button>
 
       <AnimatePresence>
