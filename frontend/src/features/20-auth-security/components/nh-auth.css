@@ -1,0 +1,762 @@
+/* ---------------------------------------------------------------------------
+   Customer auth — login / register / recovery.
+
+   Two hard constraints shape everything below.
+
+   1. NO SCROLL. The route is a strict single-viewport layout: the root is
+      `height: 100dvh` with `overflow: hidden`. That means vertical rhythm can
+      never be a fixed pixel stack — every block-axis value is a `dvh`-aware
+      clamp so the column *compresses* on a short window instead of pushing
+      content past the fold. Register carries an extra field plus the legal
+      line, so it opts into `.is-dense`, which only re-points the four rhythm
+      tokens; no rule is duplicated for it.
+
+   2. SELF-CONTAINED. `pages.css` is imported by this route group and its
+      `.auth-form input` / `.auth-form label` rules outrank any single-class
+      selector here. Rather than fight that with `!important`, the markup uses
+      an `iox-` namespace those rules cannot reach, and this file owns the
+      whole surface.
+
+   Palette, type cuts and easings are the house system (new_style.md §2–§4):
+   near-monochrome cool dark, Archivo with `wdth` used as a design axis, and
+   the two-material CTA pair — primary *inverts* to a light pill, secondary
+   becomes glass.
+   ------------------------------------------------------------------------- */
+
+.iox-auth {
+  /* surfaces */
+  --ia-surface: #101113;
+  --ia-surface-2: #16181a;
+  --ia-surface-3: #0a0b0c;
+  --ia-surface-lift: #191b1d;
+
+  /* ink */
+  --ia-ink: #f1f3f3;
+  --ia-ink-soft: #d5d9da;
+  --ia-muted: #8f9598;
+  --ia-muted-2: #6e7477;
+
+  /* controls — inverted primary, glass secondary */
+  --ia-solid: #f2f4f4;
+  --ia-solid-fg: #0d0e10;
+  --ia-solid-hover: #ffffff;
+  --ia-ghost: rgba(255, 255, 255, 0.06);
+  --ia-ghost-hover: rgba(255, 255, 255, 0.12);
+  --ia-hairline: rgba(255, 255, 255, 0.13);
+  --ia-hairline-soft: rgba(255, 255, 255, 0.07);
+
+  /* motion */
+  --ia-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --ia-ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
+
+  --ia-font: var(--font-archivo), "Archivo", system-ui, sans-serif;
+
+  /* The rhythm tokens. `.is-dense` re-points these and nothing else.
+     `--ia-frame` is the page's outer inset: the brand row's top margin, the
+     footnote's bottom margin and the media card's padding all read from it,
+     which is what puts the card's top and bottom edges on exactly the same
+     two lines as the column's first and last register. */
+  --ia-measure: 448px;
+  --ia-frame: clamp(16px, 3.4dvh, 34px);
+  --ia-ctl: clamp(44px, 6.2dvh, 54px);
+  --ia-gap: clamp(11px, 2dvh, 18px);
+  --ia-title: clamp(26px, min(4.6dvh, 3.6vw), 42px);
+
+  position: relative;
+  display: flex;
+  height: 100dvh;
+  isolation: isolate;
+  overflow: hidden;
+  background: var(--ia-surface);
+  color: var(--ia-ink);
+  font-family: var(--ia-font);
+  letter-spacing: -0.01em;
+}
+
+.iox-auth *,
+.iox-auth *::before,
+.iox-auth *::after {
+  box-sizing: border-box;
+}
+
+/* Register: three fields + the legal line. Same design, tighter rhythm. */
+.iox-auth.is-dense {
+  --ia-ctl: clamp(42px, 5.6dvh, 52px);
+  --ia-gap: clamp(9px, 1.6dvh, 15px);
+  --ia-title: clamp(24px, min(4dvh, 3.2vw), 38px);
+}
+
+.iox-auth a:focus-visible,
+.iox-auth button:focus-visible {
+  border-radius: 6px;
+  outline: 2px solid rgba(255, 255, 255, 0.62);
+  outline-offset: 3px;
+}
+
+/* ── Form column ─────────────────────────────────────────────────────────── */
+
+.iox-auth__panel {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  padding-inline: clamp(20px, 6vw, 56px);
+}
+
+/* One cool bloom behind the column — the page's only non-flat surface, and
+   the same steel-blue cast the footer uses. */
+.iox-auth__panel::before {
+  position: absolute;
+  z-index: -1;
+  top: -34%;
+  left: 50%;
+  width: min(760px, 150%);
+  aspect-ratio: 1 / 1;
+  background: radial-gradient(
+    circle at center,
+    rgba(68, 100, 116, 0.24),
+    rgba(68, 100, 116, 0) 64%
+  );
+  content: "";
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
+/* The brand row, the body and the footnote all resolve to the same 448px
+   measure, so the three blocks share one left edge and one right edge. */
+.iox-auth__topbar,
+.iox-auth__body,
+.iox-auth__foot {
+  width: min(100%, var(--ia-measure));
+  margin-inline: auto;
+}
+
+.iox-auth__topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: var(--ia-frame);
+}
+
+.iox-auth__brand {
+  color: var(--ia-ink);
+  font-family: var(--ia-font);
+  font-size: clamp(17px, 2.2dvh, 20px);
+  font-stretch: 108%;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.iox-auth__brand span {
+  color: var(--ia-muted);
+}
+
+.iox-auth__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--ia-muted);
+  font-size: 10.5px;
+  letter-spacing: 0.09em;
+  text-decoration: none;
+  text-transform: uppercase;
+  transition: color 300ms var(--ia-ease-soft);
+}
+
+.iox-auth__back:hover { color: var(--ia-ink); }
+
+.iox-auth__back svg { transition: transform 400ms var(--ia-ease); }
+.iox-auth__back:hover svg { transform: translateX(-3px); }
+
+/* `min-height: 0` is what lets this flex child give height back to the
+   clamps instead of forcing the column taller than the viewport. */
+.iox-auth__body {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  padding-block: clamp(14px, 3dvh, 34px);
+}
+
+/* Grid rather than flow: the back link is inline-flex, and `justify-items:
+   start` keeps it shrink-wrapped to its text instead of stretching across the
+   measure — so its hit area is the label, not the whole column. */
+.iox-auth__head {
+  display: grid;
+  gap: clamp(10px, 1.7dvh, 17px);
+  justify-items: start;
+  animation: iox-rise 700ms var(--ia-ease) both;
+}
+
+/* The house two-cut headline: heavy condensed first half, light extended
+   second half (new_style §3.2). `em` carries the second cut. */
+.iox-auth__title {
+  font-size: var(--ia-title);
+  font-stretch: 100%;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 0.96;
+  text-transform: uppercase;
+  text-wrap: balance;
+}
+
+.iox-auth__title em {
+  font-stretch: 112%;
+  font-style: normal;
+  font-weight: 300;
+  letter-spacing: -0.015em;
+}
+
+/* Sits inside the form grid, under the last field, so the grid gap already
+   spaces it — it only needs its own margin in the confirmation branch, where
+   it follows the success panel outside that grid. */
+.iox-auth__aside {
+  color: var(--ia-muted);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.iox-success + .iox-auth__aside {
+  margin-top: clamp(14px, 2.4dvh, 22px);
+}
+
+.iox-auth__aside a {
+  box-shadow: inset 0 -1px var(--ia-hairline);
+  color: var(--ia-ink);
+  text-decoration: none;
+  transition: box-shadow 300ms var(--ia-ease-soft);
+}
+
+.iox-auth__aside a:hover { box-shadow: inset 0 -1px currentcolor; }
+
+.iox-auth__form {
+  display: grid;
+  gap: var(--ia-gap);
+  margin-top: clamp(18px, 3.4dvh, 34px);
+  animation: iox-rise 700ms 90ms var(--ia-ease) both;
+}
+
+/* ── Fields ──────────────────────────────────────────────────────────────── */
+
+.iox-field {
+  display: grid;
+  gap: clamp(6px, 1dvh, 9px);
+}
+
+/* Label left, optional helper link right, both on the same baseline — this is
+   where "Forgot password?" lives, so it costs no extra vertical band. */
+.iox-field__top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.iox-field__top label {
+  color: var(--ia-muted);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.iox-field__aid {
+  color: var(--ia-muted-2);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-decoration: none;
+  text-transform: uppercase;
+  transition: color 300ms var(--ia-ease-soft);
+}
+
+.iox-field__aid:hover { color: var(--ia-ink); }
+
+.iox-field__control {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.iox-field__control > svg {
+  position: absolute;
+  left: 16px;
+  color: var(--ia-muted-2);
+  pointer-events: none;
+  transition: color 300ms var(--ia-ease-soft);
+}
+
+.iox-field__control:focus-within > svg { color: var(--ia-ink); }
+
+.iox-field input {
+  width: 100%;
+  height: var(--ia-ctl);
+  padding: 0 16px 0 44px;
+  border: 0;
+  border-radius: 12px;
+  outline: 0;
+  background: var(--ia-surface-2);
+  box-shadow: inset 0 0 0 1px var(--ia-hairline-soft);
+  color: var(--ia-ink);
+  font-family: var(--ia-font);
+  font-size: 14px;
+  letter-spacing: -0.005em;
+  transition:
+    background 300ms var(--ia-ease-soft),
+    box-shadow 300ms var(--ia-ease-soft);
+}
+
+.iox-field input::placeholder { color: var(--ia-muted-2); }
+
+.iox-field input:hover { box-shadow: inset 0 0 0 1px var(--ia-hairline); }
+
+.iox-field input:focus {
+  background: var(--ia-surface-lift);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.34),
+    0 0 0 3px rgba(255, 255, 255, 0.05);
+}
+
+/* Chrome paints autofilled inputs near-white, which would blow a hole in the
+   dark plate. The inset shadow re-paints the well; nothing else restores it. */
+.iox-field input:-webkit-autofill,
+.iox-field input:-webkit-autofill:hover,
+.iox-field input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--ia-ink);
+  box-shadow:
+    inset 0 0 0 1px var(--ia-hairline),
+    inset 0 0 0 100px var(--ia-surface-2);
+  caret-color: var(--ia-ink);
+}
+
+.iox-field--reveal input { padding-right: 46px; }
+
+.iox-field__reveal {
+  position: absolute;
+  right: 6px;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ia-muted-2);
+  cursor: pointer;
+  place-items: center;
+  transition:
+    background 300ms var(--ia-ease-soft),
+    color 300ms var(--ia-ease-soft);
+}
+
+.iox-field__reveal:hover {
+  background: var(--ia-ghost);
+  color: var(--ia-ink);
+}
+
+/* ── Controls ────────────────────────────────────────────────────────────── */
+
+/* Both CTAs are the same box — full measure, one control height. They differ
+   by material, not by size: the primary inverts, the secondary is glass. */
+.iox-btn {
+  display: inline-flex;
+  width: 100%;
+  height: var(--ia-ctl);
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 0 22px;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: var(--ia-font);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transition:
+    background 350ms var(--ia-ease-soft),
+    color 350ms var(--ia-ease-soft),
+    box-shadow 350ms var(--ia-ease-soft),
+    transform 350ms var(--ia-ease);
+}
+
+.iox-btn--primary {
+  background: var(--ia-solid);
+  color: var(--ia-solid-fg);
+  font-weight: 500;
+}
+
+.iox-btn--primary:hover {
+  background: var(--ia-solid-hover);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.42);
+  transform: translateY(-1px);
+}
+
+.iox-btn--primary svg { transition: transform 400ms var(--ia-ease); }
+.iox-btn--primary:hover svg { transform: translateX(4px); }
+
+.iox-btn--ghost {
+  background: var(--ia-ghost);
+  box-shadow: inset 0 0 0 1px var(--ia-hairline);
+  color: var(--ia-ink);
+}
+
+.iox-btn--ghost:hover {
+  background: var(--ia-ghost-hover);
+  transform: translateY(-1px);
+}
+
+.iox-btn:active { transform: translateY(0); }
+
+.iox-rule {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.iox-rule::before,
+.iox-rule::after {
+  height: 1px;
+  flex: 1;
+  background: var(--ia-hairline-soft);
+  content: "";
+}
+
+.iox-rule span {
+  color: var(--ia-muted-2);
+  font-size: 9.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.iox-legal {
+  color: var(--ia-muted-2);
+  font-size: 11px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.iox-legal a {
+  box-shadow: inset 0 -1px var(--ia-hairline);
+  color: var(--ia-muted);
+  text-decoration: none;
+  transition: color 300ms var(--ia-ease-soft);
+}
+
+.iox-legal a:hover { color: var(--ia-ink); }
+
+.iox-success {
+  display: flex;
+  gap: 14px;
+  margin-top: clamp(18px, 3.4dvh, 34px);
+  padding: 20px;
+  border-radius: 14px;
+  background: var(--ia-surface-2);
+  box-shadow: inset 0 0 0 1px var(--ia-hairline-soft);
+  color: var(--ia-ink-soft);
+  font-size: 13.5px;
+  line-height: 1.55;
+  animation: iox-rise 700ms var(--ia-ease) both;
+}
+
+.iox-success svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: var(--ia-ink);
+}
+
+.iox-auth__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: var(--ia-frame);
+  color: var(--ia-muted-2);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  animation: iox-rise 700ms 180ms var(--ia-ease) both;
+}
+
+.iox-auth__foot > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.iox-auth__foot i {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--ia-muted);
+}
+
+/* ── Media column ────────────────────────────────────────────────────────── */
+
+/* Hidden below 1024 — the form is the page on a phone, and a decorative half
+   would only steal the height the no-scroll rule needs. */
+.iox-auth__media { display: none; }
+
+.iox-media {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: flex-end;
+  overflow: hidden;
+  border-radius: 22px;
+  background: var(--ia-surface-3);
+  box-shadow: inset 0 0 0 1px var(--ia-hairline-soft);
+}
+
+.iox-media img {
+  object-fit: cover;
+  object-position: 50% 40%;
+}
+
+.iox-media__scrim {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(10, 11, 12, 0.46) 0%,
+    rgba(10, 11, 12, 0.14) 32%,
+    rgba(10, 11, 12, 0.74) 76%,
+    rgba(10, 11, 12, 0.94) 100%
+  );
+}
+
+/* Registration frame — the inset hairline plus four corner ticks. Editorial
+   furniture, so it is decorative and never intercepts a pointer. */
+.iox-media__frame {
+  position: absolute;
+  z-index: 2;
+  inset: clamp(14px, 1.8dvh, 22px);
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 14px;
+  pointer-events: none;
+}
+
+.iox-media__frame::before,
+.iox-media__frame::after {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.34);
+  content: "";
+}
+
+.iox-media__frame::before {
+  top: -1px;
+  left: -1px;
+  border-right: 0;
+  border-bottom: 0;
+}
+
+.iox-media__frame::after {
+  right: -1px;
+  bottom: -1px;
+  border-top: 0;
+  border-left: 0;
+}
+
+/* The extended-light cut at display size — the brand voice mark. */
+.iox-media__mark {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  display: grid;
+  color: transparent;
+  font-size: clamp(3rem, 9vw, 8rem);
+  font-stretch: 118%;
+  font-weight: 300;
+  letter-spacing: 0.005em;
+  line-height: 0.82;
+  place-items: center;
+  pointer-events: none;
+  text-align: center;
+  text-transform: uppercase;
+  -webkit-text-stroke: 1px rgba(255, 255, 255, 0.32);
+  animation: iox-mark-in 1200ms var(--ia-ease) both;
+}
+
+.iox-media__caption {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  width: 100%;
+  gap: clamp(8px, 1.4dvh, 14px);
+  padding: clamp(24px, 3.6dvh, 42px);
+  animation: iox-rise 800ms 140ms var(--ia-ease) both;
+}
+
+.iox-media__caption > p:first-child {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: rgba(243, 244, 244, 0.5);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.iox-media__caption > p:first-child::before {
+  width: 22px;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.3);
+  content: "";
+}
+
+.iox-media__caption h2 {
+  font-size: clamp(19px, 2.8dvh, 27px);
+  font-stretch: 100%;
+  font-weight: 700;
+  letter-spacing: -0.032em;
+  line-height: 1.02;
+  text-transform: uppercase;
+}
+
+.iox-media__caption h2 em {
+  font-stretch: 112%;
+  font-style: normal;
+  font-weight: 300;
+  letter-spacing: -0.012em;
+}
+
+.iox-media__caption > p:last-of-type {
+  max-width: 44ch;
+  color: rgba(243, 244, 244, 0.72);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.iox-media__trust {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: clamp(2px, 0.8dvh, 8px);
+}
+
+.iox-media__trust span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 13px;
+  border-radius: 999px;
+  background: rgba(22, 25, 27, 0.66);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(10px);
+  color: rgba(241, 243, 243, 0.86);
+  font-size: 10px;
+  letter-spacing: 0.09em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+/* ── Breakpoints ─────────────────────────────────────────────────────────── */
+
+@media (min-width: 1024px) {
+  /* 448px measure + a 78px gutter each side; the media panel takes the rest. */
+  .iox-auth__panel {
+    width: 604px;
+    flex: 0 0 auto;
+    padding-inline: 78px;
+  }
+
+  .iox-auth__media {
+    display: flex;
+    min-width: 0;
+    flex: 1 1 0;
+    padding: var(--ia-frame);
+  }
+}
+
+@media (min-width: 1400px) {
+  .iox-auth__panel {
+    width: 664px;
+    padding-inline: 108px;
+  }
+}
+
+/* Short windows. The order of sacrifice is deliberate: decorative registers
+   go first, then the rhythm floors drop, and the form itself is never touched.
+   Without the second tier, register (three fields + the legal line) clips at
+   roughly 560px of viewport height once the default clamps bottom out. */
+@media (max-height: 680px) {
+  .iox-auth__head { gap: clamp(6px, 1.1dvh, 11px); }
+}
+
+@media (max-height: 640px) {
+  .iox-auth,
+  .iox-auth.is-dense {
+    --ia-frame: clamp(10px, 2.4dvh, 18px);
+    --ia-ctl: clamp(38px, 7dvh, 46px);
+    --ia-gap: clamp(7px, 1.5dvh, 12px);
+    --ia-title: clamp(21px, min(4.4dvh, 3.2vw), 28px);
+  }
+
+  .iox-auth__body { padding-block: clamp(8px, 1.8dvh, 16px); }
+  .iox-auth__form { margin-top: clamp(12px, 2.6dvh, 22px); }
+  .iox-auth__aside { font-size: 12.5px; }
+  .iox-legal { font-size: 10.5px; }
+  .iox-media__caption > p:last-of-type { display: none; }
+}
+
+@media (max-height: 600px) {
+  .iox-auth__foot { display: none; }
+}
+
+/* The footnote is two registers pinned to the ends of a 448px measure. Once
+   the column is narrower than the pair, `space-between` has nothing left to
+   give and the right-hand register runs under the panel's clip. Below that
+   width it collapses to the one line that carries the meaning. */
+@media (max-width: 520px) {
+  .iox-auth__foot {
+    justify-content: center;
+    font-size: 9px;
+    letter-spacing: 0.06em;
+  }
+
+  .iox-auth__foot > span:first-child { display: none; }
+}
+
+@media (max-width: 360px) {
+  .iox-auth__back span { display: none; }
+}
+
+@keyframes iox-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes iox-mark-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .iox-auth *,
+  .iox-auth *::before,
+  .iox-auth *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

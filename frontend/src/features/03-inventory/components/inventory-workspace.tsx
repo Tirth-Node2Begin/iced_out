@@ -1,0 +1,11 @@
+import { ArrowDownRight, ArrowUpRight, Boxes, CircleAlert, History, Warehouse } from "lucide-react";
+
+const stock = [
+  { sku: "ADH-BLK-L", name: "Afterdark Hoodie · L", onHand: 8, reserved: 6, available: 2, state: "Low" },
+  { sku: "BUO-BON-XS", name: "Bone Overshirt · XS", onHand: 0, reserved: 0, available: 0, state: "Out" },
+  { sku: "CHT-INK-M", name: "Core Heavy Tee · M", onHand: 18, reserved: 3, available: 15, state: "Healthy" },
+];
+
+export function InventoryWorkspace() {
+  return <section className="admin-workspace"><div className="admin-heading admin-heading--actions"><div><p>Inventory / Bengaluru</p><h1>Stock truth</h1><span>On hand, reserved, and available stay distinct. Corrections create immutable movements with reasons.</span></div><button className="admin-primary" type="button">New adjustment</button></div><div className="inventory-kpis"><article><Boxes size={20} /><span>Available units</span><strong>1,248</strong><small><ArrowUpRight size={13} /> 48 received today</small></article><article><History size={20} /><span>Reserved</span><strong>184</strong><small>Linked to open orders</small></article><article><CircleAlert size={20} /><span>Low / out variants</span><strong>17 / 06</strong><small><ArrowDownRight size={13} /> Needs replenishment</small></article><article><Warehouse size={20} /><span>Warehouse scope</span><strong>BLR-01</strong><small>Primary fulfilment centre</small></article></div><div className="inventory-matrix"><header><span>SKU and variant</span><span>On hand</span><span>Reserved</span><span>Available</span><span>Health</span></header>{stock.map((item) => <article key={item.sku}><div><strong>{item.name}</strong><small>{item.sku}</small></div><b>{item.onHand}</b><b>{item.reserved}</b><b>{item.available}</b><div className="inventory-health"><i className={`is-${item.state.toLowerCase()}`} style={{ width: `${Math.min(100, item.available / 15 * 100)}%` }} /><span>{item.state}</span></div></article>)}</div><div className="admin-action-bar"><p>Availability = on hand − active reservations − quarantine. The browser never derives authoritative stock.</p><button className="admin-secondary-action" type="button">Open movement ledger</button></div></section>;
+}

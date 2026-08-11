@@ -1,0 +1,12 @@
+import { AlertTriangle, ArrowRight, Check, Image as ImageIcon, Layers3, Plus, Upload } from "lucide-react";
+import Link from "next/link";
+
+const products = [
+  { id: "afterdark-hoodie", sku: "ADH", name: "Afterdark Hoodie", state: "Published", variants: 5, completeness: 100, issue: "Live in Drop 001" },
+  { id: "signal-puffer", sku: "SGP", name: "Signal Puffer", state: "Blocked", variants: 8, completeness: 72, issue: "Missing alt text and size chart" },
+  { id: "nocturne-cap", sku: "NCP", name: "Nocturne Cap", state: "Scheduled", variants: 3, completeness: 100, issue: "09 Aug · 20:00 IST" },
+];
+
+export function AdminCatalogWorkspace() {
+  return <section className="admin-workspace"><div className="admin-heading admin-heading--actions"><div><p>Catalog / Publishing gate</p><h1>Product studio</h1><span>Draft freely, publish only when every variant, media, price, inventory, shipping, SEO, and size requirement passes.</span></div><div className="admin-heading-actions"><button type="button"><Upload size={15} /> Import</button><button className="admin-primary" type="button"><Plus size={15} /> Create product</button></div></div><div className="admin-catalog-gate"><div><Layers3 size={19} /><span>Eight-step publish gate</span></div>{["Details", "Variants", "Media", "Pricing", "Inventory", "Shipping", "SEO", "Size chart"].map((step, index) => <span key={step}><b>{index + 1}</b>{step}</span>)}</div><div className="admin-section-title"><div><h2>Catalogue records</h2><p>Completeness and the first actionable blocker stay visible.</p></div><span className="admin-freshness">03 preview products</span></div><div className="catalog-records">{products.map((product) => <article key={product.id}><div className="catalog-records__media"><ImageIcon size={21} /><span>{product.sku}</span></div><div><span className={`admin-status ${product.state === "Published" ? "admin-status--captured" : product.state === "Blocked" ? "admin-status--failed" : "admin-status--review"}`}>{product.state}</span><h2>{product.name}</h2><p>{product.variants} variants · {product.issue}</p></div><div className="catalog-completeness"><span>Publish readiness</span><div><i style={{ width: `${product.completeness}%` }} /></div><strong>{product.completeness}%</strong></div>{product.state === "Blocked" ? <AlertTriangle className="catalog-warning" size={18} /> : <Check className="catalog-check" size={18} />}<Link href={`/admin/catalog/products/${product.id}`} aria-label={`Edit ${product.name}`}><ArrowRight size={17} /></Link></article>)}</div></section>;
+}

@@ -1,0 +1,1111 @@
+:root {
+  --font-display: "Syne Variable", "Arial Black", sans-serif;
+  --font-body: "Manrope Variable", Arial, sans-serif;
+  --font-mono: "Roboto Mono", Consolas, monospace;
+  --site-width: 1440px;
+  /* the notched bar, and no announcement strip above it */
+  --header-height: 92px;
+  --announcement-height: 0px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* The document surface.
+ *
+ * This was `var(--bg-page)`, and that token is no longer declared anywhere in
+ * the sheet — so the declaration was invalid and dropped, leaving the document
+ * on the Tailwind base layer's `bg-background`, which resolves to `oklch(1 0 0)`.
+ * Pure white, under a shop whose every surface — the bar, the footer, the
+ * `/new-home` build, the admin shell — is near-black, and under a root layout
+ * that declares `colorScheme: "dark"`.
+ *
+ * It only showed where a page did not paint its own background: behind the
+ * sticky header, in the margins, and as a white flash on every navigation.
+ * These two declarations are unlayered, so they win over `@layer base` without
+ * having to touch the shadcn token block that the admin controls read.
+ */
+html {
+  background: #101113;
+  scroll-behavior: smooth;
+  scrollbar-color: #2a2e31 #101113;
+}
+
+body {
+  min-width: 320px;
+  overflow-x: hidden;
+  background: #101113;
+  color: #f1f3f3;
+  font-family: var(--font-body);
+}
+
+body,
+h1,
+h2,
+h3,
+p,
+figure {
+  margin: 0;
+}
+
+button,
+input {
+  color: inherit;
+  font: inherit;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  border: 0;
+}
+
+::selection {
+  background: var(--accent-brand);
+  color: var(--text-on-accent);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip-link {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 200;
+  transform: translateY(-160%);
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--accent-brand);
+  color: var(--text-on-accent);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+/* `--page-gutter` is declared on `.io-scope` and nowhere else, so on any route
+   that does not open one — the tracking page is the plain example — the whole
+   `width` declaration was invalid and dropped, and the page ran edge to edge
+   with no margin at all. The fallback is the same clamp `.io-scope` sets, so
+   nothing inside a scope changes. */
+.site-container {
+  width: min(
+    100% - (var(--page-gutter, clamp(1rem, 3.2vw, 3.25rem)) * 2),
+    var(--site-width)
+  );
+  margin-inline: auto;
+}
+
+.route-progress {
+  position: fixed;
+  z-index: 120;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 2px;
+  transform-origin: left center;
+  transform: scaleX(0);
+  background: var(--accent-brand);
+  box-shadow: 0 0 18px rgba(206, 189, 99, 0.55);
+}
+
+.route-beacon {
+  position: fixed;
+  z-index: 48;
+  top: 52%;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-muted);
+  font: 8px var(--font-mono);
+  letter-spacing: 0.12em;
+  pointer-events: none;
+  text-transform: uppercase;
+  transform: rotate(90deg) translateX(50%);
+  transform-origin: right center;
+}
+
+.route-beacon i {
+  width: 28px;
+  height: 1px;
+  background: var(--accent-brand);
+}
+
+.route-beacon b {
+  color: var(--accent-brand);
+  font-weight: 400;
+}
+
+.storefront-page section,
+.account-action-grid a,
+.product-card {
+  animation: page-element-in 650ms var(--ease-emphasized) both;
+}
+
+@keyframes page-element-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.section {
+  padding-block: clamp(80px, 9vw, 144px);
+}
+
+.eyebrow {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.4;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.button {
+  display: inline-flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 0 20px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.09em;
+  line-height: 1;
+  text-transform: uppercase;
+  transition:
+    background-color 200ms ease,
+    border-color 200ms ease,
+    color 200ms ease;
+}
+
+.button--primary {
+  background: var(--accent-brand);
+  color: var(--text-on-accent);
+}
+
+.button--primary:hover {
+  background: var(--accent-brand-hover);
+}
+
+.button--glass {
+  border-color: var(--border-hairline);
+  background: var(--surface-glass);
+  backdrop-filter: blur(2rem);
+}
+
+.button--glass:hover {
+  border-color: var(--border-hover);
+  background: var(--surface-glass-hover);
+  color: var(--text-emphasis);
+}
+
+.button--wide {
+  width: 100%;
+}
+
+.icon-button {
+  display: inline-grid;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  place-items: center;
+  border: 1px solid var(--border-hairline);
+  border-radius: 8px;
+  background: var(--surface-glass);
+  cursor: pointer;
+  transition:
+    background-color 200ms ease,
+    border-color 200ms ease,
+    color 200ms ease;
+}
+
+.icon-button:hover {
+  border-color: var(--border-hover);
+  background: var(--surface-glass-hover);
+  color: var(--text-emphasis);
+}
+
+.text-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--border-hairline);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  transition: border-color 200ms ease, color 200ms ease;
+}
+
+.text-link:hover {
+  border-color: var(--accent-brand);
+  color: var(--accent-brand);
+}
+
+.announcement-bar {
+  position: relative;
+  z-index: 70;
+  display: flex;
+  min-height: var(--announcement-height);
+  align-items: center;
+  justify-content: center;
+  padding-inline: var(--page-gutter);
+  background: var(--accent-brand);
+  color: var(--text-on-accent);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.announcement-bar__drop {
+  position: absolute;
+  right: var(--page-gutter);
+}
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  border-bottom: 1px solid var(--border-card);
+  background: rgba(18, 18, 18, 0.9);
+  backdrop-filter: blur(20px);
+}
+
+.site-header__inner {
+  display: grid;
+  min-height: var(--header-height);
+  grid-template-columns: minmax(150px, 1fr) auto minmax(150px, 1fr);
+  align-items: center;
+  gap: 24px;
+}
+
+.wordmark {
+  justify-self: start;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: -0.06em;
+  line-height: 1;
+}
+
+.wordmark span {
+  color: var(--accent-brand);
+}
+
+.desktop-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(22px, 3vw, 48px);
+}
+
+.desktop-nav a {
+  position: relative;
+  padding-block: 10px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  transition: color 200ms ease;
+}
+
+.desktop-nav a::after {
+  position: absolute;
+  right: 0;
+  bottom: 3px;
+  left: 0;
+  height: 1px;
+  background: var(--accent-brand);
+  content: "";
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform 300ms var(--ease-emphasized);
+}
+
+.desktop-nav a:hover {
+  color: var(--text-primary);
+}
+
+.desktop-nav a:hover::after {
+  transform: scaleX(1);
+  transform-origin: left;
+}
+
+.site-header__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.bag-button {
+  display: inline-flex;
+  height: 42px;
+  align-items: center;
+  gap: 9px;
+  padding-inline: 13px 9px;
+  border: 1px solid var(--border-hairline);
+  border-radius: 8px;
+  background: var(--surface-glass);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition:
+    background-color 200ms ease,
+    border-color 200ms ease;
+}
+
+.bag-button:hover {
+  border-color: var(--border-hover);
+  background: var(--surface-glass-hover);
+}
+
+.bag-button__count {
+  display: grid;
+  min-width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 6px;
+  background: var(--accent-brand);
+  color: var(--text-on-accent);
+  font-size: 9px;
+}
+
+.site-header__menu {
+  display: none;
+}
+
+.search-panel {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  left: 0;
+  border-bottom: 1px solid var(--border-hairline);
+  background: var(--bg-surface-raised);
+}
+
+.search-panel__inner {
+  position: relative;
+  display: flex;
+  min-height: 80px;
+  align-items: center;
+  gap: 16px;
+}
+
+.search-panel__suggestions {
+  position: absolute;
+  top: calc(100% - 1px);
+  right: 0;
+  left: 0;
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  border: 1px solid var(--border-hairline);
+  border-radius: 0 0 16px 16px;
+  background: var(--bg-surface-raised);
+  box-shadow: var(--shadow-modal);
+}
+
+.search-panel__suggestions > p {
+  padding: 6px 10px 10px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.search-panel__suggestions > a {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.search-panel__suggestions > a:hover {
+  background: var(--surface-glass-hover);
+}
+
+.search-panel__suggestions span {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.search-panel input {
+  min-width: 0;
+  flex: 1;
+  padding: 10px 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+
+.search-panel input::placeholder {
+  color: var(--text-muted);
+  opacity: 1;
+}
+
+.search-panel button {
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.mobile-nav {
+  display: none;
+  overflow: hidden;
+}
+
+/* ----------------------------------------------------------------- footer */
+/* The one plate the whole shop ends on — <StorefrontShell> hands it to every
+   storefront and account route.
+ *
+ * It resolves through its own token block rather than the sheet's. The bar
+ * above it is the new-home glass rail now, so the footer answers in the same
+ * monochrome register; and the `--ice-black-*` / `--text-*` / `--accent-*`
+ * layer this file used to reference is no longer declared anywhere, which left
+ * the old footer with an invalid background and inherited type. Declaring the
+ * handful it needs locally is the same move `.nh-nav-scope` makes for the
+ * header. The legacy aliases at the end of the block are what the newsletter
+ * form and the wordmark still read through. */
+.site-footer {
+  /* One base colour for every glyph in the block — --ft-ink. The only second
+     tone is --ft-muted on the wordmark's underscore, which is the footer's
+     single dual-colour mark. No glow on type: a blur wider than a 9px glyph
+     smears the mono registers into a haze. */
+  --ft-surface: #0a0b0c;
+  --ft-ink: #f1f3f3;
+  --ft-ink-soft: #d5d9da;
+  --ft-muted: #8f9598;
+  --ft-muted-2: #6e7477;
+  --ft-hairline: rgba(255, 255, 255, 0.11);
+  --ft-hairline-strong: rgba(255, 255, 255, 0.22);
+  --ft-glass: rgba(255, 255, 255, 0.05);
+  --ft-glass-hover: rgba(255, 255, 255, 0.12);
+  --ft-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  /* matches --nh-gutter, so the columns line up under the bar's rail */
+  --ft-gutter: clamp(1rem, 3.2vw, 3.25rem);
+
+  --text-primary: var(--ft-ink);
+  --text-emphasis: #ffffff;
+  --text-muted: var(--ft-muted);
+  --accent-brand: var(--ft-ink);
+  --text-on-accent: #0d0e10;
+  --border-card: var(--ft-hairline);
+  --border-hairline: var(--ft-hairline-strong);
+  --state-danger: #e5484d;
+
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  padding-top: clamp(44px, 5vw, 72px);
+  border-top: 1px solid var(--ft-hairline);
+  background: var(--ft-surface);
+  color: var(--ft-ink);
+}
+
+/* No glow on type. A 12px blur under a 9px glyph is wider than the letter it
+   sits behind, so the mono registers smeared into a haze instead of reading as
+   text. The colour is bright enough now (~4.4:1) to carry itself; the shadow
+   was a crutch for a darker blue and it cost legibility. */
+
+/* `.site-container` sizes itself off --page-gutter, which is part of the
+   retired token layer — without a local width the footer runs edge to edge. */
+.site-footer .site-container {
+  width: min(100%, var(--site-width));
+  padding-inline: var(--ft-gutter);
+}
+
+/* one cool bloom off the top edge — the only colour on an otherwise flat plate */
+.site-footer::before {
+  position: absolute;
+  z-index: -1;
+  top: -58%;
+  left: 50%;
+  width: min(1180px, 130%);
+  aspect-ratio: 2 / 1;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(68, 100, 116, 0.3),
+    rgba(68, 100, 116, 0) 62%
+  );
+  content: "";
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
+.footer-intro {
+  display: grid;
+  align-items: end;
+  gap: clamp(36px, 4.5vw, 72px);
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.82fr);
+  padding-bottom: clamp(32px, 3.6vw, 52px);
+}
+
+.footer-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ft-ink);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.footer-eyebrow::before {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--ft-ink);
+  box-shadow: 0 0 10px rgba(241, 243, 243, 0.5);
+  content: "";
+}
+
+.footer-intro h2 {
+  max-width: 13ch;
+  margin-top: 18px;
+  font-family: var(--font-display);
+  font-size: clamp(38px, 5vw, 76px);
+  font-weight: 500;
+  letter-spacing: -0.055em;
+  line-height: 0.95;
+  text-wrap: balance;
+}
+
+.footer-intro__note {
+  max-width: 44ch;
+  margin-top: 20px;
+  color: var(--ft-ink);
+  font-size: 13.5px;
+  line-height: 1.65;
+}
+
+.footer-intro__action {
+  display: grid;
+  gap: 20px;
+}
+
+.footer-assurances {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 24px;
+  margin: 0;
+  padding: 0;
+  color: var(--ft-ink);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  list-style: none;
+  text-transform: uppercase;
+}
+
+.footer-assurances li {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.footer-assurances svg {
+  color: var(--ft-ink);
+}
+
+/* the shared form is a hairline-underlined field elsewhere; in the footer it
+   reads as one capsule so it sits level with the pills in the bar */
+.site-footer .newsletter-form__field {
+  align-items: center;
+  gap: 0;
+  padding: 6px 6px 6px 20px;
+  border: 1px solid var(--ft-hairline);
+  border-radius: 999px;
+  background: var(--ft-glass);
+  transition:
+    border-color 0.35s var(--ft-ease),
+    background-color 0.35s var(--ft-ease);
+}
+
+.site-footer .newsletter-form__field:focus-within {
+  border-color: var(--ft-hairline-strong);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.site-footer .newsletter-form input {
+  padding: 12px 0;
+  color: var(--ft-ink);
+  font-size: 11.5px;
+  letter-spacing: 0.1em;
+}
+
+.site-footer .newsletter-form input::placeholder {
+  color: var(--ft-ink);
+  opacity: 0.72;
+}
+
+/* the pill keeps its light face — the label on it is the same blue, which is
+   the one place in the block the colour is read positively rather than lit */
+.site-footer .newsletter-form button {
+  height: 40px;
+  padding: 0 20px;
+  border-radius: 999px;
+  background: var(--ft-ink);
+  /* the one place the base colour inverts — a light pill needs a dark label */
+  color: #0d0e10;
+  transition:
+    background-color 0.35s var(--ft-ease),
+    transform 0.35s var(--ft-ease);
+}
+
+.site-footer .newsletter-form button:hover {
+  background: #ffffff;
+  transform: translateX(2px);
+}
+
+.site-footer .newsletter-success {
+  padding: 0 20px;
+  border: 1px solid var(--ft-hairline-strong);
+  border-radius: 999px;
+  color: var(--ft-ink);
+}
+
+.newsletter-form__field {
+  display: flex;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-hairline);
+}
+
+.newsletter-form input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
+.newsletter-form input::placeholder {
+  color: var(--text-muted);
+  opacity: 1;
+}
+
+.newsletter-form button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0 10px 16px;
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.form-error {
+  margin-top: 9px;
+  color: var(--state-danger);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+.newsletter-success {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--accent-brand);
+  color: var(--accent-brand);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* brand block on the left, an even four-up of columns on the right — the
+   columns never share a track with the wordmark, so they stay evenly spaced
+   whatever the wordmark's clamp resolves to */
+.footer-grid {
+  display: grid;
+  gap: clamp(36px, 4.5vw, 72px);
+  grid-template-columns: minmax(250px, 1fr) minmax(0, 2.2fr);
+  padding-block: clamp(30px, 3.2vw, 44px);
+  border-top: 1px solid var(--ft-hairline);
+}
+
+.footer-brand {
+  display: grid;
+  align-content: start;
+  gap: 18px;
+}
+
+/* The wordmark is the footer's one dual-colour mark: white base, theme blue on
+   the underscore. Everything else in the block is the single base colour. */
+.wordmark--footer {
+  font-size: clamp(26px, 2.6vw, 38px);
+  color: var(--ft-ink);
+}
+
+.wordmark--footer span {
+  color: var(--ft-muted);
+}
+
+.footer-brand p {
+  max-width: 36ch;
+  color: var(--ft-ink);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.footer-social {
+  display: flex;
+  gap: 8px;
+}
+
+.footer-social a {
+  display: inline-grid;
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  background: var(--ft-glass);
+  box-shadow: inset 0 0 0 1px var(--ft-hairline);
+  color: var(--ft-ink);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  place-items: center;
+  transition:
+    background-color 0.35s var(--ft-ease),
+    text-shadow 0.35s var(--ft-ease),
+    transform 0.35s var(--ft-ease);
+}
+
+/* hover moves the chip, never the hue — the blue is the blue at every state */
+.footer-social a:hover {
+  background: var(--ft-glass-hover);
+  transform: translateY(-2px);
+}
+
+.footer-nav {
+  display: grid;
+  gap: clamp(24px, 3vw, 44px);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.footer-links h3 {
+  margin: 0 0 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--ft-hairline);
+  color: var(--ft-ink);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.footer-links ul {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.footer-links a {
+  display: inline-block;
+  padding: 5px 0;
+  color: var(--ft-ink);
+  font-size: 13.5px;
+  transition: transform 0.3s var(--ft-ease);
+}
+
+.footer-links a:hover {
+  transform: translateX(3px);
+}
+
+.footer-bottom {
+  display: flex;
+  min-height: 58px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px 32px;
+  border-top: 1px solid var(--ft-hairline);
+  color: var(--ft-ink);
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.footer-legal {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.footer-legal a {
+  color: var(--ft-ink);
+  text-decoration-color: transparent;
+  text-underline-offset: 4px;
+  transition: text-decoration-color 0.3s var(--ft-ease);
+}
+
+.footer-legal a:hover {
+  text-decoration: underline;
+  text-decoration-color: currentColor;
+}
+
+.footer-top {
+  display: inline-flex;
+  height: 34px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px var(--ft-hairline);
+  color: var(--ft-ink);
+  transition: background-color 0.35s var(--ft-ease);
+}
+
+.footer-top:hover {
+  background: var(--ft-glass);
+}
+
+.footer-top svg {
+  transition: transform 0.35s var(--ft-ease);
+}
+
+.footer-top:hover svg {
+  transform: translateY(-2px);
+}
+
+@media (max-width: 991px) {
+  .site-header__inner {
+    grid-template-columns: 1fr auto 1fr;
+  }
+
+  .site-header__menu {
+    display: inline-grid;
+    justify-self: start;
+  }
+
+  .wordmark {
+    justify-self: center;
+  }
+
+  .desktop-nav,
+  .desktop-action {
+    display: none;
+  }
+
+  .mobile-nav {
+    display: block;
+    border-top: 1px solid var(--border-card);
+    background: var(--bg-surface-raised);
+  }
+
+  .mobile-nav .site-container {
+    display: flex;
+    flex-direction: column;
+    padding-block: 16px 26px;
+  }
+
+  .mobile-nav a {
+    display: flex;
+    min-height: 62px;
+    align-items: center;
+    gap: 22px;
+    border-bottom: 1px solid var(--border-card);
+    font-family: var(--font-display);
+    font-size: 22px;
+    letter-spacing: -0.04em;
+  }
+
+  .mobile-nav a span {
+    color: var(--accent-brand);
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 0.08em;
+  }
+
+  /* the headline and the capsule each want the full measure before the
+     columns do — the four-up survives one step longer than this */
+  .footer-intro,
+  .footer-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .footer-intro h2 {
+    max-width: 16ch;
+  }
+}
+
+/* matches the bar's own breakpoint, so sticky offsets track its short state */
+@media (max-width: 860px) {
+  :root {
+    --header-height: 74px;
+  }
+}
+
+@media (max-width: 767px) {
+  .route-beacon { display: none; }
+
+  .announcement-bar {
+    justify-content: center;
+  }
+
+  .announcement-bar__drop {
+    display: none;
+  }
+
+  .bag-button {
+    width: 42px;
+    justify-content: center;
+    padding: 0;
+  }
+
+  .bag-button > span:not(.bag-button__count) {
+    display: none;
+  }
+
+  .bag-button__count {
+    position: absolute;
+    top: 7px;
+    right: 8px;
+    min-width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    font-size: 0;
+  }
+
+  .site-header__actions {
+    position: relative;
+  }
+
+  /* four columns stop being columns and start being a word each — two-up
+     keeps every label on one line */
+  .footer-nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 32px 24px;
+  }
+
+  .footer-bottom {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 18px;
+    padding-block: 26px;
+  }
+}
+
+@media (max-width: 479px) {
+  .button {
+    min-height: 50px;
+    padding-inline: 16px;
+  }
+
+  .footer-intro {
+    gap: 36px;
+  }
+
+  .newsletter-form__field {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+    border: 0;
+  }
+
+  .newsletter-form input {
+    min-height: 52px;
+    padding: 0 14px;
+    border: 1px solid var(--border-hairline);
+    border-radius: 8px;
+  }
+
+  .newsletter-form button {
+    min-height: 50px;
+    justify-content: center;
+    padding: 0 14px;
+    border-radius: 8px;
+    background: var(--accent-brand);
+    color: var(--text-on-accent);
+  }
+
+  /* the capsule needs the same break, and its own selectors outrank the
+     unscoped ones above no matter which comes last */
+  .site-footer .newsletter-form__field {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+
+  .site-footer .newsletter-form input {
+    padding: 0 18px;
+    border: 1px solid var(--ft-hairline);
+    border-radius: 999px;
+    background: var(--ft-glass);
+  }
+
+  .site-footer .newsletter-form button {
+    height: 50px;
+    justify-content: center;
+    padding: 0 18px;
+  }
+
+  .site-footer .newsletter-form button:hover {
+    transform: none;
+  }
+}

@@ -1,0 +1,1904 @@
+/* ============================================================================
+   ICED_OUT — /new-man/[slug] product detail
+
+   Additive over new-home.css (palette, type, pills, sections) and new-man.css
+   (the framing math the gallery reuses), both of which the /new-man layout
+   above this route already loads. Every rule is scoped under `.nh-root` or the
+   page's own `.nmp` root, so nothing here can reach the listing or /new-home.
+
+   LAYOUT RULE FOR THE WHOLE FILE: no element on this page is positioned over
+   another element that carries text. The reference composition reads as
+   overlapping because its subject is a cut-out hanging past its frame; every
+   part of it is reproduced here as a real grid track instead, so a row grows
+   when its contents grow and nothing can land on top of a headline at a width
+   nobody measured. The only things that stack are a photograph's own layers
+   (cross-fade, scrim, corner flag) inside the frame that owns them.
+   ========================================================================= */
+
+/* The bar is sticky on this route (see SiteNav), so it now has to clear the
+   gallery's own chrome. The shot frame deliberately carries no stacking context
+   of its own — see the note above `.nmp-shot` — which leaves its arrows and
+   flags (95) and the flying photograph (90) competing directly with the bar,
+   and at the shared default of 70 they drew straight across it as the frame
+   scrolled underneath. 100 puts the bar over the page and still under every
+   fixed overlay on the route: quick-add 120, the bag 130, the viewer 140. */
+.nh-root .nh-nav-scope {
+  z-index: 100;
+}
+
+.nh-root .nmp {
+  /* one set of glass values for the whole page — the panels, the thumbs and
+     the controls read as parts of the same object because they share these */
+  --nmp-edge: rgba(255, 255, 255, 0.11);
+  --nmp-edge-soft: rgba(255, 255, 255, 0.07);
+  --nmp-fill: rgba(255, 255, 255, 0.055);
+  --nmp-fill-hover: rgba(255, 255, 255, 0.1);
+  --nmp-star: #e5a13a;
+  --nmp-good: #3ecf7e;
+
+  /* The rail's geometry, declared once. This is the WIDE end of the funnel —
+     every thumb behind the first is a fraction of it — so it is set from what
+     the whole taper measures, not from what one thumb can afford: at the old
+     208px the run came to more than the column plus its bleed and the narrow
+     end was cut off by the window, which reads as a rail that has run out of
+     room rather than as a queue receding. */
+  --nmp-thumb: clamp(112px, 12vw, 188px);
+  --nmp-thumb-gap: clamp(0.6rem, 1.1vw, 1rem);
+
+  display: block;
+}
+
+/* ---------------------------------------------------------------- framing */
+/* The photograph inside any frame on this page. The two modes and their
+   custom properties are the listing's — `.nmp-frame` is added to the
+   `.nh-mcard__media` selectors in new-man.css rather than given arithmetic of
+   its own, so a crop is framed identically wherever it appears. */
+.nh-root .nmp-frame {
+  position: absolute;
+  inset: 0;
+  display: block;
+  overflow: hidden;
+}
+
+/* The photograph is never the pointer target — the frame around it is a link, a
+   thumbnail button, or the gallery's drag surface, and all three want the whole
+   box. It also stops the image being text-selected mid-swipe, which is what a
+   drag across a picture otherwise looks like. */
+.nh-root .nmp-frame img {
+  pointer-events: none;
+  -webkit-user-drag: none;
+  user-select: none;
+}
+
+/* ========================================================================== */
+/* 01 · HERO                                                                  */
+/* ========================================================================== */
+
+.nh-root .nmp-hero {
+  position: relative;
+  padding: clamp(0.5rem, 1.6vw, 1.5rem) 0 clamp(3.5rem, 6vw, 6rem);
+}
+
+/* back control · breadcrumb · features */
+.nh-root .nmp-hero__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px clamp(1rem, 2.4vw, 2rem);
+  margin-bottom: clamp(1.5rem, 3vw, 2.75rem);
+}
+
+/* A small, plain control. It says Back and nothing else — where back goes is
+   the trail's job, and a pill wide enough to name a category was reading as
+   the loudest thing on a page whose subject is a photograph. */
+.nh-root .nmp-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 30px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  color: var(--nh-ink-soft);
+  background: var(--nmp-fill);
+  box-shadow: inset 0 0 0 1px var(--nmp-edge-soft);
+  transition:
+    background-color 0.3s var(--nh-ease-soft),
+    color 0.3s var(--nh-ease-soft);
+}
+
+.nh-root .nmp-back:hover {
+  color: var(--nh-ink);
+  background: var(--nmp-fill-hover);
+}
+
+.nh-root .nmp-back svg {
+  flex: none;
+  transition: transform 0.4s var(--nh-ease);
+}
+
+.nh-root .nmp-back:hover svg {
+  transform: translateX(-2px);
+}
+
+/* the trail, for orientation rather than escape — the back control is the exit */
+.nh-root .nmp-trail {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  color: var(--nh-muted-2);
+}
+
+.nh-root .nmp-trail a {
+  flex: none;
+  color: var(--nh-muted);
+  transition: color 0.3s var(--nh-ease-soft);
+}
+
+.nh-root .nmp-trail a:hover {
+  color: var(--nh-ink);
+}
+
+/* The leaf is the only part allowed to give ground. `min-width: 0` is what lets
+   it: a flex item defaults to its min-content width, so without it the name
+   sets the row's width and the ellipsis never arrives. */
+.nh-root .nmp-trail__leaf {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--nh-ink-soft);
+}
+
+/* The crumb is a <button>: what it points at is a panel on this page, not a
+   route, so there is no anchor in it any more. `cursor` is the only thing that
+   had to be said out loud on the way — the base sheet already strips a button's
+   border and hands it the surrounding font and colour. */
+.nh-root .nmp-crumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-left: auto;
+  flex: none;
+  cursor: pointer;
+  font-size: 10.5px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--nh-muted-2);
+  transition: color 0.3s var(--nh-ease-soft);
+}
+
+.nh-root button.nmp-crumb:hover {
+  color: var(--nh-ink);
+}
+
+/* Three tracks: buy · shot · rail. `align-items: stretch` is what lets the buy
+   column push its CTA to the foot of the photograph with `margin-top: auto`
+   instead of being nudged there with a magic number. */
+.nh-root .nmp-hero__stage {
+  display: grid;
+  grid-template-columns:
+    minmax(240px, 0.92fr)
+    minmax(0, 1.3fr)
+    minmax(0, 1.05fr);
+  gap: clamp(1.5rem, 3.2vw, 3.5rem);
+  align-items: stretch;
+}
+
+/* ------------------------------------------------------------ buy column */
+.nh-root .nmp-buy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* Kicker, name and dispatch deadline as one block — everything in the column
+   hangs off the same left edge, so nothing needs a label gutter to line up. */
+.nh-root .nmp-buy__header {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.nh-root .nmp-buy__kicker {
+  margin: 0;
+  color: var(--nh-muted-2);
+}
+
+.nh-root .nmp-buy__title {
+  margin: 0;
+  font-size: clamp(1.9rem, 3vw, 3.2rem);
+  /* the name wraps where the column ends; balance keeps the last line from
+     coming down as a single orphaned word */
+  text-wrap: balance;
+}
+
+/* The dispatch deadline, directly under the name. It is the one piece of copy
+   on the page that expires, so it sits with the decision it applies to rather
+   than in a panel a screen further down. */
+.nh-root .nmp-dispatch {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin: 2px 0 0;
+  padding: 9px 16px;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 1.2;
+  color: var(--nh-muted);
+  background: var(--nh-surface-2);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.nh-root .nmp-dispatch b {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--nh-ink);
+  /* fixed-width digits, or the strip twitches once a second */
+  font-variant-numeric: tabular-nums;
+}
+
+.nh-root .nmp-dispatch__tail {
+  color: var(--nh-muted-2);
+}
+
+/* ------------------------------------------------------------------ sizes */
+.nh-root .nmp-sizes {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: clamp(1.5rem, 2.6vw, 2.25rem);
+}
+
+.nh-root .nmp-sizes__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.nh-root .nmp-label {
+  font-size: 10.5px;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--nh-muted);
+}
+
+/* A button, not a link — it opens a dialog on this page rather than going
+   anywhere. It keeps the underline it had as a link: the affordance the eye is
+   reading here is "there is more about sizing behind this", which is true of
+   both, and a control that changed shape the day it stopped being a route would
+   only make the page look like it had lost something. */
+.nh-root .nmp-guide {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  font: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+  color: var(--nh-muted-2);
+  background: none;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color 0.3s var(--nh-ease-soft);
+}
+
+.nh-root .nmp-guide:hover {
+  color: var(--nh-ink);
+}
+
+/* the rule is on the words, never on the icon */
+.nh-root .nmp-guide svg {
+  text-decoration: none;
+}
+
+.nh-root .nmp-sizes__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* A rounded square, filled when chosen. The box is drawn with an inset shadow
+   rather than a border so selecting a size never changes the button's metrics
+   and the row cannot reflow under the cursor. */
+.nh-root .nmp-size {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 52px;
+  height: 44px;
+  padding: 0 14px;
+  border-radius: 14px;
+  font: inherit;
+  font-size: 13.5px;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  cursor: pointer;
+  color: var(--nh-ink);
+  background: var(--nmp-fill);
+  box-shadow: inset 0 0 0 1px var(--nmp-edge-soft);
+  transition:
+    background-color 0.28s var(--nh-ease-soft),
+    color 0.28s var(--nh-ease-soft),
+    box-shadow 0.28s var(--nh-ease-soft);
+}
+
+.nh-root .nmp-size:hover:not(:disabled) {
+  background: var(--nmp-fill-hover);
+  box-shadow: inset 0 0 0 1px var(--nmp-edge);
+}
+
+.nh-root .nmp-size[aria-checked="true"] {
+  color: var(--nh-solid-fg);
+  background: var(--nh-solid-bg);
+  box-shadow: none;
+}
+
+/* a size that is nearly gone still reads as available, with a marker */
+.nh-root .nmp-size[data-state="low"]::after {
+  content: "";
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--nmp-star);
+}
+
+/* sold-out sizes stay in the run — knowing an L has closed is information */
+.nh-root .nmp-size[data-state="out"] {
+  color: rgba(255, 255, 255, 0.26);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  text-decoration: line-through;
+  cursor: not-allowed;
+}
+
+/* the facts that stand in the reference's empty middle third */
+.nh-root .nmp-buy__facts {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin: clamp(1rem, 2vw, 1.6rem) 0 0;
+  padding: clamp(1rem, 2vw, 1.5rem) 0 0;
+  border-top: 1px solid var(--nh-hairline);
+  list-style: none;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--nh-muted-2);
+}
+
+/* A reserved slot, always in flow. Growing it on the first bad click would
+   slide the CTA down under the cursor that just missed. */
+.nh-root .nmp-buy__status {
+  min-height: 1.4em;
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: transparent;
+}
+
+.nh-root .nmp-buy__status[data-tone="low"] {
+  color: var(--nmp-star);
+}
+
+.nh-root .nmp-buy__status[data-tone="error"] {
+  color: #ff8080;
+}
+
+/* pushed to the foot of the tallest track — the photograph */
+.nh-root .nmp-buy__cta {
+  display: flex;
+  align-items: center;
+  gap: clamp(0.9rem, 1.6vw, 1.4rem);
+  margin-top: auto;
+  padding-top: clamp(1.75rem, 3.4vw, 3rem);
+}
+
+.nh-root .nmp-add {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: clamp(86px, 7vw, 108px);
+  height: clamp(86px, 7vw, 108px);
+  flex: none;
+  cursor: pointer;
+  color: var(--nh-ink);
+  background: transparent;
+}
+
+.nh-root .nmp-add__poly {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: var(--nh-hairline);
+  stroke-width: 1;
+  transition:
+    transform 0.9s var(--nh-ease),
+    stroke 0.35s var(--nh-ease-soft);
+}
+
+.nh-root .nmp-add:hover:not(:disabled) .nmp-add__poly {
+  /* a tenth of a turn — the decagon lands back on itself */
+  transform: rotate(36deg);
+  stroke: var(--nh-ink);
+}
+
+.nh-root .nmp-add__glyph {
+  position: relative;
+  display: grid;
+  place-items: center;
+  transition: transform 0.4s var(--nh-ease);
+}
+
+.nh-root .nmp-add:hover:not(:disabled) .nmp-add__glyph {
+  transform: translate(2px, -2px);
+}
+
+.nh-root .nmp-add[data-done] .nmp-add__poly {
+  stroke: var(--nmp-good);
+}
+
+.nh-root .nmp-add[data-done] .nmp-add__glyph {
+  color: var(--nmp-good);
+}
+
+.nh-root .nmp-add:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.nh-root .nmp-buy__lockup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.nh-root .nmp-buy__label {
+  font-size: 11px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--nh-muted);
+}
+
+.nh-root .nmp-buy__price {
+  font-size: clamp(1.45rem, 2.2vw, 2.05rem);
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: -0.025em;
+  color: var(--nh-ink);
+}
+
+.nh-root .nmp-buy__mrp {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  font-size: 11.5px;
+  color: var(--nh-muted-2);
+}
+
+.nh-root .nmp-buy__mrp b {
+  font-weight: 500;
+  color: var(--nmp-good);
+}
+
+.nh-root .nmp-buy__done {
+  overflow: hidden;
+}
+
+.nh-root .nmp-buy__bag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 14px;
+  font-size: 11.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--nh-muted);
+  transition: color 0.3s var(--nh-ease-soft);
+}
+
+.nh-root .nmp-buy__bag:hover {
+  color: var(--nh-ink);
+}
+
+/* ------------------------------------------------------------------- shot */
+.nh-root .nmp-hero__shot {
+  min-width: 0;
+}
+
+/* The frame and its chrome. This box exists so that the flag and the arrows can
+   sit OUTSIDE the frame while still being positioned against it: the frame
+   isolates its own stack, and anything sealed in there is painted as part of
+   one flat layer that a photograph flying across the page at z-index 90 goes
+   straight over — which is what made the arrows blink out every time the
+   gallery advanced.
+
+   It carries `position` and nothing else. A `z-index` or an `isolation` here
+   would rebuild the same wall one level further out, and then the flight would
+   be the thing that disappeared, behind an opaque frame. */
+.nh-root .nmp-shot__wrap {
+  position: relative;
+}
+
+.nh-root .nmp-shot {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 3 / 3.4;
+  border-radius: var(--nh-radius-lg);
+  background: var(--nh-card-bg);
+  box-shadow: inset 0 0 0 1px var(--nmp-edge-soft);
+  isolation: isolate;
+}
+
+/* The surface the pointer grabs. It fills the frame and carries the drag, so
+   the whole photograph is the handle rather than some inner strip of it. */
+.nh-root .nmp-shot__drag {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  cursor: grab;
+  /* the browser keeps vertical scrolling; only the horizontal axis is ours */
+  touch-action: pan-y;
+}
+
+.nh-root .nmp-shot__drag:active {
+  cursor: grabbing;
+}
+
+/* the outgoing and incoming views share this one box, so the slide never
+   changes the frame's size and the columns beside it never move */
+.nh-root .nmp-shot__layer {
+  position: absolute;
+  inset: 0;
+}
+
+/* Two scrims: one under the corner flag, one under the arrows, so neither
+   depends on the garment behind it being dark. */
+.nh-root .nmp-shot::before,
+.nh-root .nmp-shot::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  height: 24%;
+  pointer-events: none;
+}
+
+.nh-root .nmp-shot::before {
+  top: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(6, 7, 8, 0.36) 0%,
+    rgba(6, 7, 8, 0) 100%
+  );
+}
+
+.nh-root .nmp-shot::after {
+  bottom: 0;
+  background: linear-gradient(
+    0deg,
+    rgba(6, 7, 8, 0.46) 0%,
+    rgba(6, 7, 8, 0) 100%
+  );
+}
+
+/* The arrows sit over the photograph and its scrim — the one kind of stacking
+   this page allows, because the control belongs to the image it drives and
+   nothing underneath it is text.
+
+   Over the FLIGHT as well, at 95: they are the frame's controls and they are
+   still the frame's controls while a photograph is landing in it. Below the
+   full-screen viewer at 140, which is a different question — there the arrows
+   are behind a dialog and have no business being reachable. */
+.nh-root .nmp-shot__nav {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  z-index: 95;
+  display: flex;
+  gap: 8px;
+}
+
+.nh-root .nmp-round--onShot {
+  background: rgba(18, 20, 22, 0.72);
+  box-shadow: inset 0 0 0 1px var(--nmp-edge);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+
+.nh-root .nmp-round--onShot:hover {
+  background: rgba(44, 48, 51, 0.94);
+}
+
+.nh-root .nmp-shot__hint {
+  margin: 10px 0 0;
+  font-size: 10.5px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--nh-muted-2);
+  text-align: center;
+}
+
+/* the frame's other piece of chrome, and above the flight for the same reason
+   the arrows are — it labels the frame, not whichever photograph is in it */
+.nh-root .nmp-shot__flags {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 95;
+  display: flex;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.nh-root .nmp-flag {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 11px;
+  border-radius: 999px;
+  font-size: 10px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--nh-ink);
+  background: rgba(18, 20, 22, 0.7);
+  box-shadow: inset 0 0 0 1px var(--nmp-edge);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+
+.nh-root .nmp-flag--sold {
+  color: var(--nh-solid-fg);
+  background: var(--nh-solid-bg);
+  box-shadow: none;
+}
+
+/* ------------------------------------------------------------------- rail */
+.nh-root .nmp-hero__rail {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: clamp(0.9rem, 1.8vw, 1.4rem);
+  min-width: 0;
+}
+
+/* one small line of type, so the funnel is read as a queue and not as a set of
+   thumbnails that has mysteriously lost the picture on screen */
+.nh-root .nmp-rail__lede {
+  margin: 0;
+  color: var(--nh-muted-2);
+}
+
+/* The rail is the ONE element allowed past the gutter: the reference lets the
+   last thumb run off the page edge. It does that inside its own clipped box,
+   never by widening the page — `.nh-root` clips overflow-x, so a track that
+   escaped here would simply vanish with no scrollbar to explain it. */
+.nh-root .nmp-rail__viewport {
+  overflow: hidden;
+  margin-right: calc(var(--nh-gutter) * -1);
+}
+
+/* The funnel. `center` is what makes it one rather than a staircase: the thumbs
+   taper about a single axis, wide end at the frame, exactly as the reference
+   does. The order is the queue's own — the next shot is the big end. */
+.nh-root .nmp-rail__track {
+  display: flex;
+  align-items: center;
+  gap: var(--nmp-thumb-gap);
+  /* A thumb leaving the queue is frozen out of the flow at `position: absolute`
+     with the offsets it had a moment ago, so the rest can close up without
+     waiting for it to fade. Those offsets are read against its offset parent,
+     which is whatever is positioned above it — make that THIS box, so they
+     stay small and local and cannot be thrown off by a change in the layout of
+     some ancestor several levels up. No `z-index` with it: that would make a
+     stacking context, and the queue would lose its place against the flight. */
+  position: relative;
+}
+
+.nh-root .nmp-thumb {
+  position: relative;
+  flex: none;
+  width: var(--nmp-thumb);
+  aspect-ratio: 1 / 1.04;
+  overflow: hidden;
+  border-radius: var(--nh-radius-card);
+  background: var(--nh-card-bg);
+  box-shadow: inset 0 0 0 1px var(--nmp-edge-soft);
+  cursor: pointer;
+  transition: box-shadow 0.35s var(--nh-ease-soft);
+}
+
+/* The taper: each step is 0.76 of the thumb in front of it, and every figure
+   below is that ratio to the power of its position. Written out rather than
+   computed, because these are what Motion measures — the queue's motion is a
+   `layout` animation over these boxes, so each position needs a width it can
+   read before and after, not one derived from a property that is changing at
+   the same moment. Five steps covers any gallery this catalogue ships; a sixth
+   thumb holds the fifth's size, which at a third is already past the point
+   where one more step reads as anything. */
+.nh-root .nmp-thumb[data-pos="1"] {
+  width: calc(var(--nmp-thumb) * 0.76);
+}
+
+.nh-root .nmp-thumb[data-pos="2"] {
+  width: calc(var(--nmp-thumb) * 0.578);
+}
+
+.nh-root .nmp-thumb[data-pos="3"] {
+  width: calc(var(--nmp-thumb) * 0.439);
+}
+
+.nh-root .nmp-thumb[data-pos="4"] {
+  width: calc(var(--nmp-thumb) * 0.334);
+}
+
+/* the shot that arrives next: full size, and the only one ringed in ink */
+.nh-root .nmp-thumb[data-pos="0"] {
+  box-shadow: inset 0 0 0 1px var(--nh-ink);
+}
+
+/* Opacity is Motion's here, not the stylesheet's — it is written inline on
+   every thumb as part of the same animation that carries it up the queue, so a
+   rule for it could only fight it. Hover is handled there too (`whileHover`). */
+
+/* --------------------------------------------------------------- the flight */
+/* The thumbnail crossing the page into the frame. It is drawn at the page root
+   — a portal, outside the hero — so that neither the rail's viewport nor the
+   frame can clip it on the way. It is still INSIDE `.nh-root`, which is what
+   keeps `.nmp-frame` framing the photograph exactly as it was framed at both
+   ends of the journey.
+
+   `absolute`, not `fixed`: the component places it in page coordinates, so
+   scrolling during the flight carries it along with the frame it is aiming at
+   rather than leaving it behind in a viewport the destination has left.
+
+   Position, size and corner radius are Motion's, written inline. Nothing here
+   sets any of them. */
+.nh-root .nmp-fly {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 90; /* over the page, under the full-screen viewer at 140 */
+  overflow: hidden;
+  background: var(--nh-card-bg);
+  box-shadow:
+    inset 0 0 0 1px var(--nmp-edge),
+    0 24px 60px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+
+  /* It really does animate its WIDTH and HEIGHT, not a scale. The two ends of
+     the journey are different shapes — a thumbnail is 1:1.04, the frame 3:3.4 —
+     and no single scale maps one onto the other; scaling each axis to fit would
+     stretch the photograph on the way. Animating the box instead leaves the
+     picture alone and lets `object-fit: cover` re-crop it continuously, which
+     is the same thing that happens when the window is resized.
+
+     That costs a layout per frame, so the cost is fenced in: `contain` promises
+     the browser that nothing inside this element can affect the size or
+     painting of anything outside it, which is trivially true of a copy floating
+     over the page, and `will-change` names only the property a compositor can
+     actually take off the main thread. Naming width and height there too, as
+     this once did, asks for a layer to be prepared for work no layer can do. */
+  contain: layout paint;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* the flight never launches under this preference; the rule is here so that a
+     stray one could not be drawn either */
+  .nh-root .nmp-fly {
+    display: none;
+  }
+}
+
+.nh-root .nmp-rail__count {
+  display: flex;
+  align-items: center;
+  gap: clamp(0.7rem, 1.3vw, 1.1rem);
+  font-size: 11.5px;
+  letter-spacing: 0.06em;
+  color: var(--nh-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.nh-root .nmp-rail__bar {
+  position: relative;
+  flex: none;
+  width: clamp(58px, 7vw, 108px);
+  height: 1px;
+  background: var(--nh-hairline);
+}
+
+.nh-root .nmp-rail__fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  background: var(--nh-ink);
+  transition: width 0.5s var(--nh-ease);
+}
+
+/* ========================================================================== */
+/* 02 · DESCRIPTION & SHIPPING                                                */
+/* ========================================================================== */
+
+.nh-root .nmp-panels {
+  padding-top: 0;
+  padding-bottom: clamp(3rem, 6vw, 6.5rem);
+}
+
+/* `start`, not `stretch`. The two cards already agree on a height — the
+   component measures both and hands them one figure (see product-panels.tsx) —
+   so stretching would add nothing, and it would work against the one case that
+   is meant to differ: a card whose "see more" is open and is deliberately
+   taller than its neighbour for as long as it stays open. */
+.nh-root .nmp-panels__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.12fr) minmax(0, 1fr);
+  gap: clamp(1rem, 1.8vw, 1.5rem);
+  align-items: start;
+}
+
+.nh-root .nmp-panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: var(--nh-radius-lg);
+  background: var(--nh-surface-2);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+/* a heading, not a control: these panels do not open or close */
+.nh-root .nmp-panel__head {
+  margin: 0;
+  padding: clamp(1rem, 1.6vw, 1.3rem) clamp(1.1rem, 1.8vw, 1.5rem);
+  font-size: 14.5px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--nh-ink);
+  border-bottom: 1px solid var(--nh-hairline);
+}
+
+/* The clipped window. Its height is set inline from the figure the pair agreed
+   on; the transition only ever runs between two pixel values, because the very
+   first application comes out of `auto` and CSS cannot interpolate that — which
+   is what makes the cards line up on arrival instead of sliding into place. */
+.nh-root .nmp-panel__reveal {
+  position: relative;
+  overflow: hidden;
+  transition: height 0.48s var(--nh-ease);
+}
+
+/* the crop reads as "there is more" rather than as a sentence that stops */
+.nh-root .nmp-panel__reveal[data-fade="true"]::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 68px;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(22, 24, 26, 0) 0%,
+    var(--nh-surface-2) 100%
+  );
+}
+
+.nh-root .nmp-panel__body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: clamp(1.1rem, 1.8vw, 1.5rem);
+}
+
+/* Always present, with or without a control in it: the foot is part of what
+   makes the two cards the same height, and a slot that appeared only on the
+   card that needed it would put the pair back out of step by its own height. */
+.nh-root .nmp-panel__foot {
+  display: flex;
+  align-items: center;
+  height: 52px;
+  flex: none;
+  padding: 0 clamp(1.1rem, 1.8vw, 1.5rem);
+}
+
+.nh-root .nmp-panel__more {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 11.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  color: var(--nh-ink);
+  background: var(--nmp-fill);
+  box-shadow: inset 0 0 0 1px var(--nmp-edge-soft);
+  transition:
+    background-color 0.3s var(--nh-ease-soft),
+    box-shadow 0.3s var(--nh-ease-soft);
+}
+
+.nh-root .nmp-panel__more:hover {
+  background: var(--nmp-fill-hover);
+  box-shadow: inset 0 0 0 1px var(--nmp-edge);
+}
+
+.nh-root .nmp-panel__moreIcon {
+  transition: transform 0.42s var(--nh-ease);
+}
+
+.nh-root .nmp-panel__moreIcon[data-open="true"] {
+  transform: rotate(180deg);
+}
+
+.nh-root .nmp-panel__body .nh-body {
+  margin: 0;
+  max-width: 62ch;
+}
+
+.nh-root .nmp-panel__lead {
+  color: var(--nh-ink-soft);
+}
+
+.nh-root .nmp-specs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px clamp(1rem, 2vw, 2rem);
+  margin: 6px 0 0;
+  padding: clamp(0.9rem, 1.6vw, 1.25rem) 0 0;
+  border-top: 1px solid var(--nh-hairline);
+}
+
+.nh-root .nmp-spec2 dt {
+  margin-bottom: 3px;
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--nh-muted-2);
+}
+
+.nh-root .nmp-spec2 dd {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--nh-ink-soft);
+}
+
+.nh-root .nmp-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(0.9rem, 1.6vw, 1.35rem);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nh-root .nmp-fact {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.nh-root .nmp-fact__icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border-radius: 12px;
+  color: var(--nh-ink);
+  background: var(--nmp-fill);
+  box-shadow: inset 0 0 0 1px var(--nmp-edge-soft);
+}
+
+.nh-root .nmp-fact__text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.nh-root .nmp-fact__label {
+  font-size: 10px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--nh-muted-2);
+}
+
+.nh-root .nmp-fact__value {
+  font-size: 12.5px;
+  line-height: 1.3;
+  color: var(--nh-ink);
+}
+
+.nh-root .nmp-panel__notes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin: 6px 0 0;
+  padding: clamp(0.9rem, 1.6vw, 1.25rem) 0 0;
+  border-top: 1px solid var(--nh-hairline);
+  list-style: none;
+  font-size: 11.5px;
+  color: var(--nh-muted-2);
+}
+
+/* ========================================================================== */
+/* 03 · RATING & REVIEWS                                                      */
+/* ========================================================================== */
+
+.nh-root .nmp-rev {
+  padding-top: clamp(2.5rem, 5vw, 5rem);
+  padding-bottom: clamp(3rem, 6vw, 6.5rem);
+}
+
+.nh-root .nmp-rev__title {
+  margin: 0 0 clamp(1.5rem, 3vw, 2.75rem);
+  font-size: clamp(1.35rem, 2.4vw, 2.1rem);
+  font-weight: 500;
+  letter-spacing: -0.025em;
+}
+
+.nh-root .nmp-rev__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: clamp(1.75rem, 3.4vw, 3.5rem);
+  align-items: center;
+}
+
+.nh-root .nmp-rev__score {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.nh-root .nmp-score {
+  display: flex;
+  align-items: center;
+  gap: clamp(1.1rem, 2.4vw, 2.25rem);
+  min-width: 0;
+}
+
+.nh-root .nmp-score__figure {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: none;
+}
+
+.nh-root .nmp-score__value {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin: 0;
+  font-size: clamp(3.2rem, 6.6vw, 6rem);
+  font-weight: 700;
+  line-height: 0.86;
+  letter-spacing: -0.05em;
+  color: var(--nh-ink);
+}
+
+.nh-root .nmp-score__out {
+  font-size: clamp(0.95rem, 1.4vw, 1.35rem);
+  font-weight: 300;
+  letter-spacing: -0.01em;
+  color: var(--nh-muted);
+}
+
+.nh-root .nmp-score__count {
+  margin: 0;
+}
+
+.nh-root .nmp-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.nh-root .nmp-bar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) 2.2ch;
+  align-items: center;
+  gap: 10px;
+}
+
+.nh-root .nmp-bar__star {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  line-height: 1;
+  color: var(--nh-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.nh-root .nmp-bar__icon {
+  color: var(--nmp-star);
+  fill: currentColor;
+}
+
+.nh-root .nmp-bar__track {
+  position: relative;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.nh-root .nmp-bar__fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: 999px;
+  background: var(--nh-ink);
+}
+
+.nh-root .nmp-bar__count {
+  font-size: 11px;
+  text-align: right;
+  color: var(--nh-muted-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------------- review card */
+.nh-root .nmp-rev__card {
+  min-width: 0;
+}
+
+.nh-root .nmp-review {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(1rem, 1.8vw, 1.4rem);
+  padding: clamp(1.25rem, 2.2vw, 2rem);
+  border-radius: var(--nh-radius-lg);
+  background: var(--nh-surface-2);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+/* A floor under the card. `AnimatePresence mode="wait"` empties the box between
+   the outgoing and incoming quote, and without a reserved height the panel
+   would collapse and drag the rest of the page up for a third of a second. */
+.nh-root .nmp-review__stage {
+  position: relative;
+  min-height: clamp(186px, 15vw, 214px);
+}
+
+.nh-root .nmp-review__body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.nh-root .nmp-review__mark {
+  color: var(--nh-muted-2);
+  opacity: 0.5;
+}
+
+.nh-root .nmp-review__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.nh-root .nmp-review__name {
+  font-size: 14.5px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--nh-ink);
+}
+
+.nh-root .nmp-review__date {
+  flex: none;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--nh-muted-2);
+}
+
+.nh-root .nmp-review__quote {
+  margin: 0;
+  max-width: 58ch;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--nh-ink-soft);
+}
+
+.nh-root .nmp-review__by {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: auto;
+}
+
+.nh-root .nmp-review__avatar {
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border-radius: 999px;
+  object-fit: cover;
+  box-shadow: 0 0 0 2px var(--nh-ring);
+}
+
+.nh-root .nmp-review__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: clamp(1rem, 2vw, 2rem);
+  padding-top: clamp(0.9rem, 1.6vw, 1.25rem);
+  border-top: 1px solid var(--nh-hairline);
+}
+
+.nh-root .nmp-review__bar {
+  position: relative;
+  flex: 1 1 auto;
+  max-width: 220px;
+  height: 2px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.nh-root .nmp-review__fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: 999px;
+  background: var(--nh-ink);
+  transition: width 0.5s var(--nh-ease);
+}
+
+.nh-root .nmp-review__nav {
+  display: flex;
+  gap: 8px;
+  flex: none;
+}
+
+.nh-root .nmp-round {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  cursor: pointer;
+  color: var(--nh-ink);
+  background: var(--nmp-fill);
+  box-shadow: inset 0 0 0 1px var(--nmp-edge-soft);
+  transition:
+    background-color 0.3s var(--nh-ease-soft),
+    transform 0.3s var(--nh-ease);
+}
+
+.nh-root .nmp-round:hover {
+  background: var(--nmp-fill-hover);
+  transform: translateY(-1px);
+}
+
+/* ========================================================================== */
+/* 04 · YOU MIGHT ALSO LIKE                                                   */
+/* ========================================================================== */
+
+.nh-root .nmp-rel {
+  padding-top: 0;
+  padding-bottom: clamp(4rem, 8vw, 8.5rem);
+}
+
+.nh-root .nmp-rel__head {
+  display: flex;
+  justify-content: center;
+  margin-bottom: clamp(1.75rem, 3.4vw, 3rem);
+}
+
+.nh-root .nmp-rel__title {
+  margin: 0;
+  font-size: clamp(1.8rem, 3.8vw, 3.4rem);
+  text-align: center;
+}
+
+.nh-root .nmp-rel__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: clamp(1.1rem, 2vw, 1.75rem) clamp(0.75rem, 1.3vw, 1.25rem);
+}
+
+.nh-root .nmp-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.nh-root .nmp-card__frame {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  aspect-ratio: 3 / 3.5;
+  border-radius: 20px;
+  background: var(--nh-card-bg);
+  box-shadow: inset 0 0 0 1px var(--nmp-edge-soft);
+  isolation: isolate;
+}
+
+.nh-root .nmp-card__frame img {
+  transition: transform 1.15s var(--nh-ease);
+}
+
+.nh-root .nmp-card__frame:hover img {
+  /* the crop's own scale rides in --zoom, so the hover multiplies it rather
+     than replacing it — otherwise a 2× contact-sheet crop snaps back to 1 */
+  transform: scale(calc(var(--zoom, 1) * 1.055));
+}
+
+/* the quad mode owns `transform` for its cell arithmetic; a hover scale there
+   would fight the translate that centres the cell, so it simply does not run */
+.nh-root .nmp-card__frame .nmp-frame[data-mode="quad"] img {
+  transition: none;
+}
+
+.nh-root .nmp-card__frame .nmp-flag {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 3;
+}
+
+.nh-root .nmp-card__go {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  color: var(--nh-chip-fg);
+  background: rgba(18, 20, 22, 0.7);
+  box-shadow: inset 0 0 0 1px var(--nmp-edge);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  transition:
+    background-color 0.3s var(--nh-ease-soft),
+    transform 0.4s var(--nh-ease);
+}
+
+.nh-root .nmp-card__frame:hover .nmp-card__go {
+  background: rgba(40, 44, 47, 0.92);
+  transform: translate(2px, -2px);
+}
+
+.nh-root .nmp-card[data-sold="true"] .nmp-frame img {
+  opacity: 0.45;
+  filter: grayscale(0.7);
+}
+
+.nh-root .nmp-card__info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 2px;
+}
+
+.nh-root .nmp-card__name {
+  font-size: 13.5px;
+  line-height: 1.4;
+  letter-spacing: -0.005em;
+  color: var(--nh-ink);
+  /* two lines then ellipsis — a long name must not push one tile in the row
+     taller than the three beside it */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  transition: color 0.3s var(--nh-ease-soft);
+}
+
+.nh-root .nmp-card__name:hover {
+  color: var(--nh-solid-bg-hover);
+}
+
+.nh-root .nmp-card__rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11.5px;
+  color: var(--nh-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.nh-root .nmp-card__prices {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 5px 8px;
+}
+
+.nh-root .nmp-card__price {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--nh-ink);
+}
+
+.nh-root .nmp-card__mrp {
+  font-size: 12px;
+  color: var(--nh-muted-2);
+}
+
+.nh-root .nmp-card__mrp s {
+  text-decoration-thickness: 1px;
+}
+
+.nh-root .nmp-card__off {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  color: #0a1a10;
+  background: var(--nmp-good);
+}
+
+/* ========================================================================== */
+/* STARS                                                                      */
+/* ========================================================================== */
+
+/* Two identical rows, the bright one clipped to the score's percentage.
+   Rounding to whole stars instead would turn a 4.5 into a 4 or a 5, and the
+   number printed beside it would then contradict the row it labels. */
+.nh-root .nmp-stars {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  line-height: 0;
+}
+
+.nh-root .nmp-stars__row {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.nh-root .nmp-stars__row svg {
+  flex: none;
+}
+
+.nh-root .nmp-stars__row--base {
+  color: rgba(255, 255, 255, 0.2);
+}
+
+.nh-root .nmp-stars__row--fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: var(--pct, 0%);
+  overflow: hidden;
+  color: var(--nmp-star);
+}
+
+.nh-root .nmp-stars__row--fill svg {
+  fill: currentColor;
+}
+
+/* ========================================================================== */
+/* FOCUS                                                                      */
+/* ========================================================================== */
+
+.nh-root .nmp button:focus-visible,
+.nh-root .nmp a:focus-visible {
+  outline: 2px solid var(--nh-solid-bg);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.nh-root .nmp-thumb:focus-visible,
+.nh-root .nmp-card__frame:focus-visible {
+  outline-offset: -3px;
+  border-radius: inherit;
+}
+
+/* ========================================================================== */
+/* RESPONSIVE                                                                 */
+/* ========================================================================== */
+
+@media (max-width: 1180px) {
+  /* Two tracks, with the rail on its own row underneath. Below this the third
+     column is narrower than one thumb, so the bleed stops being a composition
+     and becomes a sliver. */
+  .nh-root .nmp-hero__stage {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .nh-root .nmp-hero__rail {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: clamp(1rem, 2.4vw, 2rem);
+  }
+
+  /* full width now, so it scrolls rather than stepping — and the bleed goes,
+     since there is no longer a column edge for it to run past.
+
+     `0 1 auto`, not `1 1 auto`: growing it would park the counter against the
+     far edge with the thumbs stranded at the other end of an empty row. It
+     sizes to the four thumbs and only shrinks once they no longer fit. */
+  .nh-root .nmp-rail__viewport {
+    flex: 0 1 auto;
+    min-width: 0;
+    margin-right: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+  }
+
+  .nh-root .nmp-rail__viewport::-webkit-scrollbar {
+    display: none;
+  }
+
+  .nh-root .nmp-rail__lede,
+  .nh-root .nmp-rail__count {
+    flex: none;
+  }
+
+  /* The CTA stops being pinned to the foot of the photograph. On three tracks
+     the shot is short enough that the gap above the lockup reads as the
+     reference's breathing room; on two it is half the page wide and twice as
+     tall, and the same rule opens a dead third in the middle of the column. */
+  .nh-root .nmp-buy__cta {
+    margin-top: 0;
+  }
+}
+
+@media (max-width: 980px) {
+  .nh-root .nmp-panels__grid,
+  .nh-root .nmp-rev__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 760px) {
+  /* One column, photograph first: on a phone the shot is the page, and a
+     headline above an empty fold is not worth the scroll. */
+  .nh-root .nmp-hero__stage {
+    grid-template-columns: minmax(0, 1fr);
+    gap: clamp(1.25rem, 4vw, 2rem);
+  }
+
+  .nh-root .nmp-hero__shot {
+    order: -1;
+  }
+
+  .nh-root .nmp-shot {
+    aspect-ratio: 3 / 3.4;
+  }
+
+  .nh-root .nmp-buy__cta {
+    padding-top: clamp(1.25rem, 4vw, 2rem);
+  }
+
+  /* four straight to two, never three: the grid holds exactly four tiles, and
+     a three-track step leaves the fourth alone on a row of its own */
+  .nh-root .nmp-rel__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .nh-root .nmp-review__foot {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 560px) {
+  .nh-root .nmp-facts,
+  .nh-root .nmp-specs {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* the number and the bars stop fitting side by side long before the bars
+     become unreadable, so the score moves above them */
+  .nh-root .nmp-score {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .nh-root .nmp-bars {
+    width: 100%;
+  }
+
+  .nh-root .nmp-crumb--tag {
+    display: none;
+  }
+}
+
+@media (max-width: 420px) {
+  .nh-root .nmp-rel__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .nh-root .nmp-spec {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  .nh-root .nmp-buy__guide {
+    margin-left: 0;
+  }
+}
+
+/* ========================================================================== */
+/* FULL-SCREEN IMAGE VIEWER                                                   */
+/* ========================================================================== */
+/* Portalled to <body>, so — like the listing's quick-add panel — these rules
+   deliberately do NOT hang off `.nh-root` and restate the few tokens they need
+   on their own root. Nothing else on the page can reach them: the class prefix
+   is this component's alone. */
+.nmv {
+  --v-ink: #f1f3f3;
+  --v-edge: rgba(255, 255, 255, 0.14);
+  --v-fill: rgba(255, 255, 255, 0.08);
+  --v-fill-hover: rgba(255, 255, 255, 0.16);
+  --v-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  position: fixed;
+  inset: 0;
+  z-index: 140;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-archivo), "Archivo", system-ui, sans-serif;
+  color: var(--v-ink);
+}
+
+/* Near-opaque, unlike the page's other overlays. Those sit over a layout the
+   shopper is still half-reading; this one exists so a photograph can be looked
+   at, and a page showing through it is competing with the only thing on screen
+   that matters. */
+.nmv__scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(5, 6, 7, 0.97);
+}
+
+.nmv__panel {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  padding: clamp(3.25rem, 7vh, 5rem) clamp(0.75rem, 4vw, 4.5rem);
+}
+
+.nmv__panel:focus-visible {
+  outline: none;
+}
+
+.nmv__stage {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  cursor: grab;
+  touch-action: pan-y;
+}
+
+.nmv__stage:active {
+  cursor: grabbing;
+}
+
+.nmv__figure {
+  display: grid;
+  place-items: center;
+  grid-area: 1 / 1;
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.nmv__shot {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+/* Mode `crop`: the source is ONE photograph, so the frame's zoom and centring
+   are dropped and the whole picture is fitted. `contain` on an image that is
+   already bounded by the stage needs no box of its own. */
+.nmv__shot img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  /* the stage's own height, minus nothing — the panel's padding already keeps
+     the close control and the counter clear of the picture */
+  max-height: calc(100vh - clamp(6.5rem, 14vh, 10rem));
+  object-fit: contain;
+  border-radius: 6px;
+  user-select: none;
+}
+
+/* Mode `quad`: the source is a 2×2 contact sheet of four unrelated garments, so
+   fitting the FILE would show three photographs nobody asked for. The cell keeps
+   its framing and is fitted as the square it actually is — the same arithmetic
+   as the card frames in new-man.css, against a square viewport instead of a
+   card-shaped one. */
+.nmv__shot[data-mode="quad"] {
+  position: relative;
+  overflow: hidden;
+  width: min(100%, calc(100vh - clamp(6.5rem, 14vh, 10rem)));
+  aspect-ratio: 1;
+  border-radius: 6px;
+}
+
+.nmv__shot[data-mode="quad"] img {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: auto;
+  height: calc(200% * var(--zoom, 1));
+  max-width: none;
+  max-height: none;
+  border-radius: 0;
+  transform: translate(-50%, -50%)
+    translate(
+      calc((0.5 - var(--qx, 0)) * 50%),
+      calc((0.5 - var(--qy, 0)) * 50%)
+    );
+}
+
+/* -------------------------------------------------------------- controls */
+.nmv__close {
+  position: absolute;
+  top: clamp(0.75rem, 2vh, 1.5rem);
+  right: clamp(0.75rem, 2vw, 1.5rem);
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  cursor: pointer;
+  color: var(--v-ink);
+  background: var(--v-fill);
+  box-shadow: inset 0 0 0 1px var(--v-edge);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  transition: background-color 0.3s var(--v-ease);
+}
+
+.nmv__close:hover {
+  background: var(--v-fill-hover);
+}
+
+.nmv__nav {
+  position: absolute;
+  top: 50%;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  margin-top: -23px;
+  border-radius: 999px;
+  cursor: pointer;
+  color: var(--v-ink);
+  background: var(--v-fill);
+  box-shadow: inset 0 0 0 1px var(--v-edge);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  transition: background-color 0.3s var(--v-ease);
+}
+
+.nmv__nav:hover {
+  background: var(--v-fill-hover);
+}
+
+.nmv__nav--prev {
+  left: clamp(0.5rem, 2vw, 1.75rem);
+}
+
+.nmv__nav--next {
+  right: clamp(0.5rem, 2vw, 1.75rem);
+}
+
+.nmv__count {
+  position: absolute;
+  bottom: clamp(1rem, 3vh, 2rem);
+  left: 50%;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  transform: translateX(-50%);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+  color: rgba(241, 243, 243, 0.62);
+}
+
+.nmv__count i {
+  font-style: normal;
+  color: rgba(241, 243, 243, 0.3);
+}
+
+/* On a phone the arrows sit under the picture rather than over it: at 46px a
+   side they cover a real fraction of a portrait shot, and the swipe is the
+   primary gesture there anyway. */
+@media (max-width: 560px) {
+  .nmv__nav {
+    top: auto;
+    bottom: clamp(0.75rem, 2.5vh, 1.5rem);
+    margin-top: 0;
+  }
+
+  .nmv__nav--prev {
+    left: calc(50% - 74px);
+  }
+
+  .nmv__nav--next {
+    right: calc(50% - 74px);
+  }
+
+  .nmv__count {
+    bottom: calc(clamp(0.75rem, 2.5vh, 1.5rem) + 58px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nmv__close,
+  .nmv__nav {
+    transition: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nh-root .nmp-panel__reveal,
+  .nh-root .nmp-panel__moreIcon,
+  .nh-root .nmp-thumb,
+  .nh-root .nmp-rail__fill,
+  .nh-root .nmp-review__fill,
+  .nh-root .nmp-add__poly,
+  .nh-root .nmp-add__glyph,
+  .nh-root .nmp-card__frame img,
+  .nh-root .nmp-opt::after,
+  .nh-root .nmp-round {
+    transition: none;
+  }
+}

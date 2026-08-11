@@ -1,0 +1,817 @@
+/* ============================================================================
+   tracking.css — the public shipment view
+   ----------------------------------------------------------------------------
+   Same construction as `contact.css`: the `new_style.md` §10 token block, then
+   a bridge that re-points the shadcn token names at the nh palette **inside
+   `.tk-root` only**, so the registry primitives this screen is assembled from
+   (item, progress, badge, skeleton, empty, button, separator) inherit the dark
+   editorial look without a single component file being forked.
+
+   Deliberately self-contained rather than importing the contact sheet: these
+   are two independent experiences, and the repo's convention is one sheet per
+   experience (new-home, new-man, about, contact) so neither can silently
+   restyle the other.
+
+   Everything is namespaced `tk-*`. Nothing here leaks past `.tk-root`.
+   ========================================================================= */
+
+.tk-root {
+  /* ---- §10 · surfaces ------------------------------------------------ */
+  --nh-surface: #101113;
+  --nh-surface-2: #16181a;
+  --nh-surface-3: #0a0b0c;
+  --nh-card-bg: #1a1c1e;
+  --nh-ring: #151b1e;
+
+  /* ---- §2.2 · the cool cast, used on the hero ground ----------------- */
+  --nh-hero-top: #171e22;
+  --nh-hero-mid: #131719;
+  --nh-hero-bot: #0e0f11;
+  --nh-hero-glow: #1e282d;
+
+  /* ---- §2.3 · ink ---------------------------------------------------- */
+  --nh-ink: #f1f3f3;
+  --nh-ink-soft: #d5d9da;
+  --nh-muted: #8f9598;
+  --nh-muted-2: #6e7477;
+
+  /* ---- §2.4 · controls ----------------------------------------------- */
+  --nh-solid-bg: #f2f4f4;
+  --nh-solid-fg: #0d0e10;
+  --nh-solid-bg-hover: #ffffff;
+  --nh-ghost-bg: rgba(255, 255, 255, 0.08);
+  --nh-ghost-bg-hover: rgba(255, 255, 255, 0.15);
+  --nh-hairline: rgba(255, 255, 255, 0.13);
+
+  /* ---- §2.5 / §2.6 --------------------------------------------------- */
+  --nh-panel: rgba(15, 17, 19, 0.76);
+  --nh-chip-bg: rgba(22, 25, 27, 0.72);
+  --nh-chip-fg: #eef0f0;
+  --nh-ghost: #1e2226;
+
+  /* ---- §4 · shape, easing, rhythm ------------------------------------ */
+  --nh-radius-card: 14px;
+  --nh-radius-lg: 22px;
+  --nh-radius-xl: 28px;
+  --nh-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --nh-ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
+  --nh-gutter: clamp(1rem, 3.2vw, 3.25rem);
+
+  /* page-local */
+  --tk-well: rgba(255, 255, 255, 0.022);
+  --tk-panel-radius: clamp(20px, 2.4vw, 28px);
+
+  /* ======================================================================
+     THE BRIDGE — shadcn tokens, scoped. `:root`'s light defaults survive.
+     ==================================================================== */
+  --background: #101113;
+  --foreground: #f1f3f3;
+  --card: #16181a;
+  --card-foreground: #f1f3f3;
+  --popover: #16181a;
+  --popover-foreground: #f1f3f3;
+  --primary: #f2f4f4;
+  --primary-foreground: #0d0e10;
+  --secondary: rgba(255, 255, 255, 0.08);
+  --secondary-foreground: #f1f3f3;
+  --muted: rgba(255, 255, 255, 0.09);
+  --muted-foreground: #8f9598;
+  --accent: rgba(255, 255, 255, 0.08);
+  --accent-foreground: #f1f3f3;
+  --destructive: #e08b83;
+  --border: rgba(255, 255, 255, 0.13);
+  --input: rgba(255, 255, 255, 0.13);
+  --ring: rgba(241, 243, 243, 0.34);
+  --radius: 0.875rem;
+  --font-sans: var(--font-archivo), "Archivo", system-ui, sans-serif;
+
+  position: relative;
+  min-height: 100vh;
+  padding-block: 0 clamp(3.5rem, 8vw, 7rem);
+  background: var(--nh-surface);
+  color: var(--nh-ink);
+  font-family: var(--font-archivo), "Archivo", system-ui, sans-serif;
+  letter-spacing: -0.01em;
+  /* clip, never hidden — §9.1 */
+  overflow-x: clip;
+}
+
+.tk-root *,
+.tk-root *::before,
+.tk-root *::after {
+  box-sizing: border-box;
+}
+
+/* --------------------------------------------------------------- rhythm */
+
+.tk-shell {
+  width: min(100% - var(--nh-gutter) * 2, 1240px);
+  margin-inline: auto;
+}
+
+.tk-section {
+  padding-block: clamp(1.25rem, 2.6vw, 2.25rem);
+}
+
+.tk-head + .tk-section {
+  padding-top: clamp(1.5rem, 3vw, 2.5rem);
+}
+
+/* -------------------------------------------------------------- surfaces */
+
+.tk-panel {
+  position: relative;
+  border-radius: var(--tk-panel-radius);
+  background: var(--nh-surface-2);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.tk-panel__pad {
+  position: relative;
+  z-index: 2;
+  padding: clamp(1.5rem, 3vw, 2.75rem);
+}
+
+/* ------------------------------------------------------------------ type */
+
+.tk-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--nh-muted);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.tk-eyebrow::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+/* §3.2 — one sentence, two cuts of Archivo. `em` is the light extended cut
+   and is never italic here. */
+.tk-display {
+  margin: 0;
+  font-weight: 700;
+  font-stretch: 100%;
+  line-height: 0.96;
+  letter-spacing: -0.035em;
+  text-transform: uppercase;
+  text-wrap: balance;
+}
+
+.tk-display em {
+  font-style: normal;
+  font-weight: 300;
+  font-stretch: 112%;
+  letter-spacing: -0.015em;
+  color: var(--nh-ink-soft);
+}
+
+.tk-display--md {
+  font-size: clamp(1.5rem, 2.9vw, 2.4rem);
+}
+
+.tk-body {
+  margin: 0;
+  color: var(--nh-muted);
+  font-size: 14px;
+  line-height: 1.55;
+  letter-spacing: 0;
+}
+
+/* ======================================================================
+   01 · HEADER
+   ----------------------------------------------------------------------
+   Built to the account/profile header, not to the marketing hero: flat
+   ground, no gradient, no ray fan, no ghost wordmark, and a title at
+   reading scale rather than display scale. A tracking page is a utility
+   screen someone opens on a phone to answer one question — the type has
+   nothing to compete with, so it does not need to shout.
+   ==================================================================== */
+
+/* the rule closes the whole header, sub copy included — a divider that lands
+   between the title and its own subtitle reads as two blocks, not one */
+.tk-head > .tk-shell {
+  padding-bottom: clamp(1.25rem, 2.4vw, 2rem);
+  box-shadow: inset 0 -1px 0 0 var(--nh-hairline);
+}
+
+.tk-head {
+  padding-block: clamp(2rem, 4vw, 3.25rem) 0;
+}
+
+/* the waiting states have nothing under the header, and a divider with no
+   content after it reads as a broken layout rather than a separator */
+.tk-head--bare > .tk-shell {
+  padding-bottom: 0;
+  box-shadow: none;
+}
+
+/* The same pill the bag, wishlist and account screens use, so moving between
+   them reads as one site. It names the destination beside the gesture: this is
+   a real link to a known parent, not a call to `history.back()`, so it behaves
+   the same on a pasted URL as it does after clicking through. */
+.tk-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: clamp(1rem, 2vw, 1.5rem);
+  padding: 7px 13px 7px 11px;
+  border-radius: 999px;
+  background: var(--nh-ghost-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  color: var(--nh-ink-soft);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition:
+    background-color 0.3s var(--nh-ease-soft),
+    color 0.3s var(--nh-ease-soft);
+}
+
+.tk-back:hover {
+  background: var(--nh-ghost-bg-hover);
+  color: var(--nh-ink);
+}
+
+.tk-back svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 1.8;
+}
+
+.tk-back span {
+  padding-left: 9px;
+  box-shadow: inset 1px 0 0 0 var(--nh-hairline);
+  color: var(--nh-muted);
+}
+
+.tk-head__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.tk-head__id {
+  color: var(--nh-muted-2);
+  font-size: 11px;
+  line-height: 1.35;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* title left, the two numbers that matter right, sharing one baseline —
+   the profile header's exact arrangement */
+.tk-head__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: clamp(1rem, 3vw, 2.5rem);
+  margin-top: clamp(1rem, 2vw, 1.5rem);
+}
+
+.tk-head__title {
+  font-size: clamp(1.9rem, 4.2vw, 3.25rem);
+}
+
+.tk-head__stats {
+  display: flex;
+  gap: clamp(1.5rem, 3.4vw, 3rem);
+  padding-bottom: 4px;
+}
+
+.tk-stat {
+  display: grid;
+  gap: 9px;
+  text-align: right;
+}
+
+.tk-stat__k {
+  color: var(--nh-muted);
+  font-size: 10px;
+  line-height: 1;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.tk-stat__v {
+  color: var(--nh-ink);
+  font-size: clamp(1.35rem, 2.2vw, 1.75rem);
+  font-weight: 300;
+  font-stretch: 112%;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.tk-head__sub {
+  margin-top: clamp(1rem, 1.8vw, 1.35rem);
+  max-width: 62ch;
+  font-size: 13.5px;
+}
+
+/* the carrier signal — monochrome, because the palette has no green in it and
+   a status chip is not the place to introduce one */
+.tk-live[data-slot="badge"] {
+  gap: 9px;
+  height: 30px;
+  margin-top: clamp(1.5rem, 3vw, 2.25rem);
+  padding: 0 15px;
+  border-radius: 999px;
+  background: var(--nh-chip-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  color: var(--nh-chip-fg);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  backdrop-filter: blur(8px);
+}
+
+.tk-live__dot {
+  position: relative;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--nh-ink);
+  box-shadow: 0 0 0 4px rgba(241, 243, 243, 0.12);
+}
+
+/* one slow ping, only while a carrier actually holds the parcel */
+.tk-live[data-live="true"] .tk-live__dot::after {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: var(--nh-ink);
+  animation: tk-ping 2.4s var(--nh-ease-soft) infinite;
+  content: "";
+}
+
+.tk-live[data-live="false"] .tk-live__dot {
+  background: var(--nh-muted);
+  box-shadow: 0 0 0 4px rgba(143, 149, 152, 0.1);
+}
+
+@keyframes tk-ping {
+  0% { opacity: 0.55; transform: scale(1); }
+  70%, 100% { opacity: 0; transform: scale(3.2); }
+}
+
+/* the route meter — measured off completed steps, never a number picked to
+   look like progress */
+.tk-meter {
+  display: grid;
+  gap: 11px;
+  margin-bottom: clamp(1.25rem, 2.2vw, 1.75rem);
+  padding-bottom: clamp(1.1rem, 2vw, 1.5rem);
+  box-shadow: inset 0 -1px 0 0 var(--nh-hairline);
+}
+
+.tk-meter__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tk-meter__k {
+  color: var(--nh-muted);
+  font-size: 10.5px;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.tk-meter__v {
+  color: var(--nh-muted-2);
+  font-size: 10.5px;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.tk-root [data-slot="progress"] {
+  height: 3px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.tk-root [data-slot="progress-indicator"] {
+  background: var(--nh-solid-bg);
+  transition: transform 0.9s var(--nh-ease);
+}
+
+/* ======================================================================
+   02 · ROUTE — the timeline beside the shipment panel
+   ==================================================================== */
+
+.tk-work {
+  display: grid;
+  grid-template-columns: minmax(0, 1.22fr) minmax(0, 0.78fr);
+  gap: clamp(0.75rem, 1.4vw, 1.15rem);
+  align-items: start;
+}
+
+.tk-panelHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: clamp(1.25rem, 2.2vw, 1.75rem);
+  padding-bottom: clamp(0.9rem, 1.6vw, 1.25rem);
+  box-shadow: inset 0 -1px 0 0 var(--nh-hairline);
+}
+
+.tk-panelHead__note {
+  color: var(--nh-muted-2);
+  font-size: 11.5px;
+  letter-spacing: 0.02em;
+}
+
+/* ---- the timeline ------------------------------------------------- */
+
+.tk-steps {
+  display: grid;
+}
+
+.tk-step {
+  position: relative;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 18px;
+  padding-block: 14px;
+}
+
+/* the rail runs between dot centres, so it starts below one and stops above
+   the next rather than poking out of the last step */
+.tk-step:not(:last-child)::after {
+  position: absolute;
+  top: 60px;
+  bottom: -6px;
+  left: 18px;
+  width: 1px;
+  background: var(--nh-hairline);
+  content: "";
+}
+
+.tk-step[data-done="true"]:not(:last-child)::after {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.tk-step__dot {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.03);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  color: var(--nh-muted-2);
+}
+
+.tk-step__dot svg {
+  width: 15px;
+  height: 15px;
+  stroke-width: 1.7;
+}
+
+.tk-step[data-done="true"] .tk-step__dot {
+  background: var(--nh-solid-bg);
+  box-shadow: none;
+  color: var(--nh-solid-fg);
+}
+
+/* the step the parcel is actually waiting on — ringed, not filled, because
+   it has not happened yet */
+.tk-step[data-current="true"] .tk-step__dot {
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.32),
+    0 0 0 4px rgba(241, 243, 243, 0.06);
+  color: var(--nh-ink);
+}
+
+.tk-step__body {
+  display: grid;
+  gap: 5px;
+  padding-top: 7px;
+}
+
+.tk-step__label {
+  color: var(--nh-ink);
+  font-size: 15px;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+}
+
+.tk-step__detail {
+  color: var(--nh-muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.tk-step__time {
+  margin-top: 2px;
+  color: var(--nh-muted-2);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* a step that has not happened reads quieter than one that has */
+.tk-step[data-done="false"]:not([data-current="true"]) .tk-step__label {
+  color: var(--nh-ink-soft);
+  opacity: 0.62;
+}
+
+.tk-step[data-done="false"] .tk-step__detail {
+  opacity: 0.78;
+}
+
+/* ---- the shipment panel -------------------------------------------- */
+
+.tk-aside {
+  position: sticky;
+  top: clamp(5rem, 9vh, 7rem);
+  display: grid;
+  gap: clamp(0.75rem, 1.4vw, 1.15rem);
+}
+
+.tk-ref {
+  display: grid;
+  gap: 8px;
+  margin-bottom: clamp(1.25rem, 2.2vw, 1.75rem);
+  padding-bottom: clamp(1rem, 1.8vw, 1.35rem);
+  box-shadow: inset 0 -1px 0 0 var(--nh-hairline);
+}
+
+.tk-ref__v {
+  color: var(--nh-ink);
+  font-size: clamp(1.5rem, 2.6vw, 2rem);
+  font-weight: 300;
+  font-stretch: 112%;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.tk-facts {
+  display: grid;
+  gap: 8px;
+}
+
+/* an `Item` re-skinned to the page */
+.tk-fact[data-slot="item"] {
+  gap: 13px;
+  padding: 12px 14px;
+  border: 0;
+  border-radius: var(--nh-radius-card);
+  background: var(--tk-well);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  color: inherit;
+}
+
+.tk-fact [data-slot="item-media"] {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: var(--nh-chip-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  color: var(--nh-chip-fg);
+}
+
+.tk-fact [data-slot="item-media"] svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 1.5;
+}
+
+.tk-fact [data-slot="item-description"] {
+  order: -1;
+  color: var(--nh-muted);
+  font-size: 10.5px;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.tk-fact [data-slot="item-title"] {
+  color: var(--nh-ink);
+  font-size: 13.5px;
+  font-weight: 400;
+  letter-spacing: -0.005em;
+}
+
+/* ======================================================================
+   03 · CLOSE — the privacy note and the way to a human
+   ==================================================================== */
+
+.tk-close {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: clamp(1rem, 2.4vw, 2rem);
+}
+
+.tk-close__copy {
+  display: grid;
+  gap: 9px;
+  max-width: 58ch;
+}
+
+.tk-close__k {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--nh-muted);
+  font-size: 10.5px;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.tk-close__k svg {
+  width: 13px;
+  height: 13px;
+  stroke-width: 1.5;
+}
+
+.tk-close__copy p {
+  margin: 0;
+  color: var(--nh-muted);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+/* §5.8's foot pill: label, then an inverted circle carrying the glyph */
+.tk-cta[data-slot="button"] {
+  height: 46px;
+  padding: 0 6px 0 24px;
+  gap: 14px;
+  border-radius: 999px;
+  background: var(--nh-solid-bg);
+  color: var(--nh-solid-fg);
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+  transition:
+    background 0.35s var(--nh-ease-soft),
+    transform 0.35s var(--nh-ease);
+}
+
+.tk-cta[data-slot="button"]:hover {
+  background: var(--nh-solid-bg-hover);
+  transform: translateY(-1px);
+}
+
+.tk-cta__go {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: var(--nh-solid-fg);
+  color: var(--nh-solid-bg);
+  transition: transform 0.4s var(--nh-ease);
+}
+
+.tk-cta[data-slot="button"]:hover .tk-cta__go {
+  transform: translateX(2px);
+}
+
+.tk-cta__go svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 1.6;
+}
+
+/* ======================================================================
+   STATES — resolving, and a token that resolves to nothing
+   ==================================================================== */
+
+.tk-root [data-slot="skeleton"] {
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.tk-skel {
+  display: grid;
+  gap: 14px;
+}
+
+.tk-skel--row {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(1.1rem, 2.6vw, 2.5rem);
+  margin-top: clamp(1.5rem, 3vw, 2.25rem);
+  padding-top: clamp(1.1rem, 2vw, 1.5rem);
+  box-shadow: inset 0 1px 0 0 var(--nh-hairline);
+}
+
+.tk-empty[data-slot="empty"] {
+  padding: clamp(2.75rem, 6vw, 5rem) 1rem;
+  background: none;
+}
+
+.tk-empty [data-slot="empty-icon"] {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  margin-bottom: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.055);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  color: var(--nh-ink);
+}
+
+.tk-empty [data-slot="empty-icon"] svg {
+  width: 21px;
+  height: 21px;
+  stroke-width: 1.5;
+}
+
+.tk-empty [data-slot="empty-title"] {
+  color: var(--nh-ink);
+  font-size: clamp(1.35rem, 2.5vw, 1.9rem);
+  font-weight: 300;
+  font-stretch: 112%;
+  letter-spacing: -0.03em;
+  text-transform: uppercase;
+}
+
+.tk-empty [data-slot="empty-description"] {
+  max-width: 44ch;
+  color: var(--nh-muted);
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+
+.tk-empty [data-slot="empty-content"] {
+  margin-top: 10px;
+}
+
+/* ======================================================================
+   RESPONSIVE — §7's steps, applied to this page's grids
+   ==================================================================== */
+
+@media (max-width: 1100px) {
+  .tk-work {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tk-aside {
+    position: static;
+  }
+}
+
+@media (max-width: 620px) {
+  /* the stat pair drops under the title and reads left-to-right with it */
+  .tk-head__row {
+    align-items: flex-start;
+    gap: 1.25rem;
+  }
+
+  .tk-head__stats {
+    padding-bottom: 0;
+  }
+
+  .tk-stat {
+    text-align: left;
+  }
+}
+
+@media (max-width: 520px) {
+  .tk-close {
+    justify-content: stretch;
+  }
+
+  .tk-cta[data-slot="button"] {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+/* §6.10 — the CSS half of the reduced-motion contract. The Motion-driven
+   entrances are gated separately with `useReducedMotion()`. */
+@media (prefers-reduced-motion: reduce) {
+  .tk-root *,
+  .tk-root *::before,
+  .tk-root *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

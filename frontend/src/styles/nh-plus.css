@@ -1,0 +1,893 @@
+/* ==========================================================================
+   nh-plus.css — ADDITIVE layer for /new-home
+   --------------------------------------------------------------------------
+   Rules this file obeys, without exception:
+
+   1. It declares ZERO colour literals of its own. Every colour is either a
+      token from §10 of new_style.md, or an alpha from the page's existing
+      alpha ladder (.055 .08 .09 .13 .15 .17 .2 .5 .68 .72 .75 .76 .86 .92)
+      over an rgb that already exists on the page.
+   2. It overrides NOTHING. Every selector is namespaced `nhx-`, which cannot
+      collide with any `nh-` rule. Load it AFTER the page stylesheet; nothing
+      in it can win a specificity fight it isn't supposed to.
+   3. Hairlines are `box-shadow: inset 0 0 0 1px` — never `border`. (§9.2)
+      The two exceptions are full-bleed rules that are their own element
+      (`.nhx-divider__rule`, `.nhx-ticker` edges), where there is no content
+      box to shift.
+   4. `overflow-x: clip`, never `hidden`. (§9.1)
+   5. Colour/background transitions use `--nh-ease-soft`; transform
+      transitions use `--nh-ease`. Never mixed on one property. (§6.6)
+
+   Tokens are inherited from `.nh-root`. Fallbacks are inlined on the few
+   components that may be portalled OUTSIDE `.nh-root` (rail, shelf, drawer),
+   so they keep the theme even when they escape the cascade.
+   ========================================================================== */
+
+
+/* ==========================================================================
+   A. PRIMITIVE SUPPORT CLASSES
+   The CSS half of the JS primitives in nh-motion-plus.tsx. The components
+   do not work without these, the same way BlindsImage needs `.nh-blinds`.
+   ========================================================================== */
+
+/* --- A1. LineMask — the line-by-line mask rise ---------------------------- */
+.nhx-lines            { display: block; }
+.nhx-line             { display: block; overflow: hidden; }
+.nhx-line__inner      { display: block; will-change: transform; }
+
+/* --- A2. Wipe — single-pass wipe with a travelling leading edge ----------- */
+.nhx-wipe             { position: relative; width: 100%; height: 100%; overflow: hidden;
+                        background: var(--nh-card-bg); }
+.nhx-wipe__media      { position: absolute; inset: 0; will-change: clip-path; }
+.nhx-wipe__media img  { display: block; width: 100%; height: 100%; object-fit: cover; }
+.nhx-wipe__edge       { position: absolute; top: 0; bottom: 0; left: 0; width: 1px;
+                        background: var(--nh-ink); pointer-events: none;
+                        will-change: transform, opacity; }
+
+/* --- A3. Sheen — one specular pass, in the hero's ray tint ---------------- */
+/* The only tinted light on the page. It borrows rgb(184,205,214) from the
+   hero ray fan (§2.7) rather than introducing a white flash, which on this
+   palette reads as a blown highlight. */
+.nhx-sheen            { position: relative; overflow: hidden; }
+.nhx-sheen::after     { content: ""; position: absolute; inset: -30% -10%;
+                        pointer-events: none; z-index: 40;
+                        background: linear-gradient(100deg,
+                          rgba(184, 205, 214, 0)    38%,
+                          rgba(184, 205, 214, 0.09) 50%,
+                          rgba(184, 205, 214, 0)    62%);
+                        transform: translateX(-130%); }
+.nhx-sheen[data-sheen="run"]::after { animation: nhx-sheen 0.95s var(--nh-ease) 1 both; }
+@keyframes nhx-sheen  { to { transform: translateX(130%); } }
+
+/* --- A4. Tilt — pointer tilt, max 5.5deg --------------------------------- */
+.nhx-tilt             { transform-style: preserve-3d; will-change: transform; }
+.nhx-tilt__inner      { transform: translateZ(0); }
+
+/* --- A5. Magnetic -------------------------------------------------------- */
+.nhx-magnetic         { display: inline-flex; will-change: transform; }
+
+/* --- A6. Scramble — decoding spec label ---------------------------------- */
+/* `tabular-nums` + a reserved inline-size stop the label from reflowing while
+   glyphs churn. Without it a decoding `01 / DROP_2025` jitters its neighbours. */
+.nhx-scramble         { font-variant-numeric: tabular-nums; white-space: pre; }
+
+
+/* ==========================================================================
+   B. COMPONENTS
+   ========================================================================== */
+
+/* --- B1. Rail — page scroll progress + section index ---------------------- */
+.nhx-rail             { position: fixed; inset: 0 0 auto 0; height: 1px; z-index: 60;
+                        background: var(--nh-hairline, rgba(255,255,255,.13));
+                        pointer-events: none; }
+.nhx-rail__fill       { height: 100%; transform-origin: 0 50%; transform: scaleX(0);
+                        background: var(--nh-ink, #f1f3f3); opacity: .86; }
+.nhx-rail__index      { position: fixed; z-index: 60;
+                        right: var(--nh-gutter, clamp(1rem, 3.2vw, 3.25rem));
+                        bottom: clamp(1rem, 2.5vw, 1.75rem);
+                        display: inline-flex; align-items: center; gap: 9px;
+                        height: 28px; padding: 0 13px; border-radius: 999px;
+                        background: var(--nh-chip-bg, rgba(22,25,27,.72));
+                        -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+                        box-shadow: inset 0 0 0 1px var(--nh-hairline, rgba(255,255,255,.13));
+                        color: var(--nh-chip-fg, #eef0f0);
+                        font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
+.nhx-rail__index b    { font-weight: 400; color: var(--nh-muted, #8f9598); }
+
+/* --- B2. Ticker — the page's one looped motion ---------------------------- */
+.nhx-ticker           { position: relative; overflow: hidden; padding: 11px 0;
+                        border-top: 1px solid var(--nh-hairline);
+                        border-bottom: 1px solid var(--nh-hairline); }
+.nhx-ticker__track    { display: flex; width: max-content;
+                        animation: nhx-ticker 32s linear infinite; }
+.nhx-ticker:hover .nhx-ticker__track { animation-play-state: paused; }
+.nhx-ticker__group    { display: flex; align-items: center; flex: 0 0 auto; }
+.nhx-ticker__item     { display: inline-flex; align-items: center; gap: 12px;
+                        padding: 0 clamp(1rem, 2.2vw, 2rem);
+                        color: var(--nh-muted); font-size: 11.5px;
+                        letter-spacing: .04em; text-transform: uppercase;
+                        white-space: nowrap; }
+.nhx-ticker__item::before { content: ""; width: 5px; height: 5px; border-radius: 999px;
+                            background: currentColor; opacity: .8; }
+@keyframes nhx-ticker { to { transform: translate3d(-50%, 0, 0); } }
+
+/* --- B3. Shelf — the compact bar that takes over after the hero ----------- */
+/* The real navbar is `position: relative` by design (§5.1) and scrolls away.
+   This does NOT change that — it is a second, quieter bar that arrives once
+   the hero is gone, so wayfinding survives an ~8000px page. */
+.nhx-shelf            { position: fixed; inset: 0 0 auto 0; z-index: 50; height: 56px;
+                        display: flex; align-items: center;
+                        gap: clamp(1rem, 2.4vw, 2rem);
+                        padding: 0 var(--nh-gutter, clamp(1rem, 3.2vw, 3.25rem));
+                        background: var(--nh-panel, rgba(15,17,19,.76));
+                        -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+                        box-shadow: inset 0 -1px 0 var(--nh-hairline, rgba(255,255,255,.13));
+                        will-change: transform; }
+.nhx-shelf__logo      { font-size: 15px; font-stretch: 108%; letter-spacing: .01em;
+                        color: var(--nh-ink, #f1f3f3); }
+.nhx-shelf__links     { display: flex; align-items: center; gap: clamp(.9rem, 1.8vw, 1.6rem);
+                        margin-left: auto; }
+/* A destination on the page it floats over is a <button>, one on another route
+   is a Link — the class has to paint both, so it states the pointer a button
+   does not get on its own. Everything else (border, background, font) the base
+   sheet already strips off a button. */
+.nhx-shelf__link      { position: relative; cursor: pointer; font-size: 11.5px;
+                        letter-spacing: .04em;
+                        text-transform: uppercase; color: var(--nh-muted, #8f9598);
+                        transition: color .3s var(--nh-ease-soft, cubic-bezier(.4,0,.2,1)); }
+.nhx-shelf__link:hover,
+.nhx-shelf__link[aria-current="true"] { color: var(--nh-ink, #f1f3f3); }
+.nhx-shelf__link[aria-current="true"]::after {
+                        content: ""; position: absolute; left: 0; right: 0; bottom: -6px;
+                        height: 1px; background: currentColor; }
+
+/* --- B4. Divider — a hairline that carries a label ------------------------ */
+.nhx-divider          { display: grid; grid-template-columns: 1fr auto 1fr;
+                        align-items: center; gap: clamp(1rem, 2.4vw, 2.25rem); }
+.nhx-divider__rule    { height: 1px; background: var(--nh-hairline); transform: scaleX(0); }
+.nhx-divider__rule--l { transform-origin: 100% 50%; }
+.nhx-divider__rule--r { transform-origin: 0 50%; }
+.nhx-divider__label   { font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
+                        color: var(--nh-muted); white-space: nowrap; }
+
+/* --- B5. Spec — the key/value sheet -------------------------------------- */
+.nhx-spec             { display: block; width: 100%; }
+.nhx-spec__row        { position: relative; display: grid;
+                        grid-template-columns: minmax(0, 1fr) auto;
+                        align-items: baseline; gap: 1.5rem; padding: 13px 0; }
+/* the rule is a real element, not a ::after — Motion cannot drive a pseudo,
+   and this hairline has to arrive a beat behind its row */
+.nhx-spec__rule       { position: absolute; left: 0; right: 0; bottom: 0; height: 1px;
+                        background: var(--nh-hairline); transform-origin: 0 50%; }
+.nhx-spec__key        { font-size: 11px; letter-spacing: .06em; text-transform: uppercase;
+                        color: var(--nh-muted); }
+.nhx-spec__val        { font-size: 13.5px; line-height: 1.3; letter-spacing: -.005em;
+                        color: var(--nh-ink); text-align: right; }
+
+/* --- B6. Accordion ------------------------------------------------------- */
+.nhx-acc              { display: block; }
+.nhx-acc__item        { box-shadow: inset 0 -1px 0 var(--nh-hairline); }
+.nhx-acc__head        { display: flex; align-items: center; gap: 1rem; width: 100%;
+                        padding: 20px 0; text-align: left; background: none;
+                        color: var(--nh-ink); cursor: pointer;
+                        font-size: 13.5px; letter-spacing: -.005em; }
+.nhx-acc__head:hover .nhx-acc__sign { background: var(--nh-ghost-bg-hover); }
+.nhx-acc__num         { flex: 0 0 auto; font-size: 11px; letter-spacing: .06em;
+                        color: var(--nh-muted-2); }
+.nhx-acc__sign        { flex: 0 0 auto; position: relative; margin-left: auto;
+                        width: 26px; height: 26px; border-radius: 999px;
+                        background: var(--nh-ghost-bg);
+                        box-shadow: inset 0 0 0 1px var(--nh-hairline);
+                        transition: background .3s var(--nh-ease-soft); }
+.nhx-acc__sign::before,
+.nhx-acc__sign::after { content: ""; position: absolute; left: 50%; top: 50%;
+                        width: 9px; height: 1px; margin: -.5px 0 0 -4.5px;
+                        background: var(--nh-chip-fg);
+                        transition: transform .45s var(--nh-ease); }
+.nhx-acc__sign::after  { transform: rotate(90deg); }
+.nhx-acc__item[data-open="true"] .nhx-acc__sign::after { transform: rotate(0deg); }
+.nhx-acc__body        { display: grid; grid-template-rows: 0fr;
+                        transition: grid-template-rows .55s var(--nh-ease); }
+.nhx-acc__item[data-open="true"] .nhx-acc__body { grid-template-rows: 1fr; }
+.nhx-acc__bodyInner   { overflow: hidden; }
+.nhx-acc__bodyInner p { padding: 0 3rem 22px 0; max-width: 62ch;
+                        font-size: 14px; line-height: 1.55; color: var(--nh-muted);
+                        opacity: 0; transform: translateY(8px);
+                        transition: opacity .4s var(--nh-ease-soft) .08s,
+                                    transform .5s var(--nh-ease) .08s; }
+.nhx-acc__item[data-open="true"] .nhx-acc__bodyInner p { opacity: 1; transform: none; }
+
+/* --- B7. Choice — size pills + colour swatches ---------------------------- */
+.nhx-choice           { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.nhx-size             { height: 34px; min-width: 46px; padding: 0 14px; border-radius: 999px;
+                        background: transparent; color: var(--nh-ink);
+                        box-shadow: inset 0 0 0 1px var(--nh-hairline);
+                        font-size: 11.5px; letter-spacing: .045em; text-transform: uppercase;
+                        cursor: pointer;
+                        transition: background .35s var(--nh-ease-soft),
+                                    color .35s var(--nh-ease-soft),
+                                    transform .35s var(--nh-ease); }
+.nhx-size:hover       { background: var(--nh-ghost-bg); transform: translateY(-1px); }
+.nhx-size[aria-pressed="true"] { background: var(--nh-solid-bg); color: var(--nh-solid-fg);
+                        box-shadow: none; }
+.nhx-size[disabled]   { color: var(--nh-muted-2); cursor: not-allowed; transform: none;
+                        background: linear-gradient(to top left,
+                          transparent calc(50% - .5px), var(--nh-hairline) 50%,
+                          transparent calc(50% + .5px)); }
+.nhx-swatch           { width: 26px; height: 26px; border-radius: 999px; cursor: pointer;
+                        background: var(--nh-card-bg);
+                        box-shadow: inset 0 0 0 1px var(--nh-hairline);
+                        transition: box-shadow .35s var(--nh-ease-soft),
+                                    transform .35s var(--nh-ease); }
+.nhx-swatch:hover     { transform: translateY(-1px); }
+/* the selection ring repeats the avatar-cluster gesture from §5.3: a gap ring
+   in the surface colour, then the actual ring */
+.nhx-swatch[aria-pressed="true"] { box-shadow: inset 0 0 0 1px var(--nh-hairline),
+                        0 0 0 2px var(--nh-surface), 0 0 0 3px var(--nh-solid-bg); }
+.nhx-swatch--ink      { background: var(--nh-surface-3); }
+.nhx-swatch--bone     { background: var(--nh-solid-bg); }
+.nhx-swatch--steel    { background: var(--nh-ring); }
+
+/* --- B8. Field — the underline input ------------------------------------- */
+.nhx-field            { position: relative; display: flex; align-items: center; gap: 12px;
+                        padding: 12px 0; }
+.nhx-field input      { flex: 1; min-width: 0; background: none; border: 0; outline: none;
+                        color: var(--nh-ink); font: inherit; font-size: 13.5px;
+                        letter-spacing: -.005em; }
+.nhx-field input::placeholder { color: var(--nh-muted-2); }
+.nhx-field__line      { position: absolute; left: 0; right: 0; bottom: 0; height: 1px;
+                        background: var(--nh-hairline); }
+.nhx-field__line::after { content: ""; position: absolute; inset: 0; background: var(--nh-ink);
+                        transform: scaleX(0); transform-origin: 0 50%;
+                        transition: transform .45s var(--nh-ease); }
+.nhx-field:focus-within .nhx-field__line::after { transform: scaleX(1); }
+.nhx-field__go        { flex: 0 0 auto; display: grid; place-items: center;
+                        width: 28px; height: 28px; border-radius: 999px; cursor: pointer;
+                        background: rgba(255, 255, 255, .09); color: var(--nh-ink);
+                        transition: background .3s var(--nh-ease-soft),
+                                    transform .4s var(--nh-ease); }
+.nhx-field:focus-within .nhx-field__go,
+.nhx-field__go:hover  { background: rgba(255, 255, 255, .17); transform: translateX(2px); }
+
+/* --- B9. Quote — the editorial pull-quote --------------------------------- */
+.nhx-quote            { max-width: 46ch; padding-left: clamp(1rem, 2vw, 2rem);
+                        box-shadow: inset 1px 0 0 var(--nh-hairline); }
+.nhx-quote p          { font-size: clamp(1.2rem, 2.2vw, 2rem); font-weight: 300;
+                        font-stretch: 112%; line-height: 1.2; letter-spacing: -.015em;
+                        color: var(--nh-ink); }
+.nhx-quote cite       { display: block; margin-top: clamp(1rem, 1.6vw, 1.5rem);
+                        font-style: normal; font-size: 11px; letter-spacing: .06em;
+                        text-transform: uppercase; color: var(--nh-muted); }
+
+/* --- B10. Stat — counter cluster ------------------------------------------ */
+.nhx-stats            { display: grid; grid-template-columns: repeat(4, 1fr);
+                        gap: clamp(1rem, 2.4vw, 2.5rem); }
+.nhx-stat             { padding-top: 18px; box-shadow: inset 0 1px 0 var(--nh-hairline); }
+.nhx-stat__num        { display: block; font-size: clamp(1.9rem, 4vw, 3.4rem);
+                        font-weight: 300; font-stretch: 118%; line-height: .9;
+                        letter-spacing: .005em; color: var(--nh-ink);
+                        font-variant-numeric: tabular-nums; }
+.nhx-stat__num sup    { font-size: .34em; vertical-align: super; letter-spacing: .04em;
+                        color: var(--nh-muted); }
+.nhx-stat__label      { display: block; margin-top: 12px; font-size: 11px;
+                        letter-spacing: .06em; text-transform: uppercase;
+                        color: var(--nh-muted); }
+
+/* --- B11. Frame — the wide lookbook tile ---------------------------------- */
+.nhx-frame            { position: relative; isolation: isolate; overflow: hidden;
+                        aspect-ratio: 21 / 9; border-radius: var(--nh-radius-lg);
+                        background: var(--nh-card-bg); }
+.nhx-frame img        { display: block; width: 100%; height: 100%; object-fit: cover;
+                        transition: transform 1.15s var(--nh-ease); }
+.nhx-frame:hover img  { transform: scale(1.035); }
+.nhx-frame::before    { content: ""; position: absolute; inset: 0; z-index: 10;
+                        pointer-events: none;
+                        background: linear-gradient(180deg,
+                          rgba(6, 7, 8, .30) 0%,
+                          rgba(6, 7, 8, .06) 42%,
+                          rgba(16, 17, 19, .46) 100%); }
+.nhx-frame__label     { position: absolute; z-index: 20; display: inline-flex;
+                        align-items: center; gap: 8px;
+                        font-size: 11.5px; line-height: 1.35; letter-spacing: .02em;
+                        text-transform: uppercase; max-width: 14ch;
+                        color: rgba(241, 243, 243, .68); }
+.nhx-frame__label--tl { top: clamp(14px, 2vw, 22px); left: clamp(14px, 2vw, 22px);
+                        color: rgba(255, 255, 255, .86); }
+.nhx-frame__label--tr { top: clamp(14px, 2vw, 22px); right: clamp(14px, 2vw, 22px);
+                        text-align: right; }
+.nhx-frame__label--bl { bottom: clamp(14px, 2vw, 22px); left: clamp(14px, 2vw, 22px); }
+.nhx-frame__label--br { bottom: clamp(14px, 2vw, 22px); right: clamp(14px, 2vw, 22px); }
+.nhx-frame__label--tl::before { content: ""; width: 5px; height: 5px; border-radius: 999px;
+                        background: currentColor; }
+
+/* --- B12. Band — the closing CTA ------------------------------------------ */
+.nhx-band             { position: relative; isolation: isolate; overflow: clip;
+                        border-radius: var(--nh-radius-xl); /* the reserved token, finally used */
+                        background: var(--nh-surface-2);
+                        box-shadow: inset 0 0 0 1px var(--nh-hairline);
+                        padding: clamp(2.5rem, 6vw, 5.5rem) clamp(1.5rem, 4vw, 4rem)
+                                 clamp(2.5rem, 5vw, 4rem); }
+.nhx-band__ghost      { position: absolute; left: 50%; bottom: -6%; z-index: -1;
+                        transform: translateX(-50%); white-space: nowrap;
+                        font-size: clamp(4rem, 20vw, 17rem); font-weight: 300;
+                        font-stretch: 118%; line-height: .82; letter-spacing: .005em;
+                        text-transform: uppercase; color: var(--nh-ghost);
+                        pointer-events: none; user-select: none; }
+.nhx-band__inner      { position: relative; z-index: 1; display: grid; gap: clamp(1rem, 2vw, 1.75rem);
+                        justify-items: center; text-align: center; }
+
+/* --- B13. Drawer — the cart -------------------------------------------- */
+.nhx-scrim            { position: fixed; inset: 0; z-index: 79;
+                        background: rgba(10, 11, 12, .72); opacity: 0; }
+.nhx-drawer           { position: fixed; top: 0; right: 0; z-index: 80;
+                        width: min(420px, 92vw); height: 100dvh;
+                        display: flex; flex-direction: column;
+                        border-radius: var(--nh-radius-xl, 28px) 0 0 var(--nh-radius-xl, 28px);
+                        background: var(--nh-panel, rgba(15,17,19,.76));
+                        -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+                        box-shadow: inset 1px 0 0 var(--nh-hairline, rgba(255,255,255,.13));
+                        will-change: transform; }
+.nhx-drawer__head     { display: flex; align-items: center; justify-content: space-between;
+                        padding: 22px clamp(1.25rem, 2.4vw, 1.75rem);
+                        box-shadow: inset 0 -1px 0 var(--nh-hairline); }
+.nhx-drawer__title    { font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
+                        color: var(--nh-muted, #8f9598); }
+.nhx-drawer__body     { flex: 1; overflow-y: auto; padding: 0 clamp(1.25rem, 2.4vw, 1.75rem); }
+.nhx-drawer__foot     { padding: clamp(1.25rem, 2.4vw, 1.75rem);
+                        box-shadow: inset 0 1px 0 var(--nh-hairline); }
+.nhx-line-item        { display: grid; grid-template-columns: 56px 1fr auto; gap: 14px;
+                        align-items: center; padding: 16px 0;
+                        box-shadow: inset 0 -1px 0 var(--nh-hairline); }
+.nhx-line-item__thumb { aspect-ratio: 1 / 1.2; border-radius: 8px; overflow: hidden;
+                        background: var(--nh-card-bg); }
+.nhx-line-item__thumb img { width: 100%; height: 100%; object-fit: cover; }
+.nhx-line-item__name  { font-size: 13.5px; line-height: 1.3; color: var(--nh-ink); }
+.nhx-line-item__meta  { margin-top: 4px; font-size: 11px; letter-spacing: .06em;
+                        text-transform: uppercase; color: var(--nh-muted); }
+.nhx-line-item__price { font-size: 12px; color: var(--nh-muted); }
+
+/* --- B14. Badge — dot + label -------------------------------------------- */
+.nhx-badge            { display: inline-flex; align-items: center; gap: 8px;
+                        height: 26px; padding: 0 13px; border-radius: 999px;
+                        background: var(--nh-chip-bg);
+                        -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+                        box-shadow: inset 0 0 0 1px var(--nh-hairline);
+                        color: var(--nh-chip-fg);
+                        font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
+.nhx-badge::before    { content: ""; width: 5px; height: 5px; border-radius: 999px;
+                        background: currentColor; }
+.nhx-badge--quiet     { background: none; box-shadow: inset 0 0 0 1px var(--nh-hairline);
+                        color: var(--nh-muted); }
+
+/* --- B15. Note — the hairline-hung annotation ---------------------------- */
+.nhx-note             { padding-left: 14px; max-width: 34ch;
+                        box-shadow: inset 1px 0 0 var(--nh-hairline); }
+.nhx-note__key        { display: block; margin-bottom: 8px; font-size: 11px;
+                        letter-spacing: .06em; text-transform: uppercase;
+                        color: var(--nh-muted-2); }
+.nhx-note p           { font-size: 14px; line-height: 1.55; color: var(--nh-muted); }
+
+
+/* ==========================================================================
+   C. RESPONSIVE — mirrors the page's own three max-width breakpoints (§7)
+   ========================================================================== */
+
+@media (max-width: 1100px) {
+  .nhx-stats          { grid-template-columns: repeat(2, 1fr); }
+  .nhx-frame          { aspect-ratio: 16 / 9; }
+}
+
+@media (max-width: 860px) {
+  .nhx-shelf__links   { display: none; }
+  .nhx-rail__index    { display: none; }   /* the thumb sits here on a phone */
+  .nhx-frame          { aspect-ratio: 4 / 5; }
+  .nhx-frame__label--tr,
+  .nhx-frame__label--br { display: none; } /* two corners is plenty at this width */
+  .nhx-spec__row      { grid-template-columns: 1fr; gap: 6px; }
+  .nhx-spec__val      { text-align: left; }
+  .nhx-acc__bodyInner p { padding-right: 0; }
+  .nhx-drawer         { width: 100vw; border-radius: 0; }
+}
+
+@media (max-width: 520px) {
+  .nhx-stats          { grid-template-columns: 1fr; }
+  .nhx-ticker__item   { font-size: 11px; }
+}
+
+
+/* ==========================================================================
+   D. REDUCED MOTION
+   §6.10's block only neuters CSS. Everything JS-driven in this layer is gated
+   at the source with `useReducedMotion()` (see nh-motion-plus.tsx) — this
+   block covers the CSS half, and kills the one looped animation outright.
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .nhx-ticker__track  { animation: none; }
+  .nhx-sheen[data-sheen="run"]::after { animation: none; }
+  .nhx-rail__fill     { transition: none; }
+  .nhx-acc__body      { transition-duration: .01ms; }
+  .nhx-acc__bodyInner p { transition-duration: .01ms; }
+}
+
+
+/* ==========================================================================
+   E. FOCUS
+   The page ships no visible focus ring. Rather than restyle its controls,
+   this layer gives its own a ring built from the same hairline vocabulary.
+   ========================================================================== */
+
+.nhx-size:focus-visible,
+.nhx-swatch:focus-visible,
+.nhx-acc__head:focus-visible,
+.nhx-field__go:focus-visible,
+.nhx-shelf__link:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--nh-surface), 0 0 0 3px var(--nh-solid-bg);
+}
+
+
+/* ==========================================================================
+   F. CONTACT PAGE — nhx-scoped styles for /contact
+   Built on top of the nh-plus vocabulary. Same rules, same tokens.
+   ========================================================================== */
+
+/* --- F1. Contact layout sections ----------------------------------------- */
+.nhx-contact-hero {
+  padding: clamp(86px, 11vw, 160px) 0;
+  border-bottom: 1px solid var(--nh-hairline);
+}
+
+.nhx-contact-hero__heading {
+  display: grid;
+  gap: 26px;
+  grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.5fr);
+  align-items: end;
+}
+
+.nhx-contact-hero__heading > .nhx-spec__key { grid-column: 1 / -1; }
+
+.nhx-contact-hero__title {
+  font-size: clamp(66px, 10vw, 146px);
+  font-weight: 400;
+  line-height: 0.85;
+  letter-spacing: -0.085em;
+  color: var(--nh-ink);
+}
+
+.nhx-contact-hero__title em {
+  color: var(--nh-muted);
+  font-style: normal;
+}
+
+.nhx-contact-hero__sub {
+  color: var(--nh-muted);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+/* --- F2. Quick-action cards ---------------------------------------------- */
+.nhx-quick-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: clamp(64px, 9vw, 120px);
+  border-top: 1px solid var(--nh-hairline);
+}
+
+.nhx-quick-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 280px;
+  padding: clamp(20px, 3vw, 28px);
+  box-shadow: inset -1px 0 0 var(--nh-hairline),
+              inset 0 -1px 0 var(--nh-hairline);
+  color: var(--nh-ink);
+  text-decoration: none;
+  transition: background .4s var(--nh-ease-soft);
+}
+
+.nhx-quick-card:hover {
+  background: var(--nh-ghost-bg);
+}
+
+.nhx-quick-card__icon {
+  color: var(--nh-muted);
+  opacity: .72;
+}
+
+.nhx-quick-card__num {
+  display: block;
+  margin-top: auto;
+  font-size: 11px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--nh-muted-2);
+}
+
+.nhx-quick-card__title {
+  margin: 10px 0 8px;
+  font-size: clamp(20px, 2.5vw, 28px);
+  font-weight: 400;
+  line-height: 1.1;
+  letter-spacing: -.02em;
+}
+
+.nhx-quick-card__desc {
+  color: var(--nh-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.nhx-quick-card__arrow {
+  position: absolute;
+  right: clamp(18px, 2.5vw, 24px);
+  bottom: clamp(18px, 2.5vw, 24px);
+  color: var(--nh-muted-2);
+  transition: color .3s var(--nh-ease-soft),
+              transform .4s var(--nh-ease);
+}
+
+.nhx-quick-card:hover .nhx-quick-card__arrow {
+  color: var(--nh-ink);
+  transform: translateX(4px);
+}
+
+/* --- F3. Contact workspace — two-column form section --------------------- */
+.nhx-contact-workspace {
+  padding: clamp(84px, 11vw, 168px) 0;
+  border-top: 1px solid var(--nh-hairline);
+  background: var(--nh-surface-2);
+}
+
+.nhx-contact-workspace__grid {
+  display: grid;
+  align-items: start;
+  gap: clamp(50px, 9vw, 150px);
+  grid-template-columns: minmax(0, 0.72fr) minmax(380px, 0.58fr);
+}
+
+.nhx-contact-workspace__title {
+  margin: 18px 0 24px;
+  font-size: clamp(50px, 8vw, 112px);
+  font-weight: 400;
+  line-height: 0.9;
+  letter-spacing: -0.075em;
+  color: var(--nh-ink);
+}
+
+.nhx-contact-workspace__desc {
+  max-width: 520px;
+  color: var(--nh-muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.nhx-contact-workspace__email {
+  display: inline-block;
+  margin-top: 32px;
+  color: var(--nh-ink);
+  font-size: 12px;
+  text-decoration: none;
+  box-shadow: inset 0 -1px 0 var(--nh-hairline);
+  padding-bottom: 2px;
+  transition: color .3s var(--nh-ease-soft);
+}
+
+.nhx-contact-workspace__email:hover {
+  color: var(--nh-solid-bg);
+}
+
+/* --- F4. Contact FAQ ----------------------------------------------------- */
+.nhx-contact-faq {
+  padding: clamp(84px, 11vw, 168px) 0;
+  border-top: 1px solid var(--nh-hairline);
+}
+
+.nhx-contact-faq__grid {
+  display: grid;
+  gap: clamp(60px, 9vw, 140px);
+  grid-template-columns: minmax(0, 0.8fr) minmax(360px, 0.6fr);
+}
+
+.nhx-contact-faq__title {
+  margin-top: 18px;
+  font-size: clamp(50px, 8vw, 112px);
+  font-weight: 400;
+  line-height: 0.9;
+  letter-spacing: -0.075em;
+  color: var(--nh-ink);
+}
+
+/* --- F5. Contact form — nhx-scoped -------------------------------------- */
+.nhx-contact-form {
+  display: grid;
+  gap: 0;
+  padding: clamp(24px, 4vw, 42px);
+  background: var(--nh-card-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  border-radius: var(--nh-radius-lg);
+}
+
+.nhx-contact-form__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 30px;
+  margin-bottom: 12px;
+  padding-bottom: 22px;
+  box-shadow: inset 0 -1px 0 var(--nh-hairline);
+}
+
+.nhx-contact-form__head-tag {
+  font-size: 11px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--nh-muted);
+}
+
+.nhx-contact-form__head-note {
+  max-width: 240px;
+  color: var(--nh-muted-2);
+  font-size: 11px;
+  line-height: 1.5;
+  text-align: right;
+}
+
+.nhx-contact-form__row {
+  display: grid;
+  gap: 0 clamp(12px, 2vw, 24px);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.nhx-contact-form label {
+  display: grid;
+  gap: 6px;
+  font-size: 11px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--nh-muted);
+}
+
+.nhx-contact-form label span {
+  font-size: 11px;
+  color: var(--nh-muted-2);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.nhx-contact-form input,
+.nhx-contact-form textarea,
+.nhx-contact-form select {
+  width: 100%;
+  padding: 12px 0;
+  border: 0;
+  border-bottom: 1px solid var(--nh-hairline);
+  background: none;
+  color: var(--nh-ink);
+  font: inherit;
+  font-size: 13.5px;
+  letter-spacing: -.005em;
+  outline: none;
+  transition: border-color .45s var(--nh-ease);
+}
+
+.nhx-contact-form input:focus,
+.nhx-contact-form textarea:focus,
+.nhx-contact-form select:focus {
+  border-bottom-color: var(--nh-ink);
+}
+
+.nhx-contact-form input::placeholder,
+.nhx-contact-form textarea::placeholder {
+  color: var(--nh-muted-2);
+}
+
+.nhx-contact-form select {
+  appearance: none;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none'%3E%3Cpath d='M2 4l4 4 4-4' stroke='%238f9598' stroke-width='1.2'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 4px center;
+  padding-right: 24px;
+}
+
+.nhx-contact-form select option {
+  background: var(--nh-surface-2);
+  color: var(--nh-ink);
+}
+
+.nhx-contact-form textarea {
+  resize: vertical;
+  min-height: 120px;
+}
+
+.nhx-contact-form__consent {
+  display: flex !important;
+  grid-template-columns: none !important;
+  align-items: flex-start;
+  gap: 10px !important;
+  padding: 16px 0;
+  font-size: 11px !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+  color: var(--nh-muted) !important;
+  line-height: 1.5;
+}
+
+.nhx-contact-form__consent input[type="checkbox"] {
+  width: 16px;
+  min-height: 16px;
+  flex: 0 0 16px;
+  accent-color: var(--nh-solid-bg);
+  border-bottom: 0;
+  padding: 0;
+}
+
+.nhx-contact-form__submit {
+  margin-top: 24px;
+  height: 44px;
+  padding: 0 28px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--nh-solid-bg);
+  color: var(--nh-solid-fg);
+  font: inherit;
+  font-size: 12px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  justify-self: start;
+  transition: background .35s var(--nh-ease-soft),
+              transform .35s var(--nh-ease);
+}
+
+.nhx-contact-form__submit:hover {
+  background: var(--nh-solid-bg-hover);
+  transform: translateY(-1px);
+}
+
+/* --- F6. Success state --------------------------------------------------- */
+.nhx-contact-success {
+  display: grid;
+  gap: 18px;
+  padding: clamp(40px, 6vw, 72px) clamp(24px, 4vw, 42px);
+  background: var(--nh-card-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  border-radius: var(--nh-radius-lg);
+  text-align: center;
+  justify-items: center;
+}
+
+.nhx-contact-success__check {
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  background: var(--nh-ghost-bg);
+  display: grid;
+  place-items: center;
+  color: var(--nh-ink);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.nhx-contact-success h2 {
+  font-size: clamp(28px, 4vw, 48px);
+  font-weight: 400;
+  letter-spacing: -.04em;
+  color: var(--nh-ink);
+}
+
+.nhx-contact-success p {
+  color: var(--nh-muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+/* --- F7. Service note ---------------------------------------------------- */
+.nhx-service-note {
+  display: flex;
+  gap: 12px;
+  margin-top: 30px;
+  padding-top: 18px;
+  box-shadow: inset 0 1px 0 var(--nh-hairline);
+}
+
+.nhx-service-note__icon {
+  flex: 0 0 auto;
+  color: var(--nh-muted-2);
+}
+
+.nhx-service-note strong {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 400;
+  letter-spacing: -.005em;
+  color: var(--nh-ink);
+}
+
+.nhx-service-note span {
+  display: block;
+  margin-top: 4px;
+  color: var(--nh-muted);
+  font-size: 11px;
+  letter-spacing: .04em;
+}
+
+/* --- F8. Responsive contact ---------------------------------------------- */
+@media (max-width: 991px) {
+  .nhx-contact-hero__heading,
+  .nhx-contact-workspace__grid,
+  .nhx-contact-faq__grid { grid-template-columns: 1fr; }
+  .nhx-quick-grid { grid-template-columns: 1fr; }
+  .nhx-quick-card { min-height: 230px; }
+}
+
+@media (max-width: 600px) {
+  .nhx-contact-form__row { grid-template-columns: 1fr; }
+  .nhx-contact-hero__title { font-size: clamp(48px, 15vw, 80px); }
+  .nhx-contact-form__head { flex-direction: column; }
+}
+
+/* --- F9. Minimal contact page --------------------------------------------- */
+.nhx-contact-minimal {
+  padding: clamp(84px, 11vw, 168px) 0;
+  border-top: 1px solid var(--nh-hairline);
+}
+
+.nhx-contact-minimal:first-of-type {
+  border-top: none;
+  padding-top: clamp(120px, 14vw, 200px);
+}
+
+.nhx-contact-minimal__heading {
+  max-width: 720px;
+}
+
+.nhx-contact-minimal__title {
+  font-size: clamp(50px, 8vw, 112px);
+  font-weight: 400;
+  line-height: 0.9;
+  letter-spacing: -0.075em;
+  color: var(--nh-ink);
+}
+
+.nhx-contact-minimal__title em {
+  color: var(--nh-muted);
+  font-style: normal;
+}
+
+.nhx-contact-minimal__sub {
+  max-width: 520px;
+  color: var(--nh-muted);
+  font-size: 13px;
+  line-height: 1.7;
+  margin-top: 18px;
+}
+
+.nhx-contact-minimal__email {
+  display: inline-block;
+  color: var(--nh-ink);
+  font-size: 12px;
+  text-decoration: none;
+  box-shadow: inset 0 -1px 0 var(--nh-hairline);
+  padding-bottom: 2px;
+  transition: color .3s var(--nh-ease-soft);
+}
+
+.nhx-contact-minimal__email:hover {
+  color: var(--nh-solid-bg);
+}
+
+.nhx-contact-faq__header {
+  margin-bottom: clamp(40px, 6vw, 80px);
+}
+
+.nhx-contact-band-section {
+  background: var(--nh-surface-2);
+  border-top: 1px solid var(--nh-hairline);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nhx-contact-success {
+    animation: none;
+  }
+}

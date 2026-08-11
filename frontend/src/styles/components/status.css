@@ -1,0 +1,226 @@
+/* ---------------------------------------------------------------------------
+   ICED_OUT — status surfaces.
+
+   The screens nobody browses to on purpose: the 404, the staff 403, and the
+   clearance gate the router shows while it decides whether a session may see a
+   route. One flat language for all three.
+
+   Flat is the brief, and it is also the right answer. These are not content —
+   framing them in a rounded, frosted, elevated card dressed a dead end up as a
+   destination and gave the eye a lot to read before it found the way out. What
+   is left is the numeral, dissolving downward into the page, and the exits.
+
+   Self-contained by necessity. An unmatched URL matches no route group, so no
+   route group's stylesheet loads for it; the same is true of the gate, which
+   renders above every group from the root providers. Nothing here may depend on
+   a token layer that only exists further down the tree.
+   ------------------------------------------------------------------------- */
+
+/* `.route-guard` is named alongside `.st` rather than being added to the
+   markup, because five auth routes already render `<main class="route-guard">`
+   as their Suspense fallback and none of them knows about this sheet. */
+.st,
+.route-guard {
+  --st-ink: #f1f3f3;
+  --st-surface: #101113;
+  --st-hairline: rgba(255, 255, 255, 0.14);
+  --st-hairline-strong: rgba(255, 255, 255, 0.32);
+  --st-ghost: rgba(255, 255, 255, 0.04);
+  --st-muted: rgba(241, 243, 243, 0.42);
+  --st-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: 32px 20px calc(32px + env(safe-area-inset-bottom));
+  background: var(--st-surface);
+  color: var(--st-ink);
+  text-align: center;
+}
+
+/* The figure, dissolving downward.
+ *
+ * The fade is painted into the glyphs themselves — a gradient clipped to the
+ * text — rather than laid over them as a scrim. An overlay would have to match
+ * the page background exactly and would still cut a straight edge across the
+ * baseline; clipping means the strokes thin out into the black and the figure
+ * has no bottom edge at all.
+ *
+ * `color` is declared first as the fallback: anywhere `background-clip: text`
+ * is not honoured this reads as solid ink rather than an invisible element. */
+.st__figure {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: clamp(7.5rem, 34vw, 20rem);
+  font-weight: 800;
+  line-height: 0.82;
+  /* Tight, the way a display numeral is set — the default fit leaves the
+     counters of 0 floating away from the 4s at this size. */
+  letter-spacing: -0.055em;
+  color: var(--st-ink);
+  background: linear-gradient(
+    180deg,
+    #ffffff 0%,
+    var(--st-ink) 34%,
+    rgba(241, 243, 243, 0.28) 74%,
+    rgba(241, 243, 243, 0) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+
+  animation: st-rise 0.9s var(--st-ease) both;
+}
+
+/* The one technical register these screens keep. Sized and spaced so it reads
+   as a caption to the figure rather than as a second headline. */
+.st__label {
+  margin: 14px 0 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: var(--st-muted);
+
+  animation: st-rise 0.9s var(--st-ease) 0.08s both;
+}
+
+.st__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+
+  /* Clear of the figure, not tucked into it. The dissolve leaves the lower
+     strokes at maybe a third opacity — enough that buttons overlapping them
+     read as a collision rather than as depth. Tight enough that the two still
+     group as one object. */
+  margin-top: clamp(12px, 2vw, 34px);
+
+  animation: st-rise 0.9s var(--st-ease) 0.12s both;
+}
+
+/* A label between figure and buttons pushes them back down to a normal gap. */
+.st__label + .st__actions {
+  margin-top: 26px;
+}
+
+.st__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px; /* the pointer target floor, not a design choice */
+  padding: 0 22px;
+  border: 1px solid transparent;
+  /* Crisp, not pill: a 6px corner reads as a control, and nothing on these
+     screens is allowed to look like a rounded card. */
+  border-radius: 6px;
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color 0.22s var(--st-ease),
+    border-color 0.22s var(--st-ease),
+    color 0.22s var(--st-ease);
+}
+
+.st__btn--solid {
+  background: var(--st-ink);
+  color: #0d0e10;
+}
+
+.st__btn--solid:hover {
+  background: #ffffff;
+}
+
+.st__btn--ghost {
+  background: var(--st-ghost);
+  border-color: var(--st-hairline);
+  color: var(--st-ink);
+}
+
+.st__btn--ghost:hover {
+  border-color: var(--st-hairline-strong);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* ------------------------------------------------------- the clearance gate */
+
+/* The gate has no figure to dissolve — it is a wait, not a verdict, and a
+   giant numeral would announce a failure that has not happened. It gets the
+   mark instead, breathing rather than spinning: a rotating glyph asserts
+   progress it cannot measure. */
+.route-guard__mark {
+  width: 30px;
+  height: 30px;
+  color: var(--st-ink);
+  animation: st-pulse 1.9s var(--st-ease) infinite;
+}
+
+/* The bare `<span class="skeleton" />` in the five auth Suspense fallbacks.
+   Same pulse, so a route that is still resolving looks the same whether it is
+   the gate or a lazy auth page behind it. */
+.route-guard > .skeleton {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  animation: st-pulse 1.9s var(--st-ease) infinite;
+}
+
+@keyframes st-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes st-pulse {
+  0%,
+  100% {
+    opacity: 0.32;
+    transform: scale(0.94);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* A landscape phone is wide and short, and the figure is sized off viewport
+   *width* — 34vw on an 800×400 screen is a numeral taller than half the
+   screen, which pushes the buttons under the fold on the one page whose entire
+   job is to offer them. Height is the constraint here, so it sets the ceiling. */
+@media (max-height: 620px) {
+  .st__figure {
+    font-size: clamp(5rem, 22vh, 9rem);
+  }
+}
+
+/* The dissolve is the design and stays — it is a static gradient, not motion.
+   Only travel and pulse are dropped. */
+@media (prefers-reduced-motion: reduce) {
+  .st__figure,
+  .st__label,
+  .st__actions,
+  .route-guard__mark,
+  .route-guard > .skeleton {
+    animation: none;
+  }
+
+  .route-guard__mark,
+  .route-guard > .skeleton {
+    opacity: 0.7;
+  }
+}

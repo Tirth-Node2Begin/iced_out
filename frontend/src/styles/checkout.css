@@ -1,0 +1,1638 @@
+/* ============================================================================
+   ICED_OUT — checkout, payment, order
+
+   The three screens between a full bag and a placed order. They share one
+   vocabulary with the rest of the storefront: every colour resolves through the
+   new_style.md token list declared on `.io-scope` (§2 colour, §4 shape), every
+   1px edge is an inset box-shadow rather than a border (§5.2 — a border eats a
+   pixel of the control's content box and shifts the row it sits in), and the
+   two easing curves are kept apart (§6.6 — colour on `--nh-ease-soft`,
+   transform on `--nh-ease`).
+
+   Layering, page outwards:  page #101113 → section #16181a → inner card #1a1c1e
+
+   `co-` is checkout and payment. `od-` is the order screen.
+   ========================================================================= */
+
+/* ------------------------------------------------------------- 1. the shell */
+/* Decisions on the left, money on the right, and the money never scrolls out
+   of reach — the running total is the one thing a shopper checks against every
+   field they fill in. */
+.co {
+  display: grid;
+  align-items: start;
+  gap: clamp(1rem, 2vw, 1.5rem);
+  grid-template-columns: minmax(0, 1fr) 372px;
+}
+
+.co__main {
+  display: grid;
+  gap: clamp(0.75rem, 1.4vw, 1rem);
+}
+
+.co__aside {
+  position: sticky;
+  top: calc(var(--io-nav-h) + 14px);
+}
+
+.co__back {
+  padding: 4px 2px;
+}
+
+.co__back .io-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+@media (max-width: 1080px) {
+  .co {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* The summary leads on a narrow screen: what it costs is the question, and
+     it should not sit under three sections of form to answer it. */
+  .co__aside {
+    position: static;
+    order: -1;
+  }
+}
+
+/* ------------------------------------------------------------ 1b. the rail */
+/* Four steps, one at a time, against a rail that answers the two questions a
+   wizard always gets asked: how far in am I, and what did I already say. The
+   summary under each label is the second answer — a rail that only counts is a
+   progress bar with delusions, and a shopper cannot check a delivery address
+   they cannot see. */
+.co-rail {
+  padding: clamp(0.9rem, 1.8vw, 1.15rem);
+  border-radius: var(--nh-radius-lg);
+  background: var(--nh-surface-2);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.co-rail__list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  gap: 6px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  list-style: none;
+}
+
+.co-rail__btn {
+  display: grid;
+  width: 100%;
+  align-items: center;
+  padding: 9px 11px;
+  border: 0;
+  border-radius: var(--nh-radius-card);
+  gap: 10px;
+  grid-template-columns: 26px minmax(0, 1fr);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.3s var(--nh-ease-soft);
+}
+
+.co-rail__btn:hover:not(:disabled) {
+  background: var(--nh-card-bg);
+}
+
+.co-rail__btn:disabled {
+  cursor: default;
+}
+
+.co-rail__btn:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.6);
+}
+
+.co-rail__item[data-state="current"] .co-rail__btn {
+  background: var(--nh-card-bg);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.32);
+}
+
+.co-rail__dot {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: var(--nh-ghost-bg);
+  color: var(--nh-muted-2);
+  font-size: 10.5px;
+  place-items: center;
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  font-variant-numeric: tabular-nums;
+  transition:
+    background-color 0.3s var(--nh-ease-soft),
+    color 0.3s var(--nh-ease-soft);
+}
+
+/* Answered inverts to the light pill, the same "primary is a different
+   material" rule the CTAs follow (new_style §2.4). */
+.co-rail__item[data-state="done"] .co-rail__dot {
+  background: var(--nh-solid-bg);
+  color: var(--nh-solid-fg);
+  box-shadow: none;
+}
+
+.co-rail__item[data-state="current"] .co-rail__dot {
+  color: var(--nh-ink);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.45);
+}
+
+.co-rail__label {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.co-rail__label strong {
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+}
+
+.co-rail__item[data-state="waiting"] .co-rail__label strong {
+  color: var(--nh-muted);
+  font-weight: 400;
+}
+
+.co-rail__label small {
+  overflow: hidden;
+  color: var(--nh-muted-2);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.co-rail__track {
+  position: relative;
+  height: 2px;
+  margin: 10px 4px 2px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--nh-hairline);
+}
+
+.co-rail__track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--nh-solid-bg);
+  /* Width is the only thing that moves, and it moves on the transform curve
+     rather than the colour one (new_style §6.6). */
+  transition: width 0.45s var(--nh-ease);
+}
+
+@media (max-width: 860px) {
+  /* Four labelled steps do not fit a phone. The rail keeps the count and the
+     current step's own header carries the title, so nothing is lost. */
+  .co-rail__list {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 2px;
+  }
+
+  .co-rail__btn {
+    padding: 8px 6px;
+    gap: 7px;
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    text-align: center;
+  }
+
+  .co-rail__label small {
+    display: none;
+  }
+
+  .co-rail__label strong {
+    font-size: 11px;
+  }
+}
+
+/* -------------------------------------------------------------- 2. sections */
+.co-card,
+.co-step {
+  padding: clamp(1.1rem, 2vw, 1.5rem);
+  border-radius: var(--nh-radius-lg);
+  background: var(--nh-surface-2);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.co-card__head {
+  display: grid;
+  align-items: center;
+  margin-bottom: 16px;
+  gap: 13px;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+}
+
+/* A number, not a progress bar: three sections on one screen do not need a
+   wizard, they need to be countable. */
+.co-card__step {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: var(--nh-ghost-bg);
+  color: var(--nh-ink-soft);
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  place-items: center;
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  font-variant-numeric: tabular-nums;
+}
+
+.co-card__title {
+  margin: 0;
+  font-size: 15.5px;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+}
+
+.co-card__note {
+  max-width: 60ch;
+  margin: 5px 0 0;
+  color: var(--nh-muted);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.co-card__edit {
+  font-size: 12px;
+}
+
+.co-card__foot {
+  display: flex;
+  align-items: baseline;
+  margin: 14px 0 0;
+  gap: 7px;
+  color: var(--nh-muted-2);
+  font-size: 11.5px;
+  line-height: 1.55;
+}
+
+.co-card__foot svg {
+  flex: none;
+  transform: translateY(1px);
+}
+
+/* --------------------------------------------------------------- 2b. steps */
+/* The step is the form. It carries the same material as a `.co-card` and adds
+   the two things a step has that a section does not: a place in a count, and a
+   pair of feet to leave by. */
+.co-step {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+}
+
+.co-step > .co-card__head {
+  margin-bottom: 0;
+}
+
+.co-step__count {
+  color: var(--nh-muted-2);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+.co-step__count i {
+  color: var(--nh-hairline-strong, rgba(255, 255, 255, 0.24));
+  font-style: normal;
+}
+
+.co-step__feet {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 16px;
+  gap: 9px;
+  box-shadow: inset 0 1px 0 0 var(--nh-hairline);
+}
+
+.co-step__feet .io-btn {
+  gap: 8px;
+}
+
+@media (max-width: 520px) {
+  .co-step__feet {
+    flex-direction: column-reverse;
+  }
+
+  .co-step__feet .io-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* ------------------------------------------------------------ 2c. pre-fill */
+/* Said once, quietly, and only when something was actually filled — a banner
+   announcing that two empty fields stayed empty is noise. */
+.co-prefill {
+  display: grid;
+  align-items: start;
+  margin: 0;
+  padding: 11px 13px;
+  border-radius: var(--nh-radius-card);
+  gap: 9px;
+  grid-template-columns: 13px minmax(0, 1fr);
+  background: var(--nh-card-bg);
+  color: var(--nh-muted);
+  font-size: 12px;
+  line-height: 1.5;
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.co-prefill svg {
+  margin-top: 2px;
+  color: var(--nh-ink-soft);
+}
+
+/* ------------------------------------------------------ 2d. saved addresses */
+.co-saved {
+  display: grid;
+  gap: 9px;
+}
+
+.co-saved__label {
+  margin: 0;
+  color: var(--nh-muted);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.co-saved__list {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.co-saved__chip {
+  display: grid;
+  align-items: start;
+  padding: 11px 13px;
+  border: 0;
+  border-radius: var(--nh-radius-card);
+  gap: 10px;
+  grid-template-columns: 13px minmax(0, 1fr);
+  background: var(--nh-card-bg);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  transition:
+    background-color 0.3s var(--nh-ease-soft),
+    box-shadow 0.3s var(--nh-ease-soft);
+}
+
+.co-saved__chip:hover {
+  background: #1f2224;
+}
+
+.co-saved__chip:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.6);
+}
+
+.co-saved__chip svg {
+  margin-top: 3px;
+  color: var(--nh-muted);
+}
+
+.co-saved__chip span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.co-saved__chip strong {
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.co-saved__chip small {
+  overflow: hidden;
+  color: var(--nh-muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --------------------------------------------------------------- 2e. review */
+/* The payment step quotes the three answers it is about to commit, each with a
+   way back to where it was given. A confirmation that hides what it confirms
+   is a button, not a review. */
+.co-review {
+  display: grid;
+  gap: 2px;
+}
+
+.co-review__row {
+  display: grid;
+  align-items: baseline;
+  padding: 11px 14px;
+  border-radius: var(--nh-radius-card);
+  gap: 4px 14px;
+  grid-template-columns: 96px minmax(0, 1fr) auto;
+  background: var(--nh-card-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.co-review__label {
+  color: var(--nh-muted);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.co-review__body {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.co-review__body span {
+  overflow: hidden;
+  color: var(--nh-ink-soft);
+  font-size: 12.5px;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+}
+
+.co-review__body span:first-child {
+  color: var(--nh-ink);
+}
+
+.co-review__edit {
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  gap: 5px;
+  background: none;
+  color: var(--nh-muted);
+  font: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+  transition: color 0.3s var(--nh-ease-soft);
+}
+
+.co-review__edit:hover {
+  color: var(--nh-ink);
+}
+
+@media (max-width: 560px) {
+  .co-review__row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .co-review__label {
+    grid-column: 1 / -1;
+  }
+}
+
+/* ---------------------------------------------------------------- 3. fields */
+/* Six tracks, so a row can be halves (3 + 3) or thirds (2 + 2 + 2) without a
+   second grid. City / State / PIN belong on one line — a lone half-width PIN
+   under a full row reads as a field somebody forgot to finish. */
+.co-fields {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.co-field {
+  grid-column: span 3;
+}
+
+.co-field--wide {
+  grid-column: 1 / -1;
+}
+
+.co-field--third {
+  grid-column: span 2;
+}
+
+.co-field {
+  display: grid;
+  gap: 7px;
+}
+
+.co-field > span {
+  color: var(--nh-muted);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.co-field :is(input, select) {
+  width: 100%;
+  height: 46px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: var(--nh-radius-card);
+  background: var(--nh-card-bg);
+  color: var(--nh-ink);
+  font: inherit;
+  font-size: 14px;
+  letter-spacing: -0.005em;
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  transition:
+    background-color 0.3s var(--nh-ease-soft),
+    box-shadow 0.3s var(--nh-ease-soft);
+}
+
+.co-field select {
+  appearance: none;
+  cursor: pointer;
+}
+
+.co-field input::placeholder {
+  color: var(--nh-muted-2);
+}
+
+.co-field :is(input, select):focus-visible {
+  outline: none;
+  background: #1f2224;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.42);
+}
+
+/* Only what a rule actually rejected, and only once it has been submitted. The
+   form is `noValidate` and every complaint comes from `checkout-validation.ts`,
+   so the hook is `aria-invalid` rather than `:invalid` — one source for the
+   outline, the message and what a screen reader is told. */
+.co-field :is(input, select)[aria-invalid="true"] {
+  background: rgba(229, 72, 77, 0.06);
+  box-shadow: inset 0 0 0 1px rgba(229, 72, 77, 0.55);
+}
+
+.co-field :is(input, select)[aria-invalid="true"]:focus-visible {
+  box-shadow: inset 0 0 0 1px rgba(229, 72, 77, 0.85);
+}
+
+/* The sentence, not a symbol: "required" tells a shopper a field is empty and
+   nothing about what belongs in it. */
+.co-error {
+  color: #f0a9ab;
+  font-size: 11.5px;
+  font-style: normal;
+  line-height: 1.45;
+}
+
+/* The brand, printed back beside the label as the number is typed — it is how
+   the field says it understood, and it is why the CVV asks for 4 digits on an
+   Amex without explaining itself. */
+.co-brand {
+  margin-left: 8px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--nh-ghost-bg);
+  color: var(--nh-ink-soft);
+  font-size: 9px;
+  font-style: normal;
+  letter-spacing: 0.1em;
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.co-cardform {
+  display: grid;
+  padding: clamp(0.9rem, 1.8vw, 1.15rem);
+  border-radius: var(--nh-radius-card);
+  gap: 4px;
+  background: var(--nh-card-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.co-cardform .co-field :is(input, select) {
+  background: var(--nh-surface-2);
+}
+
+@media (max-width: 620px) {
+  .co-field,
+  .co-field--third {
+    grid-column: 1 / -1;
+  }
+}
+
+/* --------------------------------------------------------------- 4. choices */
+/* Delivery speed and payment method share one control: a full-width card whose
+   whole surface is the hit area, not a 14px radio dot with a label beside it. */
+.co-choices {
+  display: grid;
+  gap: 8px;
+}
+
+.co-choice {
+  position: relative;
+  display: grid;
+  align-items: center;
+  padding: 14px 16px;
+  border-radius: var(--nh-radius-card);
+  gap: 13px;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  background: var(--nh-card-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  cursor: pointer;
+  transition:
+    background-color 0.3s var(--nh-ease-soft),
+    box-shadow 0.3s var(--nh-ease-soft);
+}
+
+.co-choice:hover {
+  background: #1f2224;
+}
+
+.co-choice[data-selected] {
+  background: #1f2224;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.4);
+}
+
+.co-choice input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.co-choice:has(input:focus-visible) {
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.6);
+}
+
+.co-choice:has(input:disabled) {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.co-choice__glyph {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: var(--nh-ghost-bg);
+  color: var(--nh-ink-soft);
+  place-items: center;
+  transition:
+    background-color 0.3s var(--nh-ease-soft),
+    color 0.3s var(--nh-ease-soft);
+}
+
+/* Selected inverts to the light pill — the same "primary is a different
+   material, not a different shade" rule the CTAs follow (§2.4). */
+.co-choice[data-selected] .co-choice__glyph {
+  background: var(--nh-solid-bg);
+  color: var(--nh-solid-fg);
+}
+
+.co-choice__body {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.co-choice__body strong {
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.co-choice__body small {
+  color: var(--nh-muted);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+.co-choice__price {
+  color: var(--nh-ink-soft);
+  font-size: 11.5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* -------------------------------------------------------------- 5. the sum */
+/* The one gradient in the system (new_style §2.2) — reserved for the hero, and
+   the amount about to leave someone's account is this screen's hero. */
+.co-amount {
+  padding: clamp(1.4rem, 2.6vw, 2rem) clamp(1.25rem, 2.4vw, 1.75rem);
+  border-radius: var(--nh-radius-lg);
+  text-align: center;
+  background:
+    radial-gradient(120% 80% at 50% 0%, #1e282d 0%, rgba(30, 40, 45, 0) 62%),
+    linear-gradient(180deg, #171e22 0%, #131719 46%, #0e0f11 100%);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.co-amount__label {
+  margin: 0;
+  color: var(--nh-muted);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.co-amount__value {
+  margin: 10px 0 0;
+  font-size: clamp(2.1rem, 5vw, 3.1rem);
+  font-weight: 300;
+  font-stretch: 112%;
+  letter-spacing: -0.035em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.co-amount__note {
+  margin: 12px 0 0;
+  color: var(--nh-muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+/* ---------------------------------------------------------------- 6. alerts */
+.co-alert {
+  display: grid;
+  align-items: start;
+  padding: 14px 16px;
+  border-radius: var(--nh-radius-card);
+  gap: 12px;
+  grid-template-columns: 16px minmax(0, 1fr);
+  background: rgba(229, 72, 77, 0.09);
+  color: #f0a9ab;
+  box-shadow: inset 0 0 0 1px rgba(229, 72, 77, 0.32);
+}
+
+.co-alert p {
+  margin: 0;
+  color: var(--nh-ink-soft);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.co-alert strong {
+  display: block;
+  margin-bottom: 3px;
+  color: #f0a9ab;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.co-testcard {
+  padding: 14px 16px;
+  border-radius: var(--nh-radius-card);
+  background: var(--nh-surface-2);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.co-testcard h3 {
+  display: flex;
+  align-items: center;
+  margin: 0 0 7px;
+  color: var(--nh-ink);
+  font-size: 11px;
+  font-weight: 500;
+  gap: 7px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.co-testcard p {
+  margin: 0;
+  color: var(--nh-muted);
+  font-size: 12.5px;
+  line-height: 1.65;
+}
+
+.co-testcard code {
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: var(--nh-card-bg);
+  color: var(--nh-ink);
+  font-family: ui-monospace, "SF Mono", "Roboto Mono", monospace;
+  font-size: 11.5px;
+  white-space: nowrap;
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+/* --------------------------------------------------------------- 7. address */
+.co-address {
+  display: grid;
+  padding: 14px 16px;
+  border-radius: var(--nh-radius-card);
+  gap: 4px;
+  background: var(--nh-card-bg);
+  color: var(--nh-muted);
+  font-size: 13px;
+  font-style: normal;
+  line-height: 1.55;
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.co-address strong {
+  color: var(--nh-ink);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+/* --------------------------------------------------------------- 8. summary */
+.co-summary {
+  display: grid;
+  padding: clamp(1.1rem, 2vw, 1.35rem);
+  border-radius: var(--nh-radius-lg);
+  gap: 14px;
+  background: var(--nh-surface-2);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.co-summary__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.co-summary__head h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+}
+
+.co-summary__head span {
+  color: var(--nh-muted);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.co-summary__lines {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  gap: 10px;
+  list-style: none;
+  max-height: 268px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.co-summary__lines li {
+  display: grid;
+  align-items: center;
+  gap: 12px;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+}
+
+.co-summary__media {
+  position: relative;
+  display: block;
+  width: 52px;
+  aspect-ratio: 1 / 1.2;
+  overflow: hidden;
+  border-radius: 11px;
+  background: var(--nh-card-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.co-summary__media .product-sprite {
+  width: 100%;
+  height: 100%;
+}
+
+/* The quantity rides the thumbnail rather than taking a column of its own —
+   a bag of one never needs the word "Qty" spelled out. */
+.co-summary__media i {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: grid;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--nh-chip-bg);
+  color: var(--nh-chip-fg);
+  font-size: 10px;
+  font-style: normal;
+  place-items: center;
+  backdrop-filter: blur(8px);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  font-variant-numeric: tabular-nums;
+}
+
+.co-summary__body {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.co-summary__body strong {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: -0.005em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.co-summary__body small {
+  color: var(--nh-muted);
+  font-size: 11.5px;
+}
+
+.co-summary__price {
+  font-size: 12.5px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.co-summary__totals {
+  display: grid;
+  margin: 0;
+  padding-top: 14px;
+  gap: 9px;
+  box-shadow: inset 0 1px 0 0 var(--nh-hairline);
+}
+
+.co-summary__totals > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.co-summary__totals dt {
+  color: var(--nh-muted);
+  font-size: 12.5px;
+}
+
+.co-summary__totals dd {
+  margin: 0;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.co-summary__total {
+  padding-top: 11px;
+  box-shadow: inset 0 1px 0 0 var(--nh-hairline);
+}
+
+.co-summary__total dt {
+  color: var(--nh-ink);
+  font-size: 13.5px;
+}
+
+.co-summary__total dd {
+  font-size: 19px;
+  font-weight: 500;
+  letter-spacing: -0.025em;
+}
+
+/* Sits directly under the checkout button and says which step is holding the
+   order up. A disabled button explains nothing; this explains and still lets
+   the press through. */
+.co-summary__hint {
+  margin: -6px 0 0;
+  color: var(--nh-muted-2);
+  font-size: 11.5px;
+  line-height: 1.45;
+  text-align: center;
+}
+
+/* ----------------------------------------------------------------- 9. trust */
+.co-trust {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  gap: 7px;
+  list-style: none;
+}
+
+.co-trust li {
+  display: grid;
+  align-items: start;
+  gap: 8px;
+  grid-template-columns: 13px minmax(0, 1fr);
+  color: var(--nh-muted-2);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.co-trust svg {
+  margin-top: 1px;
+}
+
+/* -------------------------------------------------------------- 10. waiting */
+.co-load {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 180px;
+  padding: 2rem;
+  border-radius: var(--nh-radius-lg);
+  gap: 10px;
+  background: var(--nh-surface-2);
+  color: var(--nh-muted);
+  font-size: 13px;
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.co-spin {
+  animation: co-spin 0.9s linear infinite;
+}
+
+@keyframes co-spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+/* ==========================================================================
+   THE ORDER SCREEN
+
+   One screen serves two arrivals — the one that follows a payment and the one
+   that opens out of the archive weeks later. Only the block at the top knows
+   the difference.
+   ========================================================================= */
+
+/* ---------------------------------------------------------- 11. the thanks */
+.od-thanks {
+  position: relative;
+  padding: clamp(1.75rem, 3.4vw, 2.75rem) clamp(1.25rem, 2.6vw, 2rem);
+  border-radius: var(--nh-radius-lg);
+  text-align: center;
+  background:
+    radial-gradient(120% 80% at 50% 0%, #1e282d 0%, rgba(30, 40, 45, 0) 62%),
+    linear-gradient(180deg, #171e22 0%, #131719 46%, #0e0f11 100%);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.od-thanks__mark {
+  display: grid;
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 18px;
+  border-radius: 999px;
+  background: var(--nh-solid-bg);
+  color: var(--nh-solid-fg);
+  place-items: center;
+  box-shadow: 0 0 0 8px rgba(242, 244, 244, 0.06);
+}
+
+.od-thanks__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: var(--nh-ghost-bg);
+  color: var(--nh-muted);
+  font-size: 9.5px;
+  gap: 6px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+/* The two-cut headline of new_style §3.2 — heavy condensed, then light
+   extended for the half that carries the feeling. */
+.od-thanks__title {
+  margin: 14px 0 0;
+  font-size: clamp(1.6rem, 3.4vw, 2.6rem);
+  font-weight: 700;
+  font-stretch: 100%;
+  letter-spacing: -0.035em;
+  line-height: 0.98;
+}
+
+.od-thanks__title em {
+  display: inline-block;
+  font-style: normal;
+  font-weight: 300;
+  font-stretch: 112%;
+  letter-spacing: -0.015em;
+}
+
+.od-thanks__copy {
+  max-width: 52ch;
+  margin: 14px auto 0;
+  color: var(--nh-muted);
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+
+.od-thanks__spec {
+  display: grid;
+  max-width: 560px;
+  margin: 22px auto 0;
+  padding: 14px;
+  border-radius: var(--nh-radius-card);
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.od-thanks__spec div {
+  display: grid;
+  gap: 5px;
+}
+
+.od-thanks__spec dt {
+  color: var(--nh-muted);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.od-thanks__spec dd {
+  margin: 0;
+  font-size: 13.5px;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+.od-thanks__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 22px;
+  gap: 9px;
+}
+
+/* ------------------------------------------------------ 11b. the other end */
+/* The same block, inverted. A payment that failed is not a smaller event than
+   one that worked, and demoting it to a red strip above a cheerful receipt is
+   how someone closes the tab believing they have bought something. Only the
+   temperature changes: the gradient cools to red, the mark stops being the
+   light pill, and the copy says what was NOT charged. */
+.od-thanks--failed {
+  background:
+    radial-gradient(120% 80% at 50% 0%, #2a1a1c 0%, rgba(42, 26, 28, 0) 62%),
+    linear-gradient(180deg, #1d1416 0%, #161113 46%, #0e0f11 100%);
+  box-shadow: inset 0 0 0 1px rgba(229, 72, 77, 0.28);
+}
+
+.od-thanks--failed .od-thanks__mark {
+  background: rgba(229, 72, 77, 0.16);
+  color: #f0a9ab;
+  box-shadow:
+    0 0 0 8px rgba(229, 72, 77, 0.07),
+    inset 0 0 0 1px rgba(229, 72, 77, 0.4);
+}
+
+.od-thanks--failed .od-thanks__eyebrow {
+  color: #f0a9ab;
+  box-shadow: inset 0 0 0 1px rgba(229, 72, 77, 0.3);
+}
+
+.od-thanks__alert {
+  max-width: 560px;
+  margin: 18px auto 0;
+  text-align: left;
+}
+
+@media (max-width: 560px) {
+  .od-thanks__spec {
+    grid-template-columns: minmax(0, 1fr);
+    text-align: left;
+  }
+}
+
+/* ----------------------------------------------------------- 12. the record */
+.od-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: clamp(1.1rem, 2vw, 1.5rem);
+  border-radius: var(--nh-radius-lg);
+  gap: 16px;
+  background: var(--nh-surface-2);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.od-head__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  margin: 0 0 10px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: var(--nh-ghost-bg);
+  color: var(--nh-muted);
+  font-size: 9.5px;
+  gap: 6px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.od-head__title {
+  margin: 0;
+  font-size: clamp(1.3rem, 2.4vw, 1.85rem);
+  font-weight: 400;
+  font-stretch: 108%;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.od-head__copy {
+  max-width: 60ch;
+  margin: 9px 0 0;
+  color: var(--nh-muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.od-head__side {
+  display: grid;
+  justify-items: end;
+  gap: 9px;
+}
+
+.od-head__total {
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --------------------------------------------------------------- 13. steps */
+/* A rail, not four disconnected rows: the connector is what makes it read as
+   one journey with a position on it. */
+.od-steps {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  gap: 0;
+  list-style: none;
+}
+
+.od-steps li {
+  position: relative;
+  display: grid;
+  align-items: start;
+  padding-bottom: 18px;
+  gap: 13px;
+  grid-template-columns: 26px minmax(0, 1fr);
+}
+
+.od-steps li:last-child {
+  padding-bottom: 0;
+}
+
+.od-steps li::before {
+  position: absolute;
+  top: 26px;
+  bottom: 0;
+  left: 12.5px;
+  width: 1px;
+  background: var(--nh-hairline);
+  content: "";
+}
+
+.od-steps li:last-child::before {
+  display: none;
+}
+
+.od-steps li > span {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: var(--nh-card-bg);
+  color: var(--nh-muted-2);
+  place-items: center;
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.od-steps li[data-state="done"] > span {
+  background: var(--nh-solid-bg);
+  color: var(--nh-solid-fg);
+  box-shadow: none;
+}
+
+.od-steps li[data-state="current"] > span {
+  color: var(--nh-ink);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.42);
+}
+
+/* A step that was reached and did not pass — distinct from one still waiting
+   its turn, which is the whole point of showing a timeline. */
+.od-steps li[data-state="failed"] > span {
+  background: rgba(229, 72, 77, 0.14);
+  color: #f0a9ab;
+  box-shadow: inset 0 0 0 1px rgba(229, 72, 77, 0.42);
+}
+
+.od-steps li[data-state="failed"] strong {
+  color: #f0a9ab;
+}
+
+.od-steps li p {
+  margin: 3px 0 0;
+}
+
+.od-steps strong {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.od-steps li[data-state="waiting"] strong {
+  color: var(--nh-muted);
+  font-weight: 400;
+}
+
+.od-steps small {
+  display: block;
+  margin-top: 3px;
+  color: var(--nh-muted-2);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+/* ------------------------------------------------------- 13b. tracking link */
+.od-token {
+  display: grid;
+  align-items: center;
+  margin: 0 0 16px;
+  padding: 11px 14px;
+  border-radius: var(--nh-radius-card);
+  gap: 4px 12px;
+  grid-template-columns: auto minmax(0, 1fr);
+  background: var(--nh-card-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.od-token span {
+  color: var(--nh-muted);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.od-token code {
+  overflow: hidden;
+  color: var(--nh-ink);
+  font-family: ui-monospace, "SF Mono", "Roboto Mono", monospace;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.od-token small {
+  grid-column: 1 / -1;
+  color: var(--nh-muted-2);
+  font-size: 11px;
+}
+
+@media (max-width: 560px) {
+  .od-token {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ---------------------------------------------------------------- 14. goods */
+.od-grid {
+  display: grid;
+  align-items: start;
+  gap: 14px;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+}
+
+@media (max-width: 900px) {
+  .od-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.od-lines {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  gap: 2px;
+  list-style: none;
+}
+
+.od-lines li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-radius: var(--nh-radius-card);
+  gap: 16px;
+  background: var(--nh-card-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.od-lines__body {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.od-lines__body strong {
+  font-size: 13.5px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.od-lines__body small {
+  color: var(--nh-muted);
+  font-size: 11.5px;
+}
+
+.od-lines__price {
+  white-space: nowrap;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.od-totals {
+  display: grid;
+  margin: 14px 0 0;
+  gap: 9px;
+}
+
+.od-totals > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.od-totals dt {
+  color: var(--nh-muted);
+  font-size: 12.5px;
+}
+
+.od-totals dd {
+  margin: 0;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.od-totals__sum {
+  padding-top: 11px;
+  box-shadow: inset 0 1px 0 0 var(--nh-hairline);
+}
+
+.od-totals__sum dt {
+  color: var(--nh-ink);
+  font-size: 13.5px;
+}
+
+.od-totals__sum dd {
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: -0.025em;
+}
+
+.od-address {
+  margin-bottom: 10px;
+}
+
+.od-meta {
+  display: grid;
+  margin: 0;
+  padding: 14px 16px;
+  border-radius: var(--nh-radius-card);
+  gap: 10px;
+  background: var(--nh-card-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.od-meta > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.od-meta dt {
+  color: var(--nh-muted);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.od-meta dd {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  gap: 7px;
+  font-size: 12.5px;
+  text-align: right;
+}
+
+.od-meta dd svg {
+  flex: none;
+  color: var(--nh-muted);
+}
+
+.od-meta__ref {
+  font-family: ui-monospace, "SF Mono", "Roboto Mono", monospace;
+  font-size: 11.5px;
+  word-break: break-all;
+}
+
+/* --------------------------------------------------------------- 15. doors */
+.od-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.od-actions .io-btn {
+  gap: 8px;
+}
+
+.od-cancel {
+  display: grid;
+  gap: 12px;
+}
+
+.od-cancel__refund {
+  display: grid;
+  padding: 14px 16px;
+  border-radius: var(--nh-radius-card);
+  gap: 4px;
+  background: var(--nh-card-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.od-cancel__refund span {
+  color: var(--nh-muted);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.od-cancel__refund strong {
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  font-variant-numeric: tabular-nums;
+}
+
+.od-cancel__refund small {
+  color: var(--nh-muted-2);
+  font-size: 11.5px;
+}
+
+.od-cancel .io-btn {
+  justify-self: start;
+}
+
+.od-cancel__done {
+  display: grid;
+  align-items: start;
+  padding: 14px 16px;
+  border-radius: var(--nh-radius-card);
+  gap: 12px;
+  grid-template-columns: 16px minmax(0, 1fr);
+  background: rgba(86, 190, 133, 0.1);
+  color: #79d4a3;
+  box-shadow: inset 0 0 0 1px rgba(86, 190, 133, 0.28);
+}
+
+.od-cancel__done p {
+  margin: 0;
+}
+
+.od-cancel__done strong {
+  display: block;
+  color: #79d4a3;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.od-cancel__done small {
+  display: block;
+  margin-top: 4px;
+  color: var(--nh-muted);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+/* ------------------------------------------------------- 16. reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .co-spin {
+    animation-duration: 4s;
+  }
+
+  .co-choice,
+  .co-field :is(input, select) {
+    transition-duration: 0.01ms;
+  }
+}

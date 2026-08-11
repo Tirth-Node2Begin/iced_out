@@ -1,0 +1,3966 @@
+/* ============================================================================
+   ICED_OUT — site chrome
+
+   The header, the search dock, the mobile sheet, and the page frame the bag,
+   wishlist and profile screens are built on.
+
+   Every value resolves through the new_style.md token list (§2 colour, §4
+   shape/space/motion). Nothing below invents a colour, and every 1px edge is
+   an inset box-shadow rather than a border — a border eats a pixel of the
+   control's content box and shifts the row it sits in (new_style §5.2).
+
+   Layers over new-home.css, which declares the same token list on
+   `.nh-nav-scope`; this file only adds what the bar was missing and corrects
+   the two things that were breaking it (the overflowing 1fr tracks and the
+   absent backdrop).
+   ========================================================================= */
+
+/* ---------------------------------------------------------------- 1. scope */
+/* The wrapper the shell puts around the whole storefront: the bar, the page,
+   and the footer all read their ink from here, so the three screens no longer
+   depend on whichever stylesheet a route group happened to import. */
+.io-scope {
+  --io-nav-h: 74px;
+  --io-nav-plate: rgba(14, 15, 17, 0.74);
+  --io-nav-scrim: rgba(8, 9, 10, 0.6);
+  --io-badge-ring: #101113;
+
+  --nh-surface: #101113;
+  --nh-surface-2: #16181a;
+  --nh-surface-3: #0a0b0c;
+  --nh-card-bg: #1a1c1e;
+  --nh-ink: #f1f3f3;
+  --nh-ink-soft: #d5d9da;
+  --nh-muted: #8f9598;
+  --nh-muted-2: #6e7477;
+  --nh-solid-bg: #f2f4f4;
+  --nh-solid-fg: #0d0e10;
+  --nh-solid-bg-hover: #ffffff;
+  --nh-ghost-bg: rgba(255, 255, 255, 0.08);
+  --nh-ghost-bg-hover: rgba(255, 255, 255, 0.15);
+  --nh-hairline: rgba(255, 255, 255, 0.13);
+  --nh-panel: rgba(15, 17, 19, 0.76);
+  --nh-chip-bg: rgba(22, 25, 27, 0.72);
+  --nh-chip-fg: #eef0f0;
+  --nh-radius-card: 14px;
+  --nh-radius-lg: 22px;
+  --nh-radius-xl: 28px;
+  --nh-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --nh-ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
+  --nh-gutter: clamp(1rem, 3.2vw, 3.25rem);
+
+  /* ---- legacy alias layer ----------------------------------------------
+     pages.css and commerce.css still address the storefront's original token
+     names, and that layer is no longer declared anywhere in the sheet —
+     `--accent-brand` has 230 uses against a single declaration, which lives
+     inside `.site-footer`. Every rule reading one of them resolves to an
+     invalid value and drops, which is why the account and listing screens
+     were painting as empty dark voids with only the bar on them.
+
+     Mapping the old names onto this palette makes that content legible again
+     wherever `.io-scope` wraps it, without touching 100+ page rules. Delete
+     this block once those sheets are ported. */
+  --bg-page: var(--nh-surface);
+  --bg-primary: var(--nh-surface);
+  --bg-surface: var(--nh-surface-2);
+  --bg-surface-raised: var(--nh-surface-2);
+  --text-primary: var(--nh-ink);
+  --text-emphasis: #ffffff;
+  --text-secondary: var(--nh-ink-soft);
+  --text-muted: var(--nh-muted);
+  --accent-brand: var(--nh-ink);
+  --text-on-accent: var(--nh-solid-fg);
+  --border-card: var(--nh-hairline);
+  --border-default: var(--nh-hairline);
+  --border-hairline: rgba(255, 255, 255, 0.22);
+  --state-danger: #e5484d;
+  --ease-emphasized: var(--nh-ease);
+  --page-gutter: var(--nh-gutter);
+  --ice-black-500: #2a2e31;
+
+  display: flow-root;
+  min-height: 100vh;
+  background: var(--nh-surface);
+  color: var(--nh-ink);
+  font-family: var(--font-archivo), "Archivo", system-ui, sans-serif;
+  letter-spacing: -0.01em;
+}
+
+.io-scope *,
+.io-scope *::before,
+.io-scope *::after {
+  box-sizing: border-box;
+}
+
+/* ================================================================ 2. header */
+
+/* The bar is sticky, so it keeps its own height in the flow and every page
+   starts below it — no route has to remember a magic top padding. */
+.io-scope .nh-nav-scope,
+.nh-nav-scope {
+  --io-nav-h: 74px;
+  --io-nav-plate: rgba(14, 15, 17, 0.74);
+  --io-badge-ring: #101113;
+  position: sticky;
+  top: 0;
+  z-index: 80;
+}
+
+.nh-nav {
+  position: relative;
+  isolation: isolate;
+}
+
+/* ---- 2.1 the backdrop --------------------------------------------------- */
+/* Two layers, and they cross-fade. At the top of a page the bar has no plate
+   (a hero has to read through it) but it still needs a floor under the glyphs,
+   so a short scrim carries them. Past the first scroll the scrim gives way to
+   the frosted plate — which is what makes the bar legible over page content
+   rather than dissolving into whatever scrolls beneath it. */
+.nh-nav__scrim,
+.nh-nav__plate {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  transition: opacity 0.5s var(--nh-ease-soft);
+}
+
+.nh-nav__scrim {
+  bottom: auto;
+  height: calc(var(--io-nav-h) + 40px);
+  background: linear-gradient(
+    180deg,
+    var(--io-nav-scrim, rgba(8, 9, 10, 0.6)) 0%,
+    rgba(8, 9, 10, 0.26) 54%,
+    rgba(8, 9, 10, 0) 100%
+  );
+}
+
+.nh-nav__plate {
+  opacity: 0;
+  background: var(--io-nav-plate);
+  backdrop-filter: blur(22px) saturate(1.3);
+  -webkit-backdrop-filter: blur(22px) saturate(1.3);
+  box-shadow: inset 0 -1px 0 0 var(--nh-hairline);
+}
+
+.nh-nav[data-plate="auto"][data-elevated="true"] .nh-nav__plate {
+  opacity: 1;
+}
+
+.nh-nav[data-elevated="true"] .nh-nav__scrim {
+  opacity: 0;
+}
+
+/* A menu hanging open needs the same plate the scrolled state has, or the
+   panel appears to float off a bar that isn't there. */
+.nh-nav[data-plate="auto"][data-menu-open="true"] .nh-nav__plate {
+  opacity: 1;
+}
+
+/* ---- 2.2 the three tracks ----------------------------------------------- */
+/* `minmax(0, 1fr)` rather than `1fr`: a bare `1fr` is `minmax(auto, 1fr)`, so
+   the outer tracks refuse to shrink below their content and the bar overflows
+   its own gutter the moment the viewport gets narrow — which is what pushed
+   the wordmark off-screen and left the actions floating unanchored. */
+.nh-nav__inner {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(0.75rem, 2vw, 1.75rem);
+  height: var(--io-nav-h);
+  padding: 0 var(--nh-gutter);
+}
+
+.nh-nav__lead {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-self: start;
+  gap: 10px;
+}
+
+.nh-nav__brand {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  justify-self: unset;
+  gap: 9px;
+  color: var(--nh-ink);
+}
+
+.nh-nav__mark {
+  width: 19px;
+  height: 19px;
+}
+
+.nh-nav__wordmark {
+  overflow: hidden;
+  font-size: 17px;
+  font-weight: 500;
+  font-stretch: 104%;
+  letter-spacing: 0.02em;
+  text-overflow: ellipsis;
+}
+
+/* ---- 2.3 centre rail ---------------------------------------------------- */
+.nh-nav__rail {
+  min-width: 0;
+  padding: 4px;
+}
+
+.nh-nav__pill {
+  height: 34px;
+  padding: 0 14px;
+  font-size: 12px;
+  letter-spacing: 0.015em;
+}
+
+/* Matched to the icon row rather than standing a step taller than it — the two
+   groups sit on one baseline now, which is most of what read as "unaligned". */
+.nh-nav__pill--solid {
+  height: 38px;
+  padding: 0 19px;
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* ---- 2.5 actions -------------------------------------------------------- */
+.nh-nav__actions {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-self: end;
+  gap: 8px;
+}
+
+.nh-nav__icons {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.nh-nav__icon {
+  width: 38px;
+  height: 38px;
+}
+
+/* ---- 2.6 the bag tally -------------------------------------------------- */
+/* Ringed in the page's own surface so it reads as a chip sitting on the glyph
+   rather than a smudge across it — the badge is the one lit thing in the group
+   and it has to survive both the transparent bar and the frosted plate.
+   Absolute, so a count arriving after hydration never re-flows the row. */
+.nh-nav__badge {
+  top: 1px;
+  right: 0;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 5px;
+  font-size: 10px;
+  font-weight: 600;
+  box-shadow: 0 0 0 2px var(--io-badge-ring);
+}
+
+/* The count changing is the confirmation that "add to bag" landed — on the
+   /new-man grid the drawer is the only other signal, and it is easy to miss. */
+.nh-nav__badge[data-pop="true"] {
+  animation: io-badge-pop 0.42s var(--nh-ease);
+}
+
+@keyframes io-badge-pop {
+  0% { transform: scale(1); }
+  38% { transform: scale(1.32); }
+  100% { transform: scale(1); }
+}
+
+/* ---- 2.7 responsive ----------------------------------------------------- */
+/* The rail is the first thing to go: it is the only group that can be restated
+   in full inside the sheet, so dropping it costs nothing a menu button doesn't
+   give back. */
+@media (max-width: 1179px) {
+  .nh-nav__inner {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .nh-nav__rail {
+    display: none;
+  }
+}
+
+@media (max-width: 860px) {
+  .nh-nav-scope,
+  .io-scope .nh-nav-scope {
+    --io-nav-h: 62px;
+  }
+
+  .nh-nav__icon,
+  .io-nav__menu {
+    width: 36px;
+    height: 36px;
+  }
+
+  .nh-nav__pill--solid {
+    height: 36px;
+    padding: 0 15px;
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 620px) {
+  .nh-nav__wordmark {
+    font-size: 15px;
+  }
+
+  .nh-nav__actions {
+    gap: 5px;
+  }
+
+  .nh-nav__icons {
+    gap: 0;
+  }
+}
+
+/* ---- 2.8 menu button ---------------------------------------------------- */
+.io-nav__menu {
+  position: relative;
+  display: inline-flex;
+  width: 38px;
+  height: 38px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: var(--nh-nav-pill-fg, rgba(241, 243, 243, 0.72));
+  cursor: pointer;
+  background: var(--nh-nav-glass, rgba(255, 255, 255, 0.045));
+  box-shadow: inset 0 0 0 1px var(--nh-nav-edge, rgba(255, 255, 255, 0.09));
+  transition:
+    background-color 0.42s var(--nh-ease),
+    color 0.42s var(--nh-ease);
+}
+
+.io-nav__menu:hover {
+  background: var(--nh-nav-pill-bg, rgba(255, 255, 255, 0.1));
+  color: var(--nh-ink);
+}
+
+/* Two rules rather than a hamburger glyph: it is the same hairline the rest of
+   the bar is drawn with, at the same weight. */
+.io-nav__menu i {
+  display: block;
+  width: 15px;
+  height: 1px;
+  background: currentColor;
+  transition: transform 0.42s var(--nh-ease);
+}
+
+.io-nav__menu i:first-child {
+  transform: translateY(-3px);
+}
+
+.io-nav__menu i:last-child {
+  transform: translateY(3px);
+}
+
+.io-nav__menu[aria-expanded="true"] i:first-child {
+  transform: rotate(45deg);
+}
+
+.io-nav__menu[aria-expanded="true"] i:last-child {
+  transform: rotate(-45deg);
+}
+
+/* Declared after the block it turns off — same specificity, so source order is
+   what decides, and a media query earlier in the file would simply lose. */
+@media (min-width: 1180px) {
+  .io-nav__menu {
+    display: none;
+  }
+}
+
+/* The gender surfaces paint their own plate on the scope and flip the bar to
+   dark ink over a light hero; the auto plate stands down there (the nav is
+   passed `plate="none"`) and only the badge ring needs re-inking. */
+.gx-nav-scope[data-plate="light"] {
+  --io-badge-ring: #f4f2ee;
+}
+
+/* ============================================================ 3. search dock */
+/* Docked to the bottom edge and full-bleed, so the field lands where the hand
+   already is and the results grow up the page instead of replacing it. There
+   is no route change: the query never leaves the screen the shopper is on. */
+.io-dock {
+  /* Both sheets portal to `document.body` — the header is sticky and creates a
+     stacking context a fixed child could never escape. That also puts them
+     outside `.io-scope` and `.nh-nav-scope`, so the token block travels with
+     the surface rather than being inherited. Same move `.site-footer` makes. */
+  --nh-surface-2: #16181a;
+  --nh-card-bg: #1a1c1e;
+  --nh-ink: #f1f3f3;
+  --nh-ink-soft: #d5d9da;
+  --nh-muted: #8f9598;
+  --nh-muted-2: #6e7477;
+  --nh-solid-bg: #f2f4f4;
+  --nh-solid-fg: #0d0e10;
+  --nh-ghost-bg: rgba(255, 255, 255, 0.08);
+  --nh-ghost-bg-hover: rgba(255, 255, 255, 0.15);
+  --nh-hairline: rgba(255, 255, 255, 0.13);
+  --nh-chip-bg: rgba(22, 25, 27, 0.72);
+  --nh-radius-card: 14px;
+  --nh-radius-lg: 22px;
+  --nh-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --nh-gutter: clamp(1rem, 3.2vw, 3.25rem);
+
+  position: fixed;
+  z-index: 130;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  color: var(--nh-ink);
+  font-family: var(--font-archivo), "Archivo", system-ui, sans-serif;
+  letter-spacing: -0.01em;
+}
+
+.io-dock__scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(6, 7, 8, 0.62);
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+}
+
+.io-dock__panel {
+  position: relative;
+  display: flex;
+  width: 100%;
+  max-height: min(78svh, 700px);
+  flex-direction: column;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  border-radius: var(--nh-radius-lg) var(--nh-radius-lg) 0 0;
+  background: var(--nh-surface-2);
+  box-shadow:
+    inset 0 1px 0 0 var(--nh-hairline),
+    0 -44px 110px -34px rgba(0, 0, 0, 0.96);
+}
+
+.io-dock__wrap {
+  width: min(100%, 1560px);
+  margin-inline: auto;
+  padding-inline: var(--nh-gutter);
+}
+
+.io-dock__grip {
+  display: block;
+  width: 38px;
+  height: 3px;
+  margin: 9px auto 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+/* ---- 3.1 the field ------------------------------------------------------ */
+.io-dock__field {
+  display: flex;
+  height: 68px;
+  align-items: center;
+  gap: 13px;
+  box-shadow: inset 0 -1px 0 0 var(--nh-hairline);
+}
+
+.io-dock__field > svg {
+  flex: none;
+  color: var(--nh-muted);
+}
+
+.io-dock__input {
+  width: 100%;
+  min-width: 0;
+  flex: 1;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--nh-ink);
+  font-size: clamp(16px, 2.1vw, 20px);
+  font-weight: 300;
+  font-stretch: 108%;
+  letter-spacing: -0.015em;
+  outline: none;
+}
+
+.io-dock__input::placeholder {
+  color: var(--nh-muted-2);
+}
+
+/* Chrome and Safari both draw their own clear affordance on `type="search"`,
+   and neither matches anything else on the page. */
+.io-dock__input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.io-dock__hint {
+  flex: none;
+  padding: 4px 8px;
+  border-radius: 6px;
+  color: var(--nh-muted);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+/* A key cap on a device with no keyboard is decoration; the close control and
+   the scrim are the way out there. */
+@media (max-width: 620px) {
+  .io-dock__hint {
+    display: none;
+  }
+}
+
+.io-dock__close {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: var(--nh-muted);
+  cursor: pointer;
+  background: none;
+  transition:
+    background-color 0.35s var(--nh-ease),
+    color 0.35s var(--nh-ease);
+}
+
+.io-dock__close:hover {
+  background: var(--nh-ghost-bg);
+  color: var(--nh-ink);
+}
+
+/* ---- 3.2 body ----------------------------------------------------------- */
+.io-dock__body {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-block: 18px 24px;
+}
+
+.io-dock__label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  color: var(--nh-muted);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.io-dock__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.io-dock__chip {
+  height: 32px;
+  padding: 0 15px;
+  border-radius: 999px;
+  color: var(--nh-ink-soft);
+  font-size: 12px;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  background: var(--nh-chip-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  transition:
+    background-color 0.35s var(--nh-ease),
+    color 0.35s var(--nh-ease);
+}
+
+.io-dock__chip:hover {
+  background: var(--nh-ghost-bg-hover);
+  color: var(--nh-ink);
+}
+
+.io-dock__results {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* One row per hit: thumb, name, price. The keyboard cursor and the pointer
+   share `[data-active]`, so arrowing down and hovering look identical. */
+.io-dock__hit {
+  display: grid;
+  align-items: center;
+  padding: 8px;
+  border-radius: var(--nh-radius-card);
+  color: var(--nh-ink);
+  gap: 13px;
+  grid-template-columns: 46px minmax(0, 1fr) auto;
+  transition: background-color 0.3s var(--nh-ease);
+}
+
+.io-dock__hit[data-active="true"],
+.io-dock__hit:hover {
+  background: var(--nh-ghost-bg);
+}
+
+.io-dock__hitMedia {
+  position: relative;
+  overflow: hidden;
+  width: 46px;
+  height: 58px;
+  border-radius: 8px;
+  background: var(--nh-card-bg);
+}
+
+.io-dock__hitName {
+  display: block;
+  overflow: hidden;
+  font-size: 13.5px;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.io-dock__hitMeta {
+  display: block;
+  overflow: hidden;
+  color: var(--nh-muted);
+  font-size: 11px;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.io-dock__hitPrice {
+  color: var(--nh-ink-soft);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.io-dock__empty {
+  padding: 26px 0 10px;
+  color: var(--nh-muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.io-dock__empty strong {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--nh-ink);
+  font-size: 17px;
+  font-weight: 400;
+}
+
+/* ========================================================= 3b. the bag drawer */
+/* What "add to bag" opens. Radix portals it to the body, so — like the dock —
+   it carries its own token block rather than inheriting one.
+   A side drawer rather than a third bottom sheet: the bottom edge is the bar's
+   overlay language (search, menu), and the bag is a place, not a control. */
+.io-drawer__overlay,
+.io-drawer {
+  --nh-surface-2: #16181a;
+  --nh-card-bg: #1a1c1e;
+  --nh-ink: #f1f3f3;
+  --nh-ink-soft: #d5d9da;
+  --nh-muted: #8f9598;
+  --nh-muted-2: #6e7477;
+  --nh-solid-bg: #f2f4f4;
+  --nh-solid-fg: #0d0e10;
+  --nh-solid-bg-hover: #ffffff;
+  --nh-ghost-bg: rgba(255, 255, 255, 0.08);
+  --nh-ghost-bg-hover: rgba(255, 255, 255, 0.15);
+  --nh-hairline: rgba(255, 255, 255, 0.13);
+  --nh-radius-lg: 22px;
+  --nh-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.io-drawer__overlay {
+  position: fixed;
+  z-index: 140;
+  inset: 0;
+  background: rgba(6, 7, 8, 0.62);
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+  animation: io-fade-in 0.32s var(--nh-ease);
+}
+
+.io-drawer {
+  position: fixed;
+  z-index: 141;
+  inset: 0 0 0 auto;
+  display: flex;
+  width: min(430px, 100%);
+  flex-direction: column;
+  border-radius: var(--nh-radius-lg) 0 0 var(--nh-radius-lg);
+  background: var(--nh-surface-2);
+  color: var(--nh-ink);
+  font-family: var(--font-archivo), "Archivo", system-ui, sans-serif;
+  letter-spacing: -0.01em;
+  box-shadow:
+    inset 1px 0 0 0 var(--nh-hairline),
+    -44px 0 110px -34px rgba(0, 0, 0, 0.96);
+  animation: io-slide-in 0.5s var(--nh-ease);
+}
+
+@keyframes io-fade-in {
+  from { opacity: 0; }
+}
+
+@keyframes io-slide-in {
+  from { transform: translateX(100%); }
+}
+
+.io-drawer__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 22px 22px 18px;
+  gap: 16px;
+  box-shadow: inset 0 -1px 0 0 var(--nh-hairline);
+}
+
+.io-drawer__title {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+
+.io-drawer__note {
+  margin: 5px 0 0;
+  color: var(--nh-muted);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.io-drawer__close {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: var(--nh-muted);
+  cursor: pointer;
+  background: none;
+  transition:
+    background-color 0.35s var(--nh-ease),
+    color 0.35s var(--nh-ease);
+}
+
+.io-drawer__close:hover {
+  background: var(--nh-ghost-bg);
+  color: var(--nh-ink);
+}
+
+.io-drawer__body {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 6px 22px;
+}
+
+.io-drawer__foot {
+  display: grid;
+  padding: 18px 22px calc(18px + env(safe-area-inset-bottom, 0px));
+  gap: 12px;
+  box-shadow: inset 0 1px 0 0 var(--nh-hairline);
+}
+
+.io-drawer__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.io-drawer__row span {
+  color: var(--nh-muted);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.io-drawer__row strong {
+  font-size: clamp(1.25rem, 2vw, 1.6rem);
+  font-weight: 300;
+  font-stretch: 110%;
+  letter-spacing: -0.025em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The drawer's own line: narrower than the bag page's, so the thumb, the meta
+   and the stepper stack instead of competing for a 430px column. */
+.io-drawer .io-line {
+  grid-template-columns: 70px minmax(0, 1fr);
+  padding: 18px 0;
+  gap: 14px;
+}
+
+.io-drawer .io-line__side {
+  grid-column: 2;
+  justify-items: start;
+  text-align: left;
+}
+
+/* ============================================================== 4. nav sheet */
+/* The same bottom-docked surface as the search — one gesture language for both
+   of the bar's overlays rather than a drawer for one and a sheet for the other. */
+.io-sheet__nav {
+  display: grid;
+  padding-block: 6px 14px;
+  gap: 1px;
+}
+
+.io-sheet__link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px 2px;
+  color: var(--nh-ink);
+  font-size: 19px;
+  font-weight: 300;
+  font-stretch: 110%;
+  letter-spacing: -0.02em;
+  box-shadow: inset 0 -1px 0 0 rgba(255, 255, 255, 0.07);
+  transition: color 0.35s var(--nh-ease);
+}
+
+.io-sheet__link[aria-current="page"] {
+  color: var(--nh-ink);
+}
+
+.io-sheet__link[aria-current="page"] span:last-child::after {
+  content: "";
+  display: block;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--nh-solid-bg);
+}
+
+.io-sheet__link svg {
+  color: var(--nh-muted);
+  transition: transform 0.42s var(--nh-ease);
+}
+
+.io-sheet__link:hover svg {
+  transform: translateX(3px);
+}
+
+.io-sheet__utils {
+  display: grid;
+  padding-block: 16px 4px;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+}
+
+.io-sheet__util {
+  display: flex;
+  height: 46px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: var(--nh-ink-soft);
+  font-size: 12px;
+  gap: 8px;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+  cursor: pointer;
+  background: var(--nh-ghost-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  transition: background-color 0.35s var(--nh-ease);
+}
+
+.io-sheet__util:hover {
+  background: var(--nh-ghost-bg-hover);
+}
+
+/* The session control takes the full row — it is the one decision on the sheet
+   that is not a destination, and half a row of white beside a glass pill reads
+   as a layout that ran out of items. */
+.io-sheet__util--solid {
+  grid-column: 1 / -1;
+  background: var(--nh-solid-bg);
+  color: var(--nh-solid-fg);
+}
+
+.io-sheet__util--solid:hover {
+  background: var(--nh-solid-bg-hover);
+}
+
+.io-sheet__count {
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--nh-solid-bg);
+  color: var(--nh-solid-fg);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+.io-sheet__util--solid .io-sheet__count {
+  background: var(--nh-solid-fg);
+  color: var(--nh-solid-bg);
+}
+
+/* ============================================================= 5. page frame */
+/* One frame behind the bag, the wishlist and the profile, so the three screens
+   the bar points at open the same way: eyebrow, one-line title, a short spec
+   row, then the content. */
+.io-page {
+  padding-block: clamp(2.5rem, 6vw, 5rem) clamp(4rem, 9vw, 7rem);
+  background: var(--nh-surface);
+}
+
+.io-page__wrap {
+  width: min(100%, 1560px);
+  margin-inline: auto;
+  padding-inline: var(--nh-gutter);
+}
+
+/* Above the headline, not beside it: it is the way out of this screen, and it
+   has to be the first thing read on the way in — before a title that is 4rem
+   tall and reads as the top of the page. */
+.io-page__back {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: clamp(1rem, 2vw, 1.5rem);
+  padding: 7px 13px 7px 11px;
+  border-radius: 999px;
+  color: var(--nh-ink-soft);
+  font-size: 11px;
+  gap: 8px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  background: var(--nh-ghost-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  transition:
+    background-color 0.3s var(--nh-ease-soft),
+    color 0.3s var(--nh-ease-soft);
+}
+
+.io-page__back:hover {
+  background: var(--nh-ghost-bg-hover);
+  color: var(--nh-ink);
+}
+
+/* The destination, named quietly beside the gesture — "go back" alone never
+   says where, and the answer is different on an order than on a return. */
+.io-page__back span {
+  padding-left: 9px;
+  color: var(--nh-muted);
+  box-shadow: inset 1px 0 0 0 var(--nh-hairline);
+}
+
+.io-page__back svg {
+  transition: transform 0.4s var(--nh-ease);
+}
+
+.io-page__back:hover svg {
+  transform: translateX(-2px);
+}
+
+.io-page__head {
+  display: grid;
+  align-items: end;
+  padding-bottom: clamp(1.5rem, 3vw, 2.25rem);
+  gap: clamp(1.25rem, 3vw, 3rem);
+  grid-template-columns: minmax(0, 1fr) auto;
+  box-shadow: inset 0 -1px 0 0 var(--nh-hairline);
+}
+
+.io-page__eyebrow {
+  display: flex;
+  align-items: center;
+  margin: 0 0 14px;
+  color: var(--nh-muted);
+  font-size: 10.5px;
+  gap: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.io-page__eyebrow::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+/* The two-cut headline of new_style §3.2 — a heavy condensed first half, a
+   light extended second half. It is the house voice; every title uses it. */
+.io-page__title {
+  margin: 0;
+  font-size: clamp(2.2rem, 5.2vw, 4.25rem);
+  font-weight: 700;
+  font-stretch: 100%;
+  letter-spacing: -0.035em;
+  line-height: 0.94;
+  text-transform: uppercase;
+}
+
+.io-page__title em {
+  font-style: normal;
+  font-weight: 300;
+  font-stretch: 112%;
+  letter-spacing: -0.015em;
+}
+
+.io-page__lede {
+  max-width: 46ch;
+  margin: 16px 0 0;
+  color: var(--nh-muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+/* Spec labels, not stats: the same register the hero corners use, so numbers
+   sit as metadata rather than as a dashboard. */
+.io-page__spec {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 34px;
+  padding-bottom: 6px;
+}
+
+.io-page__spec div {
+  display: grid;
+  gap: 6px;
+}
+
+.io-page__spec dt {
+  color: var(--nh-muted);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.io-page__spec dd {
+  margin: 0;
+  font-size: clamp(1.1rem, 1.8vw, 1.5rem);
+  font-weight: 300;
+  font-stretch: 110%;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.io-page__body {
+  padding-top: clamp(1.75rem, 3.5vw, 2.75rem);
+}
+
+@media (max-width: 760px) {
+  .io-page__head {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .io-page__spec {
+    gap: 10px 26px;
+  }
+}
+
+/* ---- 5.1 empty state ---------------------------------------------------- */
+/* Runs the full measure of the page, like every other block on it.
+   The width is spent rather than left blank: the message holds the left, the
+   one action sits out at the right edge, and the two are read as a single
+   line. A capped panel floating in the middle of an empty page reads as a
+   layout that failed to load — but so does a full-width one with four words
+   in its top-left corner, which is why this is two tracks and not one. */
+.io-empty {
+  display: grid;
+  align-items: center;
+  padding: clamp(2.5rem, 5vw, 4rem) clamp(1.75rem, 4vw, 3.5rem);
+  border-radius: var(--nh-radius-lg);
+  gap: clamp(1.5rem, 4vw, 3.5rem);
+  grid-template-columns: minmax(0, 1fr) auto;
+  background: var(--nh-surface-2);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.io-empty__copy {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+}
+
+.io-empty__glyph {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  margin-bottom: 8px;
+  border-radius: 999px;
+  color: var(--nh-muted);
+  place-items: center;
+  background: var(--nh-ghost-bg);
+}
+
+.io-empty h2 {
+  margin: 0;
+  font-size: clamp(1.4rem, 2.6vw, 2rem);
+  font-weight: 300;
+  font-stretch: 110%;
+  letter-spacing: -0.025em;
+}
+
+.io-empty p {
+  max-width: 54ch;
+  margin: 0;
+  color: var(--nh-muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+/* Two places the block is not full-width: a phone, and the 430px bag drawer.
+   Both stack, and the action returns to the left edge under the copy. */
+.io-drawer .io-empty {
+  padding: clamp(1.75rem, 5vw, 2.25rem);
+  gap: 14px;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: start;
+}
+
+@media (max-width: 760px) {
+  .io-empty {
+    gap: 20px;
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: start;
+  }
+}
+
+/* ---- 5.2 buttons -------------------------------------------------------- */
+.io-btn {
+  display: inline-flex;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 22px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 500;
+  gap: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 0.35s var(--nh-ease),
+    color 0.35s var(--nh-ease),
+    transform 0.35s var(--nh-ease);
+}
+
+.io-btn--solid {
+  background: var(--nh-solid-bg);
+  color: var(--nh-solid-fg);
+}
+
+.io-btn--solid:hover {
+  background: var(--nh-solid-bg-hover);
+  transform: translateY(-1px);
+}
+
+.io-btn--ghost {
+  background: var(--nh-ghost-bg);
+  color: var(--nh-ink);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.io-btn--ghost:hover {
+  background: var(--nh-ghost-bg-hover);
+  transform: translateY(-1px);
+}
+
+.io-btn--wide {
+  width: 100%;
+}
+
+.io-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+  transform: none;
+}
+
+.io-link {
+  display: inline-flex;
+  align-items: center;
+  color: var(--nh-muted);
+  font-size: 11.5px;
+  gap: 6px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  background: none;
+  transition: color 0.35s var(--nh-ease);
+}
+
+.io-link:hover {
+  color: var(--nh-ink);
+}
+
+/* ============================================================= 6. bag screen */
+.io-bag {
+  display: grid;
+  align-items: start;
+  gap: clamp(1.5rem, 3.5vw, 3.5rem);
+  grid-template-columns: minmax(0, 1fr) 360px;
+}
+
+@media (max-width: 980px) {
+  .io-bag {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.io-lines {
+  display: grid;
+  gap: 1px;
+}
+
+/* A hairline between rows rather than a card each: the bag is one list, and
+   boxing every line turns a four-piece order into four competing objects. */
+.io-line {
+  display: grid;
+  align-items: start;
+  padding: 20px 0;
+  gap: clamp(1rem, 2vw, 1.75rem);
+  grid-template-columns: 92px minmax(0, 1fr) auto;
+  box-shadow: inset 0 -1px 0 0 var(--nh-hairline);
+}
+
+.io-line:first-child {
+  padding-top: 0;
+}
+
+.io-line__media {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 1 / 1.28;
+  border-radius: 10px;
+  background: var(--nh-card-bg);
+}
+
+.io-line__body {
+  display: grid;
+  min-width: 0;
+  gap: 10px;
+}
+
+.io-line__name {
+  margin: 0;
+  font-size: clamp(1rem, 1.5vw, 1.25rem);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.io-line__name a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.io-line__meta {
+  display: flex;
+  flex-wrap: wrap;
+  color: var(--nh-muted);
+  font-size: 11.5px;
+  gap: 6px 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.io-line__meta i {
+  color: var(--nh-muted-2);
+  font-style: normal;
+}
+
+.io-line__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+}
+
+.io-line__side {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+  text-align: right;
+}
+
+.io-line__price {
+  font-size: 15px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+.io-line__was {
+  color: var(--nh-muted-2);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- 6.1 quantity ------------------------------------------------------- */
+.io-qty {
+  display: inline-flex;
+  height: 34px;
+  align-items: center;
+  border-radius: 999px;
+  background: var(--nh-ghost-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.io-qty button {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: var(--nh-muted);
+  cursor: pointer;
+  background: none;
+  transition: color 0.3s var(--nh-ease);
+}
+
+.io-qty button:hover:not(:disabled) {
+  color: var(--nh-ink);
+}
+
+.io-qty button:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+
+.io-qty span {
+  min-width: 22px;
+  font-size: 13px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- 6.2 summary -------------------------------------------------------- */
+.io-summary {
+  position: sticky;
+  top: calc(var(--io-nav-h) + 22px);
+  display: grid;
+  padding: clamp(1.5rem, 2.4vw, 2rem);
+  border-radius: var(--nh-radius-lg);
+  gap: 16px;
+  background: var(--nh-surface-2);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.io-summary h2 {
+  margin: 0;
+  color: var(--nh-muted);
+  font-size: 10.5px;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.io-summary dl {
+  display: grid;
+  margin: 0;
+  gap: 11px;
+}
+
+.io-summary dl > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.io-summary dt {
+  color: var(--nh-muted);
+  font-size: 13px;
+}
+
+.io-summary dd {
+  margin: 0;
+  font-size: 13.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.io-summary__total {
+  padding-top: 15px;
+  box-shadow: inset 0 1px 0 0 var(--nh-hairline);
+}
+
+.io-summary__total dt {
+  color: var(--nh-ink);
+  font-size: 12px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.io-summary__total dd {
+  font-size: clamp(1.35rem, 2.2vw, 1.75rem);
+  font-weight: 300;
+  font-stretch: 110%;
+  letter-spacing: -0.025em;
+}
+
+.io-summary__note {
+  margin: 0;
+  color: var(--nh-muted-2);
+  font-size: 11.5px;
+  line-height: 1.55;
+}
+
+/* ---- 6.3 coupon --------------------------------------------------------- */
+/* One block, used by both surfaces that quote a total: the bag page's summary
+   and the drawer's foot. A code entered in one is applied in the other — the
+   cart context holds it — so they had better look like the same control. */
+.io-coupon {
+  display: grid;
+  gap: 7px;
+}
+
+.io-coupon__form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.io-coupon__field {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex: 1;
+  min-width: 0;
+  height: 42px;
+  padding: 0 14px;
+  border-radius: 999px;
+  color: var(--nh-muted);
+  background: var(--nh-surface);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  transition: box-shadow 0.3s var(--nh-ease, ease);
+}
+
+.io-coupon__field:focus-within {
+  box-shadow: inset 0 0 0 1px var(--nh-hairline-strong, rgba(255, 255, 255, 0.2));
+}
+
+.io-coupon__field input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: none;
+  color: var(--nh-ink);
+  font: inherit;
+  font-size: 12.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.io-coupon__field input::placeholder {
+  color: var(--nh-muted-2);
+  letter-spacing: 0.06em;
+  text-transform: none;
+}
+
+.io-coupon__apply {
+  height: 42px;
+  flex: none;
+  padding: 0 18px;
+  border-radius: 999px;
+  color: var(--nh-ink);
+  background: var(--nh-surface);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11.5px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.io-coupon__apply:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.io-coupon__on {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: rgba(62, 207, 126, 0.09);
+  box-shadow: inset 0 0 0 1px rgba(62, 207, 126, 0.24);
+}
+
+/* held, not discounting: the tick and the green go, the code stays */
+.io-coupon__on[data-pending] {
+  background: rgba(229, 161, 58, 0.09);
+  box-shadow: inset 0 0 0 1px rgba(229, 161, 58, 0.26);
+}
+
+.io-coupon__on[data-pending] .io-coupon__mark {
+  color: #241a06;
+  background: #e5a13a;
+}
+
+.io-coupon__mark {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  flex: none;
+  border-radius: 999px;
+  color: #0a1a10;
+  background: #3ecf7e;
+}
+
+.io-coupon__on p {
+  display: grid;
+  margin: 0;
+  gap: 1px;
+  min-width: 0;
+}
+
+.io-coupon__on strong {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+.io-coupon__on span {
+  color: var(--nh-muted);
+  font-size: 11px;
+}
+
+.io-coupon__off {
+  margin-left: auto;
+  color: var(--nh-muted-2);
+  cursor: pointer;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.io-coupon__off:hover {
+  color: var(--nh-ink);
+}
+
+.io-coupon__error {
+  margin: 0;
+  color: #ff8080;
+  font-size: 11.5px;
+}
+
+/* the discount line, wherever it is quoted */
+.io-off dt,
+.io-off dd,
+.io-drawer__row--off span,
+.io-drawer__row--off strong {
+  color: #3ecf7e;
+}
+
+.io-drawer__row--off strong {
+  font-size: 13.5px;
+  font-weight: 400;
+}
+
+/* ======================================================= 7. the saved register */
+/* /wishlist is a register, not a gallery. A grid of 1:1.45 tiles is how a shop
+   shows pieces it wants LOOKED at; a saved list is re-read, and what is re-read
+   is which sizes are still there, what each one costs, and whether it has moved
+   to the bag yet — three facts that line up as columns.
+   The card is the rounded object; the rows float inside it on their own radius
+   (`border-spacing`, not `border-collapse`), so the table reads as a stack of
+   pills rather than a ledger ruled with lines. */
+.io-reg {
+  overflow: hidden;
+  border-radius: var(--nh-radius-xl);
+  background:
+    radial-gradient(
+      120% 90% at 50% -20%,
+      rgba(255, 255, 255, 0.07) 0%,
+      rgba(255, 255, 255, 0) 62%
+    ),
+    var(--nh-surface-2);
+  box-shadow:
+    inset 0 0 0 1px var(--nh-hairline),
+    0 30px 70px -50px rgba(0, 0, 0, 0.95);
+}
+
+/* ---- 7.0 the head and foot of the card ---------------------------------- */
+.io-reg__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px clamp(0.9rem, 1.8vw, 1.5rem);
+  gap: 10px 18px;
+  box-shadow: inset 0 -1px 0 0 var(--nh-hairline);
+}
+
+.io-reg__label {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  color: var(--nh-muted);
+  font-size: 10px;
+  gap: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.io-reg__label::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+/* The two numbers the head is worth carrying: how many are held, and what they
+   are worth at today's price. Both are read off the list, not stored. */
+.io-reg__tally,
+.io-reg__note {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  color: var(--nh-muted);
+  font-size: 12.5px;
+  gap: 7px;
+}
+
+.io-reg__tally strong,
+.io-reg__note strong {
+  color: var(--nh-ink);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.io-reg__tally i,
+.io-reg__note i {
+  color: var(--nh-muted-2);
+  font-style: normal;
+}
+
+.io-reg__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px clamp(0.9rem, 1.8vw, 1.5rem);
+  gap: 12px 18px;
+  background: rgba(255, 255, 255, 0.02);
+  box-shadow: inset 0 1px 0 0 var(--nh-hairline);
+}
+
+/* The same green the inbox marks an unread message with — the one colour in
+   this palette that means "there is something live here". */
+.io-reg__dot {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 999px;
+  background: #79d4a3;
+}
+
+.io-reg__acts {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+  gap: 10px;
+}
+
+/* ---- 7.0.1 the table ---------------------------------------------------- */
+/* The wrapper scrolls, not the card: a narrow screen should shift the columns
+   sideways rather than crush them, and the radius has to stay on something that
+   is not itself scrolling. */
+.io-reg__scroll {
+  overflow-x: auto;
+  padding: 4px clamp(0.5rem, 1.2vw, 0.85rem) 8px;
+  scrollbar-width: thin;
+}
+
+.io-reg__table {
+  width: 100%;
+  min-width: 640px;
+  border-collapse: separate;
+  border-spacing: 0 8px;
+  font-size: 13px;
+  text-align: left;
+}
+
+.io-reg__table thead th {
+  padding: 6px 16px 2px;
+  color: var(--nh-muted-2);
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* The piece column takes the slack, so the sizes, the price and the two
+   controls hold the same line all the way down. */
+.io-reg__table th[scope="row"] {
+  width: 100%;
+}
+
+.io-reg__table th[data-align="right"],
+.io-reg__table td[data-align="right"] {
+  text-align: right;
+}
+
+/* One row = one rounded plate. The edge is a custom property so the hover state
+   is a single declaration on the row rather than three re-stated shadows. */
+.io-reg__table tbody tr {
+  --io-row-edge: rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.035);
+  transition: background-color 0.35s var(--nh-ease);
+}
+
+.io-reg__table tbody tr:hover {
+  --io-row-edge: rgba(255, 255, 255, 0.17);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.io-reg__table tbody :is(td, th) {
+  padding: 12px 16px;
+  font-weight: 400;
+  vertical-align: middle;
+  box-shadow:
+    inset 0 1px 0 0 var(--io-row-edge),
+    inset 0 -1px 0 0 var(--io-row-edge);
+}
+
+/* Separate cells cannot carry a radius between them, so the two ends of the row
+   carry it — and the side edge with it. */
+.io-reg__table tbody :is(td, th):first-child {
+  padding-left: 14px;
+  border-radius: 18px 0 0 18px;
+  box-shadow:
+    inset 0 1px 0 0 var(--io-row-edge),
+    inset 0 -1px 0 0 var(--io-row-edge),
+    inset 1px 0 0 0 var(--io-row-edge);
+}
+
+.io-reg__table tbody :is(td, th):last-child {
+  padding-right: 14px;
+  border-radius: 0 18px 18px 0;
+  box-shadow:
+    inset 0 1px 0 0 var(--io-row-edge),
+    inset 0 -1px 0 0 var(--io-row-edge),
+    inset -1px 0 0 0 var(--io-row-edge);
+}
+
+/* A closed piece stays on the list — which sizes went is part of what the
+   shopper came back to check — but it stops competing with the rows that can
+   still be bought. */
+.io-reg__table tbody tr[data-sold-out] .io-reg__thumb {
+  opacity: 0.5;
+}
+
+/* ---- 7.0.2 the piece cell ----------------------------------------------- */
+.io-reg__piece {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.io-reg__id {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+}
+
+.io-reg__name {
+  overflow: hidden;
+  color: var(--nh-ink);
+  font-size: 14.5px;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color 0.3s var(--nh-ease);
+}
+
+.io-reg__name:hover {
+  color: #ffffff;
+}
+
+.io-reg__meta {
+  display: flex;
+  align-items: center;
+  color: var(--nh-muted-2);
+  font-size: 11.5px;
+  gap: 9px;
+}
+
+.io-reg__tag {
+  height: 20px;
+  flex: none;
+  padding: 0 9px;
+  border-radius: 999px;
+  color: var(--nh-ink-soft);
+  font-size: 9.5px;
+  font-style: normal;
+  line-height: 20px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  background: var(--nh-ghost-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+/* The sprite is absolutely positioned, so the frame around it is what gives it
+   a size. 3:4 rather than square — it is the crop the listing tile uses, and a
+   square one cuts the piece off at the hem. */
+.io-reg__thumb {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  width: 62px;
+  height: 82px;
+  flex: none;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+/* The catalogue art is one 2×2 sprite sheet, and the quadrants carry a light
+   seam at their shared edges. A 2% resting scale pushes that seam outside the
+   thumbnail's clip; the hover step rides on top of it. */
+.io-reg__thumb .product-sprite {
+  background-size: 260% 260%;
+  transform: scale(1.02);
+  transition: transform 1.15s var(--nh-ease);
+}
+
+.io-reg__thumb:hover .product-sprite {
+  transform: scale(1.09);
+}
+
+/* A piece saved from a listing is NOT one of the four sprite-sheet fixtures —
+   it is a crop of one of the five photographs, and it has to be framed here by
+   the same arithmetic its tile used or the saved list shows a different garment
+   than the one that was hearted. Both modes are restated from
+   `.nh-mcard__media` (new-man.css), whose selectors are scoped under `.nh-root`
+   and so cannot reach these screens.
+
+   Mode `crop`: centre on a point and zoom around it. object-position and
+   transform-origin must resolve to the SAME point, or the scale walks the frame
+   off the garment it was measured against. */
+.io-shot {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: var(--op, 50% 50%);
+  transform: scale(var(--zoom, 1));
+  transform-origin: var(--op, 50% 50%);
+  transition: transform 1.15s var(--nh-ease);
+}
+
+.io-reg__thumb:hover .io-shot {
+  transform: scale(calc(var(--zoom, 1) * 1.06));
+}
+
+/* Mode `quad`: one cell of the 2×2 contact sheet. The image is SIZED rather
+   than fitted — two frame heights tall and square, so one cell measures exactly
+   one frame height — and centred by a translate of a quarter of its own box.
+   Every offset is a percentage of the element, so the cell stays exact whatever
+   shape the frame is: the register thumbnail is 62×82 and the account one is
+   46×61, and neither needs its own numbers. The long version of this note is in
+   new-man.css. */
+.io-shot[data-mode="quad"] {
+  inset: auto;
+  left: 50%;
+  top: 50%;
+  width: auto;
+  height: calc(200% * var(--zoom, 1));
+  max-width: none;
+  transform: translate(-50%, -50%)
+    translate(
+      calc((0.5 - var(--qx, 0)) * 50%),
+      calc((0.5 - var(--qy, 0)) * 50%)
+    );
+  transform-origin: 50% 50%;
+  transition: height 1.15s var(--nh-ease);
+}
+
+/* Grown on the height rather than on a trailing scale(): the centring translates
+   resolve against the element's own box, so scaling it after they are applied
+   drags the cell off centre. Height moves both axes together and keeps it. */
+.io-reg__thumb:hover .io-shot[data-mode="quad"] {
+  height: calc(200% * var(--zoom, 1) * 1.06);
+  transform: translate(-50%, -50%)
+    translate(
+      calc((0.5 - var(--qx, 0)) * 50%),
+      calc((0.5 - var(--qy, 0)) * 50%)
+    );
+}
+
+/* ---- 7.0.3 the price cell ----------------------------------------------- */
+.io-reg__price {
+  font-size: 14px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The old price under the current one rather than beside it: side by side in a
+   right-aligned numeric column, the two figures stop reading as one price. The
+   percentage is the same fact a third time, and it is the one that lands at a
+   glance — so it is the only part of the line that is not struck through. */
+.io-reg__was {
+  display: block;
+  margin-top: 4px;
+  color: var(--nh-muted-2);
+  font-size: 11px;
+  text-decoration: line-through;
+}
+
+.io-reg__was em {
+  margin-left: 7px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  color: #8fd9b3;
+  font-size: 10px;
+  font-style: normal;
+  letter-spacing: 0.04em;
+  background: rgba(121, 212, 163, 0.12);
+  text-decoration: none;
+}
+
+/* ---- 7.0.4 the two controls --------------------------------------------- */
+.io-reg__add {
+  display: inline-flex;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 17px;
+  border-radius: 999px;
+  color: var(--nh-solid-fg);
+  font-size: 10.5px;
+  font-weight: 500;
+  gap: 8px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  background: var(--nh-solid-bg);
+  transition:
+    background-color 0.3s var(--nh-ease),
+    color 0.3s var(--nh-ease),
+    transform 0.3s var(--nh-ease);
+}
+
+.io-reg__add:hover:not(:disabled) {
+  background: var(--nh-solid-bg-hover);
+  transform: translateY(-1px);
+}
+
+/* Two disabled states that mean opposite things. Waiting for a size is dead
+   weight; already in the bag is a result, and it keeps the row's colour. */
+.io-reg__add:disabled {
+  color: var(--nh-muted);
+  cursor: not-allowed;
+  background: var(--nh-ghost-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.io-reg__add[data-state="in-bag"]:disabled {
+  color: #9adcc0;
+  cursor: default;
+  background: rgba(121, 212, 163, 0.13);
+  box-shadow: inset 0 0 0 1px rgba(121, 212, 163, 0.3);
+}
+
+/* Always visible, unlike the inbox's delete: this row has a primary action of
+   its own sitting next to it, so a control that appeared on hover would be a
+   second surprise beside a button that was already there. */
+.io-reg__drop {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  color: var(--nh-muted);
+  place-items: center;
+  cursor: pointer;
+  background: var(--nh-ghost-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  transition:
+    background-color 0.25s var(--nh-ease),
+    color 0.25s var(--nh-ease);
+}
+
+.io-reg__drop:hover {
+  background: rgba(229, 72, 77, 0.14);
+  color: #f08c8f;
+}
+
+/* ---- 7.1 sizes + add ---------------------------------------------------- */
+.io-sizes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.io-sizes button {
+  min-width: 30px;
+  height: 26px;
+  padding: 0 6px;
+  border-radius: 7px;
+  color: var(--nh-ink-soft);
+  font-size: 11px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 0 0 1px transparent;
+  transition:
+    background-color 0.3s var(--nh-ease),
+    color 0.3s var(--nh-ease);
+  font-variant-numeric: tabular-nums;
+}
+
+.io-sizes button:hover:not(:disabled) {
+  background: var(--nh-ghost-bg-hover);
+}
+
+.io-sizes button[aria-pressed="true"] {
+  background: var(--nh-solid-bg);
+  color: var(--nh-solid-fg);
+}
+
+/* Sold out stays on the shelf rather than disappearing — the size run is part
+   of what the shopper is reading, and a gap tells them nothing. */
+.io-sizes button:disabled {
+  color: var(--nh-muted-2);
+  cursor: not-allowed;
+  background: none;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  text-decoration: line-through;
+}
+
+/* On the register the size run is the row's main control rather than a detail
+   inside a panel, so the chips are round and a size up — and the chosen one
+   carries a halo, because on a row of five it has to be readable from the far
+   side of the table. They stay on one line: a run that wraps makes every row a
+   different height and the table stops scanning. */
+.io-reg .io-sizes {
+  flex-wrap: nowrap;
+  gap: 5px;
+}
+
+.io-reg .io-sizes button {
+  min-width: 34px;
+  height: 30px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  transition:
+    background-color 0.3s var(--nh-ease),
+    box-shadow 0.3s var(--nh-ease),
+    color 0.3s var(--nh-ease);
+}
+
+.io-reg .io-sizes button[aria-pressed="true"] {
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.12);
+}
+
+/* ---- 7.2 the register on a phone ---------------------------------------- */
+/* The columns stop being columns. Five of them either scroll sideways forever
+   or crush the size run, so each row becomes the rounded card the table already
+   looked like: piece and price on the first line, the size run under it, then
+   the two controls along the foot.
+   `display: block` runs down the whole chain — table, body, cells — and not on
+   the rows alone: a grid row left inside a table-row-group gets wrapped in an
+   anonymous row box and the layout comes apart.
+   The switch happens at 900px rather than at a phone width: below that the five
+   columns no longer fit the card, and the wrapper starts scrolling sideways by
+   a few dozen pixels — which is the worst of both layouts.
+   This block has to follow every rule it overrides: the selectors are the same
+   weight, so source order is the only thing deciding them. */
+@media (max-width: 900px) {
+  .io-reg__scroll {
+    overflow-x: visible;
+    padding: 10px;
+  }
+
+  .io-reg__table,
+  .io-reg__table tbody {
+    display: block;
+    min-width: 0;
+    border-spacing: 0;
+  }
+
+  /* The header row is the one thing a card cannot carry — every cell now says
+     what it is by where it sits — but it stays in the accessibility tree. */
+  .io-reg__table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+
+  .io-reg__table tbody tr {
+    display: grid;
+    align-items: center;
+    padding: 12px;
+    border-radius: 20px;
+    gap: 12px 14px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    box-shadow: inset 0 0 0 1px var(--io-row-edge);
+  }
+
+  .io-reg__table tbody tr + tr {
+    margin-top: 10px;
+  }
+
+  .io-reg__table tbody :is(td, th),
+  .io-reg__table tbody :is(td, th):first-child,
+  .io-reg__table tbody :is(td, th):last-child {
+    display: block;
+    padding: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  /* Placed explicitly, not by source order: the cells arrive piece / sizes /
+     price / add / drop, and the card wants the price up on the first line
+     beside the name. */
+  .io-reg__table [data-cell="piece"] {
+    grid-area: 1 / 1;
+  }
+
+  .io-reg__table [data-cell="price"] {
+    grid-area: 1 / 2;
+    align-self: start;
+    text-align: right;
+  }
+
+  .io-reg__table [data-cell="sizes"] {
+    grid-area: 2 / 1 / auto / -1;
+  }
+
+  .io-reg__table [data-cell="add"] {
+    grid-area: 3 / 1;
+  }
+
+  .io-reg__table [data-cell="drop"] {
+    grid-area: 3 / 2;
+    justify-self: end;
+  }
+
+  /* Full width on a phone, capped on a tablet — a 660px pill reads as a banner
+     rather than as the row's one action. */
+  .io-reg__add {
+    width: 100%;
+    max-width: 300px;
+  }
+
+  /* Free to wrap now — there is no column left for it to hold. */
+  .io-reg .io-sizes {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 620px) {
+  .io-reg__thumb {
+    width: 54px;
+    height: 72px;
+    border-radius: 12px;
+  }
+
+  .io-sizes {
+    gap: 3px;
+  }
+
+  .io-sizes button {
+    min-width: 25px;
+    height: 22px;
+    padding: 0 3px;
+    font-size: 10px;
+  }
+
+  /* The register's own run stays thumb-sized — it is what the row is for. */
+  .io-reg .io-sizes button {
+    min-width: 31px;
+    height: 28px;
+    padding: 0 6px;
+    font-size: 11px;
+  }
+}
+
+/* ========================================================= 8. account screens */
+/* The whole `/account` surface — the rail, the section frame every tab renders
+   inside, and the primitives those tabs are built from (panels, tables,
+   switches, fields, badges).
+
+   Everything here is a rounded, self-contained surface rather than a run of
+   hairline rules: the rail is its own card so it reads as a separate object
+   beside the content, and each block of a tab is a panel instead of a stripe
+   floating on the page background. Records that are genuinely tabular —
+   orders, sessions, channels — are `<table>`s, not grids pretending to be one.
+
+   Card layering: page #101113 → panel #16181a → inner card #1a1c1e. */
+.io-profile {
+  display: grid;
+  align-items: start;
+  gap: clamp(1.25rem, 2.4vw, 2rem);
+  grid-template-columns: 300px minmax(0, 1fr);
+}
+
+@media (max-width: 980px) {
+  .io-profile {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ---- 8.1 the rail ------------------------------------------------------- */
+/* Two cards, not one column of links: who you are, then where you can go. */
+.io-side {
+  position: sticky;
+  top: calc(var(--io-nav-h) + 14px);
+  display: grid;
+  gap: 12px;
+}
+
+@media (max-width: 980px) {
+  .io-side {
+    position: static;
+  }
+}
+
+.io-identity {
+  display: grid;
+  padding: clamp(1.25rem, 2.2vw, 1.5rem);
+  border-radius: var(--nh-radius-lg);
+  gap: 16px;
+  background: var(--nh-surface-2);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.io-identity__top {
+  display: grid;
+  align-items: center;
+  gap: 13px;
+  grid-template-columns: 48px minmax(0, 1fr);
+}
+
+.io-identity__avatar {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  color: var(--nh-solid-fg);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  place-items: center;
+  background: var(--nh-solid-bg);
+}
+
+/* Same disc as the initials, once a real face has been uploaded. The ring is an
+   outline rather than a border so it does not add to the 48px the grid
+   column was measured for. */
+.io-identity__photo {
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  outline: 1px solid var(--nh-hairline);
+  outline-offset: -1px;
+  object-fit: cover;
+}
+
+.io-identity__name {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+}
+
+.io-identity__state {
+  display: flex;
+  align-items: center;
+  margin: 5px 0 0;
+  color: var(--nh-muted);
+  font-size: 10.5px;
+  gap: 6px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.io-identity dl {
+  display: grid;
+  margin: 0;
+  padding: 12px;
+  border-radius: var(--nh-radius-card);
+  gap: 9px;
+  background: var(--nh-card-bg);
+}
+
+.io-identity dl > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.io-identity dt {
+  color: var(--nh-muted);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.io-identity dd {
+  margin: 0;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.io-side__nav {
+  padding: 10px;
+  border-radius: var(--nh-radius-lg);
+  background: var(--nh-surface-2);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.io-side__label {
+  margin: 6px 8px 9px;
+  color: var(--nh-muted-2);
+  font-size: 9.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.io-side__links {
+  display: grid;
+  gap: 2px;
+}
+
+.io-side__links a {
+  display: grid;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 13px;
+  color: var(--nh-muted);
+  font-size: 13.5px;
+  gap: 11px;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  letter-spacing: -0.005em;
+  transition:
+    background-color 0.3s var(--nh-ease),
+    color 0.3s var(--nh-ease);
+}
+
+.io-side__links a:hover {
+  color: var(--nh-ink);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.io-side__links a[aria-current="page"] {
+  color: var(--nh-solid-fg);
+  font-weight: 500;
+  background: var(--nh-solid-bg);
+}
+
+.io-side__links svg {
+  flex: none;
+  opacity: 0.85;
+}
+
+/* A count only appears where the app can prove one. */
+.io-side__count {
+  min-width: 22px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: var(--nh-ghost-bg);
+  color: var(--nh-ink-soft);
+  font-size: 10.5px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.io-side__links a[aria-current="page"] .io-side__count {
+  background: rgba(13, 14, 16, 0.12);
+  color: var(--nh-solid-fg);
+}
+
+.io-side__help {
+  display: grid;
+  padding: 16px;
+  border-radius: var(--nh-radius-lg);
+  gap: 10px;
+  background: var(--nh-surface-2);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.io-side__help p {
+  margin: 0;
+  color: var(--nh-muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.io-side__help strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--nh-ink);
+  font-size: 13.5px;
+  font-weight: 500;
+}
+
+/* On a phone the rail becomes a scroller above the content rather than a
+   column beside it — a 10-item stack pushed every account screen below the
+   fold before it started. */
+@media (max-width: 980px) {
+  .io-side__nav {
+    padding: 8px;
+  }
+
+  .io-side__label {
+    display: none;
+  }
+
+  .io-side__links {
+    display: flex;
+    overflow-x: auto;
+    gap: 6px;
+    scrollbar-width: none;
+  }
+
+  .io-side__links::-webkit-scrollbar {
+    display: none;
+  }
+
+  .io-side__links a {
+    flex: none;
+    border-radius: 999px;
+    box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  }
+
+  .io-side__links a[aria-current="page"] {
+    box-shadow: none;
+  }
+
+  .io-side__help {
+    display: none;
+  }
+}
+
+/* ---- 8.2 the section frame ---------------------------------------------- */
+/* `<AccountShell>` owns the page's h1 ("Your security"), so a tab's own header
+   carries the sentence that h1 cannot: what the screen is for. */
+.io-sec {
+  display: grid;
+  gap: 14px;
+}
+
+.io-sec__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: clamp(1.1rem, 2vw, 1.4rem) clamp(1.15rem, 2.2vw, 1.6rem);
+  border-radius: var(--nh-radius-lg);
+  gap: 16px;
+  background: var(--nh-surface-2);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.io-sec__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  margin: 0 0 10px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: var(--nh-ghost-bg);
+  color: var(--nh-muted);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.io-sec__title {
+  margin: 0;
+  font-size: clamp(1.15rem, 2vw, 1.5rem);
+  font-weight: 400;
+  font-stretch: 108%;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+}
+
+.io-sec__copy {
+  max-width: 64ch;
+  margin: 9px 0 0;
+  color: var(--nh-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.io-sec__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.io-sec__body {
+  display: grid;
+  gap: 14px;
+}
+
+/* ---- 8.3 panels --------------------------------------------------------- */
+.io-panel {
+  padding: clamp(1.1rem, 2vw, 1.5rem);
+  border-radius: var(--nh-radius-lg);
+  background: var(--nh-surface-2);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.io-panel--flush {
+  padding: 0;
+  overflow: hidden;
+}
+
+.io-panel--danger {
+  box-shadow: inset 0 0 0 1px rgba(229, 72, 77, 0.32);
+}
+
+.io-panel__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  gap: 12px;
+}
+
+.io-panel__title {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  gap: 9px;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+}
+
+.io-panel__title svg {
+  flex: none;
+  color: var(--nh-muted);
+}
+
+.io-panel__note {
+  max-width: 68ch;
+  margin: 7px 0 0;
+  color: var(--nh-muted);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.io-panel__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16px;
+  gap: 12px;
+}
+
+.io-panel__foot p {
+  max-width: 56ch;
+  margin: 0;
+  color: var(--nh-muted-2);
+  font-size: 11.5px;
+  line-height: 1.55;
+}
+
+/* ---- 8.4 stat cards ----------------------------------------------------- */
+.io-stats {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+}
+
+.io-stat {
+  display: grid;
+  align-content: start;
+  padding: 16px 18px;
+  border-radius: var(--nh-radius-card);
+  gap: 7px;
+  background: var(--nh-card-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.io-stat__label {
+  display: flex;
+  align-items: center;
+  color: var(--nh-muted);
+  font-size: 10px;
+  gap: 7px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.io-stat__value {
+  font-size: 26px;
+  font-weight: 300;
+  font-stretch: 110%;
+  letter-spacing: -0.025em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.io-stat__note {
+  color: var(--nh-muted-2);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+/* ---- 8.5 tables --------------------------------------------------------- */
+/* The wrapper carries the radius and the edge so the table itself can stay a
+   plain grid of cells, and so a narrow screen scrolls the rows instead of
+   crushing them. */
+.io-tablewrap {
+  overflow-x: auto;
+  border-radius: var(--nh-radius-card);
+  background: var(--nh-card-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  scrollbar-width: thin;
+}
+
+.io-table {
+  width: 100%;
+  min-width: 520px;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: left;
+}
+
+.io-table thead th {
+  padding: 11px 16px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--nh-muted);
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  box-shadow: inset 0 -1px 0 0 var(--nh-hairline);
+}
+
+/* A row header is still a cell: `<th scope="row">` carries the order number and
+   has to sit on the same baseline as the columns beside it. */
+.io-table tbody :is(td, th) {
+  padding: 14px 16px;
+  font-weight: 400;
+  vertical-align: middle;
+  box-shadow: inset 0 -1px 0 0 rgba(255, 255, 255, 0.07);
+}
+
+.io-table tbody tr:last-child :is(td, th) {
+  box-shadow: none;
+}
+
+.io-table tbody tr {
+  transition: background-color 0.3s var(--nh-ease);
+}
+
+.io-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.io-table th[data-align="right"],
+.io-table td[data-align="right"] {
+  text-align: right;
+}
+
+.io-table__primary {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13.5px;
+  letter-spacing: -0.005em;
+}
+
+.io-table__sub {
+  display: block;
+  margin-top: 4px;
+  color: var(--nh-muted-2);
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+
+.io-table__num {
+  font-variant-numeric: tabular-nums;
+}
+
+.io-table a {
+  display: inline-flex;
+  align-items: center;
+  color: var(--nh-ink);
+  gap: 6px;
+  transition: color 0.3s var(--nh-ease);
+}
+
+.io-table a:hover {
+  color: #ffffff;
+}
+
+.io-table a svg {
+  transition: transform 0.4s var(--nh-ease);
+}
+
+.io-table a:hover svg {
+  transform: translateX(3px);
+}
+
+/* The inbox. The subject column takes the slack so the type, the date and the
+   delete stay put from row to row. */
+.io-table--inbox th[scope="row"] {
+  width: 100%;
+}
+
+.io-table--inbox tbody tr[data-unread] .io-table__primary {
+  color: var(--nh-ink);
+  font-weight: 500;
+}
+
+/* The unread mark. Not the only signal — the row is also weighted — because a
+   coloured dot alone is not something everyone can see. */
+.io-dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #79d4a3;
+}
+
+/* Delete, revealed by the pointer.
+   `opacity` and not `display: none`: the button has to stay in the tab order
+   and in the accessibility tree, or the only way to clear a message is with a
+   mouse. It shows on row hover, and on its own focus for the keyboard. */
+.io-rowdel {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  color: var(--nh-muted);
+  opacity: 0;
+  place-items: center;
+  cursor: pointer;
+  transition:
+    opacity 0.25s var(--nh-ease),
+    background-color 0.25s var(--nh-ease),
+    color 0.25s var(--nh-ease);
+}
+
+.io-table tbody tr:hover .io-rowdel,
+.io-rowdel:focus-visible {
+  opacity: 1;
+}
+
+.io-rowdel:hover {
+  background: rgba(229, 72, 77, 0.12);
+  color: #f08c8f;
+}
+
+.io-rowdel:focus-visible {
+  outline: 2px solid var(--nh-ink);
+  outline-offset: 2px;
+}
+
+/* A touch screen has no hover to reveal it with. */
+@media (hover: none) {
+  .io-rowdel {
+    opacity: 1;
+  }
+}
+
+/* The saved register. The piece column takes the slack so the sizes, the price
+   and the actions hold the same line down the table. */
+.io-table--saved th[scope="row"] {
+  width: 100%;
+}
+
+.io-table--saved tbody :is(td, th) {
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+.io-piece {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+}
+
+/* The sprite is absolutely positioned, so the frame around it is what gives it
+   a size. 3:4 rather than square — it is the same crop the tile uses, and a
+   square one cuts the piece off at the hem. */
+.io-thumb {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  width: 46px;
+  height: 61px;
+  flex: none;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.io-thumb .product-sprite {
+  background-size: 260% 260%;
+}
+
+.io-table--saved .io-table__primary {
+  display: inline-flex;
+}
+
+/* The old price, under the current one rather than beside it: side by side in a
+   right-aligned numeric column, the two figures stop being readable as one
+   price. */
+.io-table__was {
+  display: block;
+  margin-top: 3px;
+  color: var(--nh-muted-2);
+  font-size: 11px;
+  text-decoration: line-through;
+}
+
+.io-rowacts {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.io-rowacts .io-btn {
+  white-space: nowrap;
+}
+
+/* ---- 8.6 badges --------------------------------------------------------- */
+.io-badge {
+  display: inline-flex;
+  height: 23px;
+  align-items: center;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--nh-ghost-bg);
+  color: var(--nh-ink-soft);
+  font-size: 10px;
+  gap: 6px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.io-badge::before {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: currentColor;
+  content: "";
+}
+
+.io-badge--ok {
+  background: rgba(86, 190, 133, 0.13);
+  color: #79d4a3;
+  box-shadow: inset 0 0 0 1px rgba(86, 190, 133, 0.3);
+}
+
+.io-badge--live {
+  background: rgba(226, 178, 84, 0.13);
+  color: #e6c37c;
+  box-shadow: inset 0 0 0 1px rgba(226, 178, 84, 0.3);
+}
+
+.io-badge--danger {
+  background: rgba(229, 72, 77, 0.13);
+  color: #f08c8f;
+  box-shadow: inset 0 0 0 1px rgba(229, 72, 77, 0.32);
+}
+
+.io-badge--plain::before {
+  display: none;
+}
+
+/* ---- 8.7 destination rows ----------------------------------------------- */
+.io-rows {
+  display: grid;
+  gap: 8px;
+}
+
+.io-row {
+  display: grid;
+  align-items: center;
+  padding: 14px 16px;
+  border-radius: var(--nh-radius-card);
+  color: var(--nh-ink);
+  gap: 14px;
+  grid-template-columns: 34px minmax(0, 1fr) auto auto;
+  background: var(--nh-card-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  transition:
+    background-color 0.3s var(--nh-ease),
+    transform 0.3s var(--nh-ease);
+}
+
+.io-row:hover {
+  background: #1f2224;
+  transform: translateY(-1px);
+}
+
+.io-row__glyph {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  color: var(--nh-ink-soft);
+  place-items: center;
+  background: var(--nh-ghost-bg);
+}
+
+.io-row__label {
+  display: block;
+  font-size: 14px;
+  letter-spacing: -0.01em;
+}
+
+.io-row__note {
+  display: block;
+  margin-top: 4px;
+  color: var(--nh-muted);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+.io-row__value {
+  color: var(--nh-muted);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-align: right;
+  text-transform: uppercase;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.io-row svg:last-child {
+  color: var(--nh-muted-2);
+  transition: transform 0.42s var(--nh-ease);
+}
+
+.io-row:hover svg:last-child {
+  color: var(--nh-ink);
+  transform: translateX(3px);
+}
+
+@media (max-width: 620px) {
+  .io-row {
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+  }
+
+  .io-row__value {
+    display: none;
+  }
+}
+
+/* ---- 8.8 switches ------------------------------------------------------- */
+.io-switches {
+  display: grid;
+  gap: 8px;
+}
+
+.io-switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-radius: var(--nh-radius-card);
+  gap: 18px;
+  background: var(--nh-card-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  cursor: pointer;
+  transition: background-color 0.3s var(--nh-ease);
+}
+
+.io-switch:hover {
+  background: #1f2224;
+}
+
+.io-switch:has(input:disabled) {
+  cursor: default;
+}
+
+.io-switch:has(input:disabled):hover {
+  background: var(--nh-card-bg);
+}
+
+.io-switch strong {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13.5px;
+  font-weight: 500;
+}
+
+.io-switch small {
+  display: block;
+  max-width: 52ch;
+  margin-top: 5px;
+  color: var(--nh-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.io-switch input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.io-switch__track {
+  position: relative;
+  flex: none;
+  width: 44px;
+  height: 25px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  transition: background-color 0.3s var(--nh-ease);
+}
+
+.io-switch__track::after {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 19px;
+  height: 19px;
+  border-radius: 999px;
+  background: var(--nh-muted);
+  content: "";
+  transition:
+    transform 0.3s var(--nh-ease),
+    background-color 0.3s var(--nh-ease);
+}
+
+.io-switch input:checked + .io-switch__track {
+  background: var(--nh-solid-bg);
+}
+
+.io-switch input:checked + .io-switch__track::after {
+  background: var(--nh-solid-fg);
+  transform: translateX(19px);
+}
+
+.io-switch input:disabled + .io-switch__track {
+  opacity: 0.55;
+}
+
+.io-switch input:focus-visible + .io-switch__track {
+  outline: 2px solid var(--nh-ink);
+  outline-offset: 3px;
+}
+
+/* ---- 8.9 forms ---------------------------------------------------------- */
+.io-form {
+  display: grid;
+  gap: 14px;
+}
+
+.io-form__row {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 620px) {
+  .io-form__row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.io-field {
+  display: grid;
+  gap: 7px;
+}
+
+.io-field > span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--nh-muted);
+  font-size: 10px;
+  gap: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.io-field > span em {
+  color: var(--nh-muted-2);
+  font-style: normal;
+  letter-spacing: 0.06em;
+  text-transform: none;
+}
+
+.io-field input,
+.io-field select,
+.io-field textarea {
+  width: 100%;
+  min-height: 46px;
+  padding: 12px 14px;
+  border: 0;
+  border-radius: 13px;
+  outline: 0;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--nh-ink);
+  font-family: inherit;
+  font-size: 14px;
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  transition: box-shadow 0.3s var(--nh-ease);
+}
+
+.io-field textarea {
+  min-height: 120px;
+  line-height: 1.55;
+  resize: vertical;
+}
+
+.io-field select {
+  padding-right: 38px;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238f9598' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+}
+
+.io-field option {
+  background: var(--nh-surface-2);
+  color: var(--nh-ink);
+}
+
+.io-field input::placeholder,
+.io-field textarea::placeholder {
+  color: var(--nh-muted-2);
+}
+
+.io-field :is(input, select, textarea):focus {
+  box-shadow: inset 0 0 0 1px var(--nh-ink-soft);
+}
+
+.io-field :is(input, select, textarea):disabled {
+  color: var(--nh-muted);
+  cursor: not-allowed;
+}
+
+.io-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  color: var(--nh-muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.io-check input {
+  width: 17px;
+  height: 17px;
+  flex: none;
+  margin-top: 1px;
+  accent-color: var(--nh-solid-bg);
+}
+
+.io-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.io-actions--end {
+  justify-content: flex-end;
+}
+
+/* A bar of strength/validation feedback under a password field. */
+.io-meter {
+  display: grid;
+  gap: 7px;
+}
+
+.io-meter__track {
+  display: flex;
+  gap: 4px;
+}
+
+.io-meter__track i {
+  height: 3px;
+  flex: 1;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  transition: background-color 0.3s var(--nh-ease);
+}
+
+.io-meter__track i[data-on="true"] {
+  background: var(--nh-ink-soft);
+}
+
+.io-meter__label {
+  color: var(--nh-muted);
+  font-size: 11px;
+}
+
+/* ---- 8.10 notices and empties ------------------------------------------- */
+.io-note {
+  display: flex;
+  align-items: flex-start;
+  padding: 14px 16px;
+  border-radius: var(--nh-radius-card);
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--nh-muted);
+  font-size: 12.5px;
+  line-height: 1.55;
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.io-note > svg {
+  flex: none;
+  margin-top: 1px;
+}
+
+.io-note strong {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--nh-ink);
+  font-size: 13.5px;
+  font-weight: 500;
+}
+
+.io-note p {
+  margin: 0;
+}
+
+.io-note--ok {
+  background: rgba(86, 190, 133, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(86, 190, 133, 0.28);
+}
+
+.io-note--ok > svg {
+  color: #79d4a3;
+}
+
+.io-note--warn {
+  background: rgba(226, 178, 84, 0.09);
+  box-shadow: inset 0 0 0 1px rgba(226, 178, 84, 0.26);
+}
+
+.io-note--warn > svg {
+  color: #e6c37c;
+}
+
+.io-note--danger {
+  background: rgba(229, 72, 77, 0.09);
+  box-shadow: inset 0 0 0 1px rgba(229, 72, 77, 0.28);
+}
+
+.io-note--danger > svg {
+  color: #f08c8f;
+}
+
+/* A notice that carries its own way out — the undo after a removal. The button
+   is pushed to the end so the sentence and the action do not compete. */
+.io-note--action {
+  align-items: center;
+}
+
+.io-note--action > .io-btn {
+  flex: none;
+  margin-left: auto;
+}
+
+@media (max-width: 520px) {
+  .io-note--action {
+    flex-wrap: wrap;
+  }
+
+  .io-note--action > .io-btn {
+    margin-left: 29px;
+  }
+}
+
+.io-empty {
+  display: grid;
+  padding: 34px 20px;
+  border-radius: var(--nh-radius-card);
+  gap: 8px;
+  justify-items: center;
+  background: var(--nh-card-bg);
+  color: var(--nh-muted);
+  font-size: 12.5px;
+  text-align: center;
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.io-empty strong {
+  color: var(--nh-ink);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* ---- 8.11 disclosure rows (FAQ) ----------------------------------------- */
+.io-faqs {
+  display: grid;
+  gap: 8px;
+}
+
+.io-faq {
+  border-radius: var(--nh-radius-card);
+  background: var(--nh-card-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.io-faq summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px 16px;
+  gap: 16px;
+  font-size: 13.5px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.io-faq summary::-webkit-details-marker {
+  display: none;
+}
+
+.io-faq summary span {
+  flex: none;
+  color: var(--nh-muted);
+  font-size: 17px;
+  line-height: 1;
+  transition: transform 0.32s var(--nh-ease);
+}
+
+.io-faq[open] summary span {
+  transform: rotate(45deg);
+}
+
+.io-faq p {
+  margin: 0;
+  padding: 0 16px 16px;
+  color: var(--nh-muted);
+  font-size: 12.5px;
+  line-height: 1.7;
+}
+
+.io-search {
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  border-radius: var(--nh-radius-card);
+  gap: 11px;
+  background: var(--nh-card-bg);
+  color: var(--nh-muted);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  transition: box-shadow 0.3s var(--nh-ease);
+}
+
+.io-search:focus-within {
+  box-shadow: inset 0 0 0 1px var(--nh-ink-soft);
+}
+
+.io-search input {
+  width: 100%;
+  min-height: 48px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--nh-ink);
+  font-family: inherit;
+  font-size: 14px;
+}
+
+/* ---- 8.12 sign-out card -------------------------------------------------- */
+.io-profile__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px;
+  border-radius: var(--nh-radius-lg);
+  gap: 14px;
+  background: var(--nh-surface-2);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.io-profile__foot p {
+  max-width: 52ch;
+  margin: 0;
+  color: var(--nh-muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+/* ---- 8.13 record cards --------------------------------------------------- */
+/* For records that are not tabular — an address is a block of lines, not a
+   row of fields. */
+.io-cards {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}
+
+.io-card {
+  display: grid;
+  align-content: start;
+  padding: 18px;
+  border-radius: var(--nh-radius-card);
+  gap: 12px;
+  background: var(--nh-card-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.io-card--dashed {
+  align-content: center;
+  justify-items: center;
+  border: 1px dashed var(--nh-hairline);
+  background: transparent;
+  color: var(--nh-muted);
+  font-size: 12.5px;
+  text-align: center;
+  box-shadow: none;
+  cursor: pointer;
+  transition: border-color 0.3s var(--nh-ease);
+}
+
+.io-card--dashed:hover {
+  border-color: var(--nh-ink-soft);
+  color: var(--nh-ink);
+}
+
+.io-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.io-card__title {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.io-card address {
+  color: var(--nh-muted);
+  font-size: 12.5px;
+  font-style: normal;
+  line-height: 1.75;
+}
+
+.io-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* ---- 8.14 small parts ---------------------------------------------------- */
+/* A row action cannot be 44px tall — it sets the height of every row in the
+   table it sits in. */
+.io-btn--sm {
+  height: 32px;
+  padding: 0 14px;
+  font-size: 10.5px;
+  gap: 7px;
+}
+
+.io-note code {
+  color: var(--nh-ink);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+/* Rendered high-to-low so `~` can reach the stars below the hovered one. */
+.io-stars {
+  display: flex;
+  flex-direction: row-reverse;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.io-stars input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.io-stars label {
+  color: var(--nh-muted-2);
+  cursor: pointer;
+}
+
+.io-stars label:hover svg,
+.io-stars label:hover ~ label svg,
+.io-stars label:has(input:checked) svg,
+.io-stars label:has(input:checked) ~ label svg {
+  fill: #e6c37c;
+  color: #e6c37c;
+}
+
+.io-stars label:has(input:focus-visible) svg {
+  outline: 2px solid var(--nh-ink);
+  outline-offset: 3px;
+}
+
+/* An upload target has to look like one: dashed, tall, and clickable across
+   its whole area. */
+.io-upload {
+  display: flex;
+  align-items: center;
+  padding: 16px;
+  border: 1px dashed var(--nh-hairline);
+  border-radius: var(--nh-radius-card);
+  gap: 13px;
+  color: var(--nh-muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.io-upload:hover {
+  border-color: var(--nh-ink-soft);
+}
+
+.io-upload strong {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--nh-ink);
+  font-size: 13.5px;
+  font-weight: 500;
+}
+
+.io-upload input {
+  display: none;
+}
+
+/* ---- 8.16 the account modal --------------------------------------------- */
+/* Radix portals this to the body, so — like the bag drawer — it carries its own
+   token block rather than inheriting `.io-scope`'s. Centred rather than a side
+   drawer: it is a form to finish, not a place to browse. */
+.io-modal__overlay,
+.io-modal {
+  --nh-surface-2: #16181a;
+  --nh-card-bg: #1a1c1e;
+  --nh-ink: #f1f3f3;
+  --nh-ink-soft: #d5d9da;
+  --nh-muted: #8f9598;
+  --nh-muted-2: #6e7477;
+  --nh-solid-bg: #f2f4f4;
+  --nh-solid-fg: #0d0e10;
+  --nh-solid-bg-hover: #ffffff;
+  --nh-ghost-bg: rgba(255, 255, 255, 0.08);
+  --nh-ghost-bg-hover: rgba(255, 255, 255, 0.15);
+  --nh-hairline: rgba(255, 255, 255, 0.13);
+  --nh-radius-lg: 22px;
+  --nh-radius-card: 16px;
+  --nh-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.io-modal__overlay {
+  position: fixed;
+  z-index: 140;
+  inset: 0;
+  background: rgba(6, 7, 8, 0.62);
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+  animation: io-fade-in 0.32s var(--nh-ease);
+}
+
+.io-modal {
+  position: fixed;
+  z-index: 141;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  width: min(540px, calc(100vw - 32px));
+  max-height: min(640px, calc(100vh - 48px));
+  flex-direction: column;
+  border-radius: var(--nh-radius-lg);
+  background: var(--nh-surface-2);
+  color: var(--nh-ink);
+  font-family: var(--font-archivo), "Archivo", system-ui, sans-serif;
+  letter-spacing: -0.01em;
+  transform: translate(-50%, -50%);
+  box-shadow:
+    inset 0 0 0 1px var(--nh-hairline),
+    0 44px 110px -34px rgba(0, 0, 0, 0.96);
+  animation: io-modal-in 0.4s var(--nh-ease);
+}
+
+@keyframes io-modal-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% + 14px)) scale(0.98);
+  }
+}
+
+.io-modal__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 22px 22px 18px;
+  gap: 16px;
+  box-shadow: inset 0 -1px 0 0 var(--nh-hairline);
+}
+
+.io-modal__title {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+
+.io-modal__note {
+  max-width: 46ch;
+  margin: 6px 0 0;
+  color: var(--nh-muted);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.io-modal__close {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: none;
+  color: var(--nh-muted);
+  cursor: pointer;
+  transition:
+    background-color 0.35s var(--nh-ease),
+    color 0.35s var(--nh-ease);
+}
+
+.io-modal__close:hover {
+  background: var(--nh-ghost-bg);
+  color: var(--nh-ink);
+}
+
+/* The body scrolls, the header and the actions do not — on a short window the
+   save button has to stay reachable without hunting for it. */
+.io-modal__body {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 20px 22px;
+}
+
+.io-modal__foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  padding: 16px 22px calc(16px + env(safe-area-inset-bottom, 0px));
+  gap: 10px;
+  box-shadow: inset 0 1px 0 0 var(--nh-hairline);
+}
+
+/* ---- 8.15 profile: the read view and the photo -------------------------- */
+/* A panel body that is a stack rather than a form still wants the form's
+   rhythm — a notice sitting above the details, not welded to them. */
+.io-stack {
+  display: grid;
+  gap: 14px;
+}
+
+/* The details as text. Two columns on a desk so a short value does not drag a
+   whole row across the panel; one on a phone, where it would wrap anyway. */
+.io-facts {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.io-fact {
+  display: grid;
+  align-content: start;
+  padding: 14px 16px;
+  border-radius: var(--nh-radius-card);
+  gap: 7px;
+  background: var(--nh-card-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.io-fact__label {
+  color: var(--nh-muted);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* Long addresses break rather than push the grid wider than the panel. */
+.io-fact__value {
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.io-fact--photo {
+  justify-items: start;
+}
+
+.io-fact__photo {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  outline: 1px solid var(--nh-hairline);
+  outline-offset: -1px;
+  object-fit: cover;
+  place-items: center;
+}
+
+.io-fact__photo--empty {
+  outline: 0;
+  background: var(--nh-solid-bg);
+  color: var(--nh-solid-fg);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* The identity card — the read state of the profile. The photo is the largest
+   thing on the screen because it is the one piece of the account that is
+   *recognised* rather than read. */
+.io-idcard {
+  display: grid;
+  align-items: center;
+  gap: clamp(16px, 3vw, 26px);
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.io-idcard__photo {
+  display: grid;
+  width: clamp(84px, 9vw, 108px);
+  height: clamp(84px, 9vw, 108px);
+  border-radius: 999px;
+  outline: 1px solid var(--nh-hairline);
+  outline-offset: -1px;
+  object-fit: cover;
+  place-items: center;
+}
+
+.io-idcard__photo--empty {
+  outline: 0;
+  background: var(--nh-solid-bg);
+  color: var(--nh-solid-fg);
+  font-size: clamp(26px, 3vw, 34px);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.io-idcard__name {
+  margin: 0;
+  font-size: clamp(19px, 2.2vw, 23px);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.io-idcard__state {
+  display: flex;
+  align-items: center;
+  margin: 6px 0 0;
+  color: #79d4a3;
+  font-size: 10px;
+  gap: 6px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.io-idcard__meta {
+  display: grid;
+  margin: 16px 0 0;
+  gap: 10px 28px;
+  grid-template-columns: repeat(auto-fit, minmax(190px, max-content));
+}
+
+.io-idcard__meta dt {
+  color: var(--nh-muted-2);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.io-idcard__meta dd {
+  margin: 5px 0 0;
+  font-size: 13.5px;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+  .io-idcard {
+    justify-items: center;
+    grid-template-columns: minmax(0, 1fr);
+    text-align: center;
+  }
+
+  .io-idcard__state {
+    justify-content: center;
+  }
+
+  .io-idcard__meta {
+    justify-content: center;
+    justify-items: center;
+  }
+}
+
+/* Quick actions — every other tab, one press each. */
+.io-quick {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(158px, 1fr));
+}
+
+.io-quick__item {
+  display: grid;
+  align-content: start;
+  padding: 15px 16px;
+  border-radius: var(--nh-radius-card);
+  gap: 3px;
+  background: var(--nh-card-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  transition:
+    background-color 0.3s var(--nh-ease),
+    box-shadow 0.3s var(--nh-ease);
+}
+
+.io-quick__item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: inset 0 0 0 1px var(--nh-ink-soft);
+}
+
+.io-quick__glyph {
+  margin-bottom: 9px;
+  color: var(--nh-muted);
+}
+
+.io-quick__label {
+  font-size: 13.5px;
+  letter-spacing: -0.005em;
+}
+
+.io-quick__note {
+  color: var(--nh-muted-2);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+/* The upload row, which only exists while editing: preview, then what can be
+   done to it. The preview is the same disc the rail shows, so the shopper is
+   looking at the result rather than at a crop they have to imagine. */
+.io-photo {
+  display: grid;
+  align-items: start;
+  padding: 16px;
+  border-radius: var(--nh-radius-card);
+  gap: 16px;
+  grid-template-columns: 72px minmax(0, 1fr);
+  background: var(--nh-card-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.io-photo__preview {
+  display: grid;
+  width: 72px;
+  height: 72px;
+  border-radius: 999px;
+  outline: 1px solid var(--nh-hairline);
+  outline-offset: -1px;
+  object-fit: cover;
+  place-items: center;
+}
+
+.io-photo__preview--empty {
+  outline: 0;
+  background: var(--nh-solid-bg);
+  color: var(--nh-solid-fg);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.io-photo__body {
+  display: grid;
+  gap: 9px;
+}
+
+.io-photo__label {
+  margin: 0;
+  color: var(--nh-muted);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.io-photo__note {
+  max-width: 52ch;
+  margin: -3px 0 2px;
+  color: var(--nh-muted-2);
+  font-size: 11.5px;
+  line-height: 1.55;
+}
+
+.io-photo__error {
+  margin: 0;
+  color: #f08c8f;
+  font-size: 11.5px;
+}
+
+@media (max-width: 520px) {
+  .io-photo {
+    justify-items: center;
+    grid-template-columns: minmax(0, 1fr);
+    text-align: center;
+  }
+
+  .io-photo__body {
+    justify-items: center;
+  }
+}
+
+/* =========================================================== 9. reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .io-scope *,
+  .io-dock * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

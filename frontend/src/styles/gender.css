@@ -1,0 +1,2052 @@
+/**
+ * gender.css — the /new-drop and /women listing experience.
+ *
+ * Built off `new_style.md` (the /new-home design system). Everything here is
+ * namespaced `gx-*` and every value resolves through the same token vocabulary
+ * `.nh-root` declares, so the two surfaces stay in step.
+ *
+ * The whole page runs on the house palette, lifted one step off black (see the
+ * surfaces note in §0). The hero is the only section carrying a gradient — the
+ * cool radial glow from new_style.md §2.2 — and everything below it is flat,
+ * alternating between two neighbouring tones so the page reads as chapters.
+ *
+ * House rules carried over from new_style.md §9 (they are load-bearing):
+ *   1. `overflow-x: clip`, never `hidden` — `hidden` makes the element a scroll
+ *      container and freezes every sticky/scroll-linked transform inside it.
+ *   2. Hairlines are `box-shadow: inset 0 0 0 1px`, never `border` — a border
+ *      eats a pixel of the content box and shifts the layout.
+ *   3. Colour transitions use `--nh-ease-soft`; transform transitions use
+ *      `--nh-ease`. Never mix them on one property.
+ *   4. Anything that fades out fades into the surface, never into white.
+ */
+
+/* ========================================================================== */
+/* 0 · ROOT + TOKENS                                                          */
+/* ========================================================================== */
+
+.gx-root {
+  /**
+   * SURFACES — the /new-home stack lifted one step off black.
+   *
+   * new_style.md bottoms out at `#0a0b0c`, which reads as flat black once a
+   * whole section is filled with it. Every value here keeps that palette's
+   * cool blue-grey cast and its relative spacing, but the floor is raised to
+   * `#14181b` so no section background is ever black. The ink ramp is
+   * unchanged, and contrast stays well clear of AA (`--nh-ink` on
+   * `--nh-surface` ≈ 14:1).
+   */
+  --nh-surface: #181c20;
+  --nh-surface-2: #1e2328;
+  --nh-surface-3: #14181b;
+  --nh-card-bg: #232830;
+  --nh-ring: #232a2e;
+
+  /* --- the two-register rhythm ------------------------------------------- */
+  /* Sections alternate between two neighbouring tones so the page reads as
+     chapters rather than one continuous scroll. The pair is close enough in
+     value that the cut is felt more than seen — a harder step would fight the
+     photography, and neither end of it is black. */
+  --gx-tone-theme: var(--nh-surface);
+  --gx-tone-black: var(--nh-surface-3);
+
+  /* --- ink --------------------------------------------------------------- */
+  --nh-ink: #f1f3f3;
+  --nh-ink-soft: #d5d9da;
+  --nh-muted: #8f9598;
+  --nh-muted-2: #6e7477;
+
+  /* --- controls ---------------------------------------------------------- */
+  --nh-solid-bg: #f2f4f4;
+  --nh-solid-fg: #0d0e10;
+  --nh-solid-bg-hover: #ffffff;
+  --nh-ghost-bg: rgba(255, 255, 255, 0.08);
+  --nh-ghost-bg-hover: rgba(255, 255, 255, 0.15);
+  --nh-hairline: rgba(255, 255, 255, 0.13);
+
+  /* --- panels + chips ---------------------------------------------------- */
+  --nh-panel: rgba(22, 26, 30, 0.76);
+  --nh-chip-bg: rgba(30, 35, 40, 0.72);
+  --nh-chip-fg: #eef0f0;
+  /* the menu/popover plate — one step above the page, never black */
+  --gx-menu-bg: #1c2126;
+
+  /* --- oversized display type -------------------------------------------- */
+  /* always a step AWAY from the surface — lighter on a dark page. It must
+     never equal the surface value or the word disappears. */
+  --nh-ghost: #262c33;
+  --nh-ghost-over: rgba(255, 255, 255, 0.86);
+
+  /* --- shape ------------------------------------------------------------- */
+  --nh-radius-card: 14px;
+  --nh-radius-lg: 22px;
+  --nh-radius-xl: 28px;
+
+  /* --- motion ------------------------------------------------------------ */
+  --nh-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --nh-ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* --- rhythm ------------------------------------------------------------ */
+  --nh-gutter: clamp(1rem, 3.2vw, 3.25rem);
+  /* the shared bar is `position: sticky; top: 0`, so it permanently owns the
+     first 76px. The hero tucks under it and the filter bar stacks below it. */
+  --gx-nav-h: 76px;
+
+
+  position: relative;
+  min-height: 100vh;
+  background: var(--nh-surface);
+  color: var(--nh-ink);
+  font-family: var(--font-archivo), "Archivo", system-ui, sans-serif;
+  letter-spacing: -0.01em;
+  /* clip, never hidden — see the header note */
+  overflow-x: clip;
+}
+
+.gx-root *,
+.gx-root *::before,
+.gx-root *::after {
+  box-sizing: border-box;
+}
+
+.gx-root img {
+  display: block;
+}
+
+/* ========================================================================== */
+/* 1 · SHARED PRIMITIVES                                                      */
+/* ========================================================================== */
+
+.gx-wrap {
+  width: 100%;
+  max-width: 1560px;
+  margin: 0 auto;
+  padding: 0 var(--nh-gutter);
+}
+
+.gx-section {
+  position: relative;
+  padding: clamp(4rem, 9vw, 9.5rem) 0;
+}
+
+.gx-section--tight {
+  padding: clamp(2.5rem, 5vw, 5rem) 0;
+}
+
+.gx-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55em;
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  font-weight: 400;
+  text-transform: uppercase;
+  color: var(--nh-muted);
+}
+
+/* the 5px dot that prefixes every spec label on the /new-home surface */
+.gx-eyebrow::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: currentColor;
+  flex: none;
+}
+
+.gx-eyebrow--bare::before {
+  display: none;
+}
+
+.gx-body {
+  font-size: 14px;
+  line-height: 1.55;
+  letter-spacing: 0;
+  color: var(--nh-muted);
+}
+
+/* the signature two-cut headline: heavy condensed, then light extended */
+.gx-display {
+  font-weight: 700;
+  font-stretch: 100%;
+  line-height: 0.96;
+  letter-spacing: -0.035em;
+  text-transform: uppercase;
+  color: var(--nh-ink);
+}
+
+.gx-display .nh-light,
+.gx-display .gx-light {
+  font-weight: 300;
+  font-stretch: 112%;
+  letter-spacing: -0.015em;
+}
+
+/* the extended-light cut used for every oversized ghost word on the page */
+.gx-ghostType {
+  font-weight: 300;
+  font-stretch: 118%;
+  letter-spacing: 0.005em;
+  line-height: 0.82;
+  text-transform: uppercase;
+  color: var(--nh-ghost);
+}
+
+.gx-rule {
+  height: 1px;
+  width: 100%;
+  background: var(--nh-hairline);
+}
+
+/* --- pills ---------------------------------------------------------------- */
+.gx-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  height: 38px;
+  padding: 0 20px;
+  border-radius: 999px;
+  border: 0;
+  font-family: inherit;
+  font-size: 12px;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+  font-weight: 400;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 0.35s var(--nh-ease-soft),
+    color 0.35s var(--nh-ease-soft),
+    box-shadow 0.35s var(--nh-ease-soft),
+    transform 0.35s var(--nh-ease);
+}
+
+.gx-pill--solid {
+  background: var(--nh-solid-bg);
+  color: var(--nh-solid-fg);
+}
+
+.gx-pill--solid:hover {
+  background: var(--nh-solid-bg-hover);
+  transform: translateY(-1px);
+}
+
+.gx-pill--glass {
+  background: var(--nh-ghost-bg);
+  color: var(--nh-ink);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.gx-pill--glass:hover {
+  background: var(--nh-ghost-bg-hover);
+  transform: translateY(-1px);
+}
+
+/* the foot pill with the inverted circle tucked inside it */
+.gx-pill--foot {
+  height: 40px;
+  padding-right: 6px;
+}
+
+.gx-pill__dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: var(--nh-solid-fg);
+  color: var(--nh-solid-bg);
+  transition: transform 0.4s var(--nh-ease);
+}
+
+.gx-pill--foot:hover .gx-pill__dot {
+  transform: translateX(2px);
+}
+
+/* ========================================================================== */
+/* 2 · THE NAV, RE-INKED FOR THE LIGHT HERO                                   */
+/* ========================================================================== */
+
+/**
+ * The bar rides the hero gradient transparently, then takes a frosted plate
+ * once the hero has passed under it — over a moving product grid, unbacked
+ * white type stops being readable. `GenderHeader` flips `data-plate`; the ink
+ * never changes, because the whole page is on one palette.
+ */
+/* The plate is painted on the bar and not on the scope that carries the flag,
+   because the bar retracts on the way down the page and the scope does not —
+   see `.nh-nav-scope` in new-home.css. Left on the scope, the frosted strip
+   stayed behind after the bar had slid out of it. The two boxes are the same
+   box, so nothing about how this reads at rest changes. */
+.gx-nav-scope .nh-nav {
+  transition:
+    background-color 0.45s var(--nh-ease-soft),
+    box-shadow 0.45s var(--nh-ease-soft);
+}
+
+.gx-nav-scope[data-plate="dark"] .nh-nav {
+  background: rgba(24, 28, 32, 0.76);
+  backdrop-filter: blur(18px) saturate(1.2);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
+  box-shadow: inset 0 -1px 0 0 rgba(255, 255, 255, 0.1);
+}
+
+/* ========================================================================== */
+/* 3 · HERO — the theme plate                                                 */
+/* ========================================================================== */
+
+/**
+ * The hero runs on the house palette: the four-stop hero gradient from
+ * new_style.md §2.2 — a radial glow blooming from behind the bar over a
+ * top-to-bottom cool cast. It is the only section on the page with a gradient;
+ * everything below it is flat `--nh-surface`, which is what makes the fold
+ * read as a lift rather than a seam.
+ */
+.gx-hero {
+  --nh-hero-top: #232b31;
+  --nh-hero-mid: #1d2429;
+  --nh-hero-bot: #181c20;
+  --nh-hero-glow: #2c3941;
+
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: stretch;
+  min-height: 100svh;
+  /* The bar overlays the hero rather than occupying space above it, so the
+     pull has to be the bar's real height — `--header-height` (92px, 74px
+     under 860px). Anything shorter leaves that many pixels of the white page
+     canvas showing through the transparent bar at the top of the page. */
+  margin-top: calc(-1 * var(--header-height));
+  padding-top: var(--header-height);
+  background:
+    radial-gradient(120% 80% at 32% 0%, var(--nh-hero-glow) 0%, rgba(44, 57, 65, 0) 62%),
+    linear-gradient(
+      180deg,
+      var(--nh-hero-top) 0%,
+      var(--nh-hero-mid) 46%,
+      var(--nh-hero-bot) 100%
+    );
+  color: var(--nh-ink);
+  /* clip, never hidden — `hidden` would make this a scroll container and
+     freeze every scroll-linked transform inside it (§9 rule 1) */
+  overflow-x: clip;
+  overflow-y: visible;
+}
+
+/**
+ * The copy column starts on the SAME vertical as `.gx-wrap` content, so the
+ * headline, the filter rail and every section heading below share one left
+ * edge. `max()` reproduces `.gx-wrap`'s centring without a wrapper, which the
+ * hero cannot have — the image columns have to bleed past the right edge.
+ */
+.gx-hero__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.72fr);
+  align-items: stretch;
+  width: 100%;
+  padding-left: max(
+    var(--nh-gutter),
+    calc((100% - 1560px) / 2 + var(--nh-gutter))
+  );
+}
+
+/* --- left: the copy column ------------------------------------------------ */
+/**
+ * The stack is sized to clear a 672px-tall laptop fold with the nav taken off
+ * the top. Everything here is a clamp with a deliberately low floor: if the
+ * copy grows past the available height the hero stops being `100svh` and the
+ * scroll cue — the thing telling you there is a page below — falls under it.
+ */
+.gx-hero__copy {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: clamp(0.9rem, 1.8vw, 1.6rem);
+  padding: clamp(1.5rem, 3vw, 2.5rem) clamp(1.5rem, 4.4vw, 4.5rem)
+    clamp(1.5rem, 3vw, 2.5rem) 0;
+  min-width: 0;
+}
+
+.gx-hero__title {
+  margin: 0;
+  max-width: 15ch;
+  /* the vh term keeps a 3-line headline off the fold on short windows */
+  font-size: clamp(2.2rem, min(5vw, 8.6vh), 4.5rem);
+  font-weight: 700;
+  font-stretch: 100%;
+  line-height: 1;
+  letter-spacing: -0.038em;
+  /* the reference headline is title case, not the uppercase display cut */
+  text-transform: none;
+  /* pure white, a step brighter than `--nh-ink` — the headline is the one
+     thing on the page allowed to sit at the top of the ramp */
+  color: #ffffff;
+}
+
+.gx-hero__title .gx-light {
+  font-weight: 300;
+  font-stretch: 112%;
+  letter-spacing: -0.02em;
+}
+
+.gx-hero__sub {
+  margin: 0;
+  max-width: 46ch;
+  font-size: clamp(0.9rem, 1.05vw, 1rem);
+  line-height: 1.62;
+  letter-spacing: -0.005em;
+  color: var(--nh-muted);
+}
+
+.gx-hero__cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.gx-hero__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  height: 50px;
+  padding: 0 28px;
+  border: 0;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 0.35s var(--nh-ease-soft),
+    color 0.35s var(--nh-ease-soft),
+    box-shadow 0.35s var(--nh-ease-soft),
+    transform 0.35s var(--nh-ease);
+}
+
+/* The two CTA weights are different MATERIALS, not two shades of the same one:
+   primary inverts to a light pill, secondary becomes glass. That is what keeps
+   them distinguishable on a dark page (new_style.md §2.4). */
+.gx-hero__btn--solid {
+  background: var(--nh-solid-bg);
+  color: var(--nh-solid-fg);
+}
+
+.gx-hero__btn--solid:hover {
+  background: var(--nh-solid-bg-hover);
+  transform: translateY(-1px);
+}
+
+.gx-hero__btn--outline {
+  background: var(--nh-ghost-bg);
+  color: var(--nh-ink);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.gx-hero__btn--outline:hover {
+  background: var(--nh-ghost-bg-hover);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.24);
+  transform: translateY(-1px);
+}
+
+/* --- social proof --------------------------------------------------------- */
+.gx-hero__proof {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: clamp(0.25rem, 1.4vw, 1.25rem);
+}
+
+.gx-hero__faces {
+  display: flex;
+  flex: none;
+  padding-left: 10px;
+}
+
+.gx-hero__face {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  margin-left: -10px;
+  object-fit: cover;
+  background: var(--nh-card-bg);
+  /* the 2px ring is the page background, not white — it has to read as the
+     avatars being cut out of the surface */
+  box-shadow: 0 0 0 2px var(--nh-ring);
+}
+
+.gx-hero__proofText {
+  margin: 0;
+  max-width: 25ch;
+  font-size: 13.5px;
+  line-height: 1.42;
+  color: var(--nh-muted);
+}
+
+.gx-hero__proofText b {
+  font-weight: 500;
+  color: var(--nh-ink);
+}
+
+/* --- right: the scrolling image columns ----------------------------------- */
+.gx-hero__media {
+  position: relative;
+  min-width: 0;
+  /* the third column is meant to run off the right edge, exactly as in the
+     reference — the bleed is the composition, not an overflow bug */
+  overflow: clip;
+}
+
+.gx-hero__rail {
+  position: absolute;
+  inset: 0 auto 0 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  /* wide enough that column three is cut by the viewport */
+  width: calc(100% + 20vw);
+  height: 100%;
+}
+
+.gx-hero__col {
+  position: relative;
+  min-width: 0;
+  overflow: clip;
+}
+
+/**
+ * The infinite loop runs on a CSS keyframe, not through React: an endless
+ * rAF-driven transform would re-render the tree 60×/s for a purely decorative
+ * band. The scroll-linked parallax rides a SEPARATE wrapper (`.gx-hero__drift`)
+ * so the two transforms can never overwrite each other — new_style.md §6.3.
+ */
+.gx-hero__drift {
+  position: absolute;
+  inset: 0;
+}
+
+/**
+ * The rhythm is a per-tile `margin-bottom`, NOT a flex `gap`. With a gap the
+ * doubled list measures `2Σh + 7g`, so a -50% shift lands half a gap short of
+ * the seam and the loop visibly jumps once per cycle. Folding the gap into the
+ * tile makes one set exactly 50% of the track.
+ */
+.gx-hero__track {
+  position: absolute;
+  inset: 0 0 auto 0;
+  display: flex;
+  flex-direction: column;
+  will-change: transform;
+  animation: gx-marquee var(--gx-dur, 44s) linear infinite;
+  animation-delay: var(--gx-delay, 0s);
+}
+
+.gx-hero__track[data-dir="down"] {
+  animation-direction: reverse;
+}
+
+@keyframes gx-marquee {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  /* the list is rendered twice; -50% lands exactly on the seam */
+  to {
+    transform: translate3d(0, -50%, 0);
+  }
+}
+
+.gx-hero__tile {
+  position: relative;
+  flex: none;
+  width: 100%;
+  margin-bottom: 14px;
+  border-radius: var(--nh-radius-card);
+  overflow: hidden;
+  background: var(--nh-card-bg);
+}
+
+.gx-hero__tile img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: var(--op, 50% 50%);
+  transform: scale(var(--z, 1));
+  transform-origin: var(--op, 50% 50%);
+}
+
+/* --- the fold cue --------------------------------------------------------- */
+/* pinned to the same left edge as the headline and the rail below it */
+.gx-hero__cue {
+  position: absolute;
+  left: max(var(--nh-gutter), calc((100% - 1560px) / 2 + var(--nh-gutter)));
+  bottom: clamp(1.25rem, 2.6vw, 2rem);
+  z-index: 5;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(241, 243, 243, 0.42);
+  pointer-events: none;
+}
+
+.gx-hero__cueInner {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.gx-hero__cue svg {
+  animation: gx-nudge 2.4s var(--nh-ease) infinite;
+}
+
+@keyframes gx-nudge {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(4px);
+  }
+}
+
+/* ========================================================================== */
+/* 4 · COLLECTION INTRODUCTION                                                */
+/* ========================================================================== */
+
+.gx-intro {
+  position: relative;
+  background: var(--gx-tone-theme);
+  overflow-x: clip;
+}
+
+/* The oversized word riding behind the introduction. Centring is left to the
+   Motion transform (see intro.tsx) — a `translateX(-50%)` here would be
+   overwritten the instant Motion writes its own transform to this element. */
+.gx-intro__ghost {
+  position: absolute;
+  left: 50%;
+  top: 6%;
+  z-index: 0;
+  width: max-content;
+  pointer-events: none;
+  user-select: none;
+}
+
+.gx-intro__ghost p {
+  margin: 0;
+  font-size: 16.4vw;
+  line-height: 0.8;
+  white-space: nowrap;
+}
+
+.gx-intro__inner {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  gap: clamp(2rem, 5vw, 5.5rem);
+  align-items: end;
+}
+
+.gx-intro__title {
+  margin: 1.25rem 0 0;
+  font-size: clamp(1.9rem, 4.4vw, 4.1rem);
+}
+
+.gx-intro__aside {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+  padding-bottom: 0.4rem;
+}
+
+.gx-intro__aside p {
+  margin: 0;
+  max-width: 38ch;
+}
+
+.gx-intro__specs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.25rem;
+  padding-top: 1.5rem;
+  box-shadow: inset 0 1px 0 0 var(--nh-hairline);
+}
+
+.gx-intro__spec b {
+  display: block;
+  font-size: clamp(1.35rem, 2.2vw, 2rem);
+  font-weight: 300;
+  font-stretch: 112%;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  color: var(--nh-ink);
+}
+
+.gx-intro__spec span {
+  display: block;
+  margin-top: 0.5rem;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--nh-muted);
+}
+
+/* ========================================================================== */
+/* 5 · THE EDIT — LEFT FILTER RAIL + GRIDS                                    */
+/* ========================================================================== */
+
+/**
+ * The five-column track is what keeps the whole page on one vertical.
+ *
+ *   1 · left margin, floors at the gutter and grows to centre the block
+ *   2 · the rail
+ *   3 · the space between
+ *   4 · the grids
+ *   5 · right margin, mirrors column one
+ *
+ * Columns 1 and 5 are equal `1fr`s with a `--nh-gutter` floor, so the rail's
+ * left edge lands on exactly the same vertical as `.gx-wrap` content — the
+ * hero headline, every section heading, and the footer all share it. And
+ * because the track itself spans the full width, the two editorial blocks can
+ * run edge to edge with `grid-column: 1 / -1` and no negative margins or `vw`
+ * arithmetic (which would fight the scrollbar).
+ */
+.gx-edit {
+  --gx-rail-w: 232px;
+  --gx-edit-gap: clamp(1.5rem, 2.6vw, 2.75rem);
+
+  display: grid;
+  grid-template-columns:
+    minmax(var(--nh-gutter), 1fr)
+    var(--gx-rail-w)
+    var(--gx-edit-gap)
+    minmax(0, calc(1560px - 2 * var(--nh-gutter) - var(--gx-rail-w) - var(--gx-edit-gap)))
+    minmax(var(--nh-gutter), 1fr);
+  align-items: start;
+  /**
+   * The tone lives HERE, on the whole region, not on each shelf. A background
+   * on `.gx-shelf` paints only the shelf's own grid column, which reads as a
+   * slab of a slightly different colour floating next to the rail rather than
+   * as a section. One background across the track is what makes the edit read
+   * as a single chapter.
+   */
+  background: var(--gx-tone-black);
+}
+
+/**
+ * The rail is a plain column item, deliberately NOT sticky: pinned, it detaches
+ * from the grid it belongs to and slides over the full-width blocks below,
+ * which is exactly the "floating panel" effect that reads as broken. It sits at
+ * the top of its span and scrolls away with the first shelf, like a sidebar.
+ *
+ * The lead-in matches `.gx-shelf`'s top padding so the panel's top edge and the
+ * first shelf heading start on the same horizontal.
+ */
+.gx-rail {
+  position: static;
+  grid-column: 2;
+  grid-row: 1 / -1;
+  align-self: start;
+  padding-top: clamp(2.5rem, 5.5vw, 5.5rem);
+}
+
+/* The grids sit in the content column; the shelves drop their own wrap and
+   their own background because the track already places, sizes and tones them. */
+.gx-edit > .gx-shelf {
+  grid-column: 4;
+  background: transparent;
+}
+
+.gx-edit > .gx-shelf .gx-wrap {
+  max-width: none;
+  padding: 0;
+}
+
+/**
+ * Section heads inside the edit align LEFT with the grid beneath them. The
+ * centred `1fr auto 1fr` head is a full-width composition; centred inside a
+ * column that is itself offset by the rail, it reads as simply off-centre.
+ */
+.gx-edit .gx-shelf__head {
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "eyebrow meta"
+    "title title";
+  align-items: center;
+  row-gap: 0.6rem;
+}
+
+.gx-edit .gx-shelf__head > :nth-child(1) {
+  grid-area: eyebrow;
+}
+
+.gx-edit .gx-shelf__head > :nth-child(2) {
+  grid-area: title;
+}
+
+.gx-edit .gx-shelf__head > :nth-child(3) {
+  grid-area: meta;
+  justify-self: end;
+}
+
+.gx-edit .gx-shelf__title {
+  text-align: left;
+}
+
+/* The two editorial blocks break the rail's column and run the full width —
+   they are photography, and a column-width crop wastes them. The lookbook
+   carries the other tone, so the run of grids reads as three chapters rather
+   than one long scroll. */
+.gx-edit > .gx-band,
+.gx-edit > .gx-look {
+  grid-column: 1 / -1;
+}
+
+.gx-edit > .gx-look {
+  background: var(--gx-tone-theme);
+}
+
+/**
+ * The panel is as tall as its contents. It previously capped at the viewport
+ * with `overflow-y: auto`, which put a second scrollbar inside the page and
+ * clipped the Sort group — a filter list of twelve rows never needed to scroll
+ * on its own. Nothing here scrolls, so nothing here can be cut off.
+ */
+.gx-rail__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding: 20px 18px;
+  border-radius: var(--nh-radius-lg);
+  background: var(--nh-surface-2);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.gx-rail__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 16px;
+  box-shadow: inset 0 -1px 0 0 var(--nh-hairline);
+}
+
+.gx-rail__count {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--nh-muted-2);
+}
+
+.gx-rail__count b {
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  text-transform: none;
+  color: var(--nh-ink);
+}
+
+.gx-rail__reset {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--nh-muted);
+  font-family: inherit;
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.3s var(--nh-ease-soft);
+}
+
+.gx-rail__reset:hover {
+  color: var(--nh-ink);
+}
+
+/* --- groups --------------------------------------------------------------- */
+.gx-rail__group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gx-rail__label {
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--nh-muted-2);
+}
+
+.gx-rail__list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  align-items: stretch;
+}
+
+/* --- rows ----------------------------------------------------------------- */
+/* One row shape for all three groups — category, availability, and sort read
+   as one list rather than three different controls. */
+.gx-rail__row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--nh-muted);
+  font-family: inherit;
+  font-size: 12.5px;
+  letter-spacing: 0;
+  text-align: left;
+  cursor: pointer;
+  transition: color 0.3s var(--nh-ease-soft);
+}
+
+.gx-rail__row:hover {
+  color: var(--nh-ink);
+}
+
+.gx-rail__row[data-state="on"],
+.gx-rail__row[aria-checked="true"] {
+  color: var(--nh-ink);
+}
+
+.gx-rail__row:focus-visible {
+  outline: 1px solid var(--nh-hairline);
+  outline-offset: 1px;
+}
+
+/* the travelling marker behind the active row */
+.gx-rail__rowBg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: 8px;
+  background: var(--nh-ghost-bg);
+}
+
+.gx-rail__rowLabel {
+  position: relative;
+  z-index: 1;
+}
+
+/* --- the checkbox rows ---------------------------------------------------- */
+.gx-rail__box {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  flex: none;
+  border-radius: 4px;
+  color: var(--nh-solid-fg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  transition:
+    background-color 0.3s var(--nh-ease-soft),
+    box-shadow 0.3s var(--nh-ease-soft);
+}
+
+.gx-rail__row--check[aria-checked="true"] .gx-rail__box {
+  background: var(--nh-solid-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-solid-bg);
+}
+
+/* --------------------------------------------------------------------------
+   Below desktop the rail cannot hold a column — it becomes a scrolling strip
+   pinned under the bar, and the grids take the full width back.
+   -------------------------------------------------------------------------- */
+@media (max-width: 1100px) {
+  .gx-edit {
+    display: block;
+  }
+
+  /* the shelves take their own wrap back once there is no track to place them */
+  .gx-edit > .gx-shelf .gx-wrap {
+    max-width: 1560px;
+    padding: 0 var(--nh-gutter);
+  }
+
+  /* the head stays as authored once there is no rail offsetting the column */
+  .gx-edit .gx-shelf__head {
+    grid-template-columns: 1fr auto 1fr;
+    grid-template-areas: none;
+  }
+
+  .gx-edit .gx-shelf__head > :nth-child(1),
+  .gx-edit .gx-shelf__head > :nth-child(2),
+  .gx-edit .gx-shelf__head > :nth-child(3) {
+    grid-area: auto;
+  }
+
+  .gx-rail {
+    padding: 0;
+  }
+
+  /* below desktop the panel becomes a horizontal strip above the first grid */
+  .gx-rail__panel {
+    flex-direction: row;
+    align-items: center;
+    gap: 18px;
+    overflow-x: auto;
+    border-radius: 0;
+    padding: 12px var(--nh-gutter);
+    box-shadow:
+      inset 0 1px 0 0 var(--nh-hairline),
+      inset 0 -1px 0 0 var(--nh-hairline);
+  }
+
+  .gx-rail__head {
+    padding-bottom: 0;
+    box-shadow: none;
+    flex: none;
+  }
+
+  .gx-rail__group {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    flex: none;
+  }
+
+  .gx-rail__list {
+    flex-direction: row;
+    gap: 4px;
+  }
+
+  .gx-rail__row {
+    width: auto;
+    white-space: nowrap;
+  }
+}
+
+/* ========================================================================== */
+/* 6 · PRODUCT GRID                                                           */
+/* ========================================================================== */
+
+/**
+ * Shelves are transparent inside the edit — the tone belongs to the region, not
+ * to each shelf (see §5). This background only matters if a shelf is ever
+ * rendered on its own, outside the track.
+ */
+.gx-shelf {
+  padding: clamp(2.5rem, 5.5vw, 5.5rem) 0;
+  background: var(--gx-tone-theme);
+}
+
+.gx-shelf__head {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 1.5rem;
+  margin-bottom: clamp(1.5rem, 3vw, 2.75rem);
+}
+
+.gx-shelf__title {
+  margin: 0;
+  text-align: center;
+  font-size: clamp(1.35rem, 2.6vw, 2.5rem);
+}
+
+.gx-shelf__head > :last-child {
+  justify-self: end;
+}
+
+.gx-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: clamp(0.75rem, 1.3vw, 1.25rem);
+}
+
+.gx-grid--3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.gx-shelf__foot {
+  display: flex;
+  justify-content: center;
+  margin-top: clamp(1.75rem, 3.5vw, 3rem);
+}
+
+/* --- the card ------------------------------------------------------------- */
+.gx-card {
+  position: relative;
+  display: block;
+  isolation: isolate;
+  aspect-ratio: 1 / 1.45;
+  border-radius: var(--nh-radius-card);
+  overflow: hidden;
+  background: var(--nh-card-bg);
+}
+
+.gx-card--wide {
+  aspect-ratio: 1 / 1.16;
+}
+
+.gx-card__media {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.gx-card__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: var(--op, 50% 50%);
+  transform: scale(calc(var(--z, 1) * var(--hz, 1)));
+  transform-origin: var(--op, 50% 50%);
+  transition: transform 1.15s var(--nh-ease);
+}
+
+.gx-card:hover .gx-card__media img {
+  --hz: 1.055;
+}
+
+/* keeps the frosted panel legible over a bright still-life */
+.gx-card__scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(12, 15, 18, 0.24) 0%,
+    rgba(12, 15, 18, 0) 34%,
+    rgba(12, 15, 18, 0) 58%,
+    rgba(18, 22, 26, 0.56) 100%
+  );
+  pointer-events: none;
+}
+
+/* The stretched link. It sits under the chips and over the media, so the whole
+   tile navigates while the heart stays a real button. */
+.gx-card__hit {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+}
+
+.gx-card__hit:focus-visible {
+  outline: 2px solid var(--nh-ink);
+  outline-offset: -3px;
+}
+
+.gx-card__chips {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.gx-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 13px;
+  border-radius: 999px;
+  background: var(--nh-chip-bg);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  color: var(--nh-chip-fg);
+  font-size: 11.5px;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.gx-heart {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--nh-chip-bg);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  color: var(--nh-chip-fg);
+  cursor: pointer;
+  transition:
+    background-color 0.3s var(--nh-ease-soft),
+    color 0.3s var(--nh-ease-soft);
+}
+
+.gx-card:hover .gx-heart,
+.gx-heart:hover {
+  background: rgba(38, 42, 45, 0.92);
+}
+
+.gx-heart[data-on="true"] {
+  color: #ffffff;
+}
+
+.gx-heart[data-on="true"] svg {
+  fill: currentColor;
+}
+
+/* the panel rides above the stretched link, so it has to let clicks through */
+.gx-card__panel {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  z-index: 3;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 10px 10px 14px;
+  border-radius: 11px;
+  background: var(--nh-panel);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.gx-card__meta {
+  min-width: 0;
+  flex: 1;
+}
+
+.gx-card__name {
+  display: block;
+  font-size: 13.5px;
+  line-height: 1.3;
+  letter-spacing: -0.005em;
+  color: var(--nh-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gx-card__price {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 1.3;
+  color: var(--nh-muted);
+}
+
+.gx-card__price s {
+  margin-left: 6px;
+  opacity: 0.6;
+}
+
+.gx-card__go {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.09);
+  color: var(--nh-ink);
+  transition:
+    background-color 0.3s var(--nh-ease-soft),
+    transform 0.4s var(--nh-ease);
+}
+
+.gx-card:hover .gx-card__go {
+  background: rgba(255, 255, 255, 0.17);
+  transform: translateX(2px);
+}
+
+.gx-card__sold {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  display: grid;
+  place-items: center;
+  background: rgba(20, 24, 27, 0.6);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--nh-ink-soft);
+}
+
+/* --- the empty state ------------------------------------------------------ */
+.gx-empty {
+  padding: clamp(3rem, 7vw, 6rem) 0;
+  text-align: center;
+}
+
+.gx-empty h3 {
+  margin: 0 0 0.6rem;
+  font-size: clamp(1.2rem, 2vw, 1.8rem);
+}
+
+.gx-empty p {
+  margin: 0;
+}
+
+/* ========================================================================== */
+/* 7 · FULL-WIDTH LIFESTYLE BANNER                                            */
+/* ========================================================================== */
+
+.gx-band {
+  position: relative;
+  height: clamp(30rem, 78svh, 46rem);
+  isolation: isolate;
+  overflow: clip;
+  background: var(--nh-surface-3);
+}
+
+.gx-band__media {
+  position: absolute;
+  /* the extra height is the parallax travel; without it the photo would show
+     its own edge as it moves */
+  inset: -12% 0;
+  z-index: 0;
+}
+
+.gx-band__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: var(--op, 50% 45%);
+}
+
+.gx-band__scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    linear-gradient(
+      180deg,
+      var(--nh-surface) 0%,
+      rgba(24, 28, 32, 0.1) 18%,
+      rgba(12, 15, 18, 0.12) 52%,
+      rgba(20, 24, 28, 0.82) 88%,
+      var(--nh-surface) 100%
+    ),
+    linear-gradient(90deg, rgba(6, 7, 8, 0.62) 0%, rgba(12, 15, 18, 0) 58%);
+  pointer-events: none;
+}
+
+/* the ghost band running behind the copy */
+.gx-band__marquee {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  z-index: 1;
+  width: max-content;
+  font-size: clamp(4rem, 12.5vw, 12.5rem);
+  line-height: 0.9;
+  white-space: nowrap;
+  color: rgba(241, 243, 243, 0.07);
+  pointer-events: none;
+  user-select: none;
+}
+
+.gx-band__copy {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 1.25rem;
+  height: 100%;
+  padding-bottom: clamp(2.5rem, 6vw, 5rem);
+}
+
+.gx-band__title {
+  margin: 0;
+  max-width: 18ch;
+  font-size: clamp(1.7rem, 3.8vw, 3.6rem);
+}
+
+.gx-band__copy p {
+  margin: 0;
+  max-width: 42ch;
+  color: var(--nh-ink-soft);
+}
+
+/* ========================================================================== */
+/* 8 · LOOKBOOK / SHOP THE LOOK                                               */
+/* ========================================================================== */
+
+.gx-look {
+  background: var(--gx-tone-black);
+  overflow-x: clip;
+}
+
+.gx-look__head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 300px);
+  align-items: end;
+  gap: clamp(1.5rem, 4vw, 4rem);
+  margin-bottom: clamp(1.75rem, 3.5vw, 3rem);
+}
+
+.gx-look__title {
+  margin: 0.9rem 0 0;
+  font-size: clamp(1.6rem, 3.4vw, 3.2rem);
+}
+
+.gx-look__body {
+  padding-bottom: 0.4rem;
+}
+
+.gx-look__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.42fr) minmax(0, 1fr);
+  gap: clamp(1rem, 2vw, 1.75rem);
+  align-items: stretch;
+}
+
+/* --- the stage ------------------------------------------------------------ */
+.gx-look__stage {
+  position: relative;
+  aspect-ratio: 4 / 3.1;
+  border-radius: var(--nh-radius-lg);
+  overflow: hidden;
+  background: var(--nh-card-bg);
+  isolation: isolate;
+}
+
+.gx-look__stage img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: var(--op, 50% 45%);
+}
+
+.gx-look__stageScrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(12, 15, 18, 0.34) 0%,
+    rgba(12, 15, 18, 0) 40%,
+    rgba(12, 15, 18, 0.44) 100%
+  );
+  pointer-events: none;
+}
+
+.gx-look__badge {
+  position: absolute;
+  left: clamp(0.9rem, 1.6vw, 1.4rem);
+  top: clamp(0.9rem, 1.6vw, 1.4rem);
+  z-index: 3;
+}
+
+/* --- hotspots ------------------------------------------------------------- */
+.gx-look__spot {
+  position: absolute;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(30, 35, 40, 0.62);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  /* NO transform here — Motion owns this element's transform, including the
+     -50%/-50% centring and the active scale. An inline style always wins. */
+  transition:
+    background-color 0.3s var(--nh-ease-soft),
+    box-shadow 0.3s var(--nh-ease-soft);
+}
+
+.gx-look__spot[data-active="true"] {
+  background: var(--nh-solid-bg);
+  color: var(--nh-solid-fg);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+}
+
+/* the halo — a second ring that breathes so the pin reads as interactive */
+.gx-look__spot::after {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
+  animation: gx-halo 2.8s var(--nh-ease) infinite;
+  pointer-events: none;
+}
+
+@keyframes gx-halo {
+  0% {
+    opacity: 0.7;
+    transform: scale(0.86);
+  }
+  70% {
+    opacity: 0;
+    transform: scale(1.18);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.18);
+  }
+}
+
+/* --- the side rail -------------------------------------------------------- */
+.gx-look__rail {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.75rem, 1.2vw, 1rem);
+  min-width: 0;
+}
+
+.gx-look__lead {
+  padding: clamp(1.1rem, 1.8vw, 1.6rem);
+  border-radius: var(--nh-radius-card);
+  background: var(--nh-surface-2);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.gx-look__leadTitle {
+  margin: 0.75rem 0 0.6rem;
+  font-size: clamp(1.05rem, 1.7vw, 1.55rem);
+}
+
+.gx-look__lead p {
+  margin: 0;
+}
+
+.gx-look__items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.gx-look__item {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 8px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  box-shadow: inset 0 0 0 1px transparent;
+  color: inherit;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 0.3s var(--nh-ease-soft),
+    box-shadow 0.3s var(--nh-ease-soft);
+}
+
+.gx-look__item:hover,
+.gx-look__item[data-active="true"] {
+  background: rgba(255, 255, 255, 0.045);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.gx-look__thumb {
+  position: relative;
+  width: 56px;
+  height: 68px;
+  border-radius: 9px;
+  overflow: hidden;
+  background: var(--nh-card-bg);
+}
+
+.gx-look__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: var(--op, 50% 50%);
+  transform: scale(var(--z, 1));
+  transform-origin: var(--op, 50% 50%);
+}
+
+.gx-look__itemName {
+  display: block;
+  font-size: 13px;
+  line-height: 1.3;
+  color: var(--nh-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gx-look__itemMeta {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--nh-muted);
+}
+
+.gx-look__index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--nh-muted);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+}
+
+.gx-look__item[data-active="true"] .gx-look__index {
+  background: var(--nh-solid-bg);
+  color: var(--nh-solid-fg);
+}
+
+/* --- the look switcher ---------------------------------------------------- */
+.gx-look__tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: clamp(1.25rem, 2.4vw, 2rem);
+  padding-top: clamp(1.25rem, 2.4vw, 2rem);
+  box-shadow: inset 0 1px 0 0 var(--nh-hairline);
+}
+
+.gx-look__tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  height: 40px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--nh-muted);
+  font-family: inherit;
+  font-size: 12px;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.3s var(--nh-ease-soft);
+}
+
+.gx-look__tab:hover {
+  color: var(--nh-ink);
+}
+
+.gx-look__tab[data-state="on"] {
+  color: var(--nh-solid-fg);
+}
+
+.gx-look__tabBg {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: 999px;
+  background: var(--nh-solid-bg);
+}
+
+/* --- the popover on the pin ------------------------------------------------ */
+.gx-look__pop {
+  width: 250px;
+  padding: 10px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--gx-menu-bg);
+  box-shadow:
+    inset 0 0 0 1px var(--nh-hairline),
+    0 30px 60px -30px rgba(0, 0, 0, 0.95);
+  color: var(--nh-ink);
+  font-family: inherit;
+}
+
+/* ========================================================================== */
+/* 9 · BRAND STORY BANNER                                                     */
+/* ========================================================================== */
+
+/* the edit closes on the darker tone, so the story steps back up to the theme */
+.gx-story {
+  position: relative;
+  background: var(--gx-tone-theme);
+  box-shadow: inset 0 1px 0 0 var(--nh-hairline);
+  overflow-x: clip;
+}
+
+.gx-story__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.85fr);
+  gap: clamp(2rem, 5vw, 5rem);
+  align-items: center;
+}
+
+.gx-story__word {
+  margin: 0 0 1.5rem;
+  font-size: clamp(2.6rem, 7.5vw, 7rem);
+  line-height: 0.86;
+  /* the wordmark register: outline only, never filled */
+  color: transparent;
+  -webkit-text-stroke: 1px rgba(241, 243, 243, 0.2);
+}
+
+.gx-story__title {
+  margin: 0 0 1.25rem;
+  font-size: clamp(1.5rem, 3vw, 2.6rem);
+}
+
+.gx-story__copy p {
+  margin: 0 0 1rem;
+  max-width: 46ch;
+}
+
+.gx-story__principles {
+  display: grid;
+  gap: 0;
+  margin-top: clamp(1.5rem, 3vw, 2.5rem);
+}
+
+.gx-story__principle {
+  display: grid;
+  grid-template-columns: 3.5rem minmax(0, 1fr);
+  gap: 1rem;
+  padding: 1.1rem 0;
+  box-shadow: inset 0 -1px 0 0 var(--nh-hairline);
+}
+
+.gx-story__principle:first-child {
+  box-shadow:
+    inset 0 1px 0 0 var(--nh-hairline),
+    inset 0 -1px 0 0 var(--nh-hairline);
+}
+
+.gx-story__principle b {
+  font-weight: 400;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--nh-muted-2);
+  padding-top: 0.2rem;
+}
+
+.gx-story__principle span {
+  display: block;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--nh-ink-soft);
+}
+
+.gx-story__media {
+  position: relative;
+  aspect-ratio: 4 / 4.6;
+  border-radius: var(--nh-radius-lg);
+  overflow: hidden;
+  background: var(--nh-card-bg);
+}
+
+.gx-story__media .nh-blinds img {
+  object-position: var(--op, 50% 40%);
+}
+
+.gx-story__stamp {
+  position: absolute;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 30px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: var(--nh-chip-bg);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  color: var(--nh-chip-fg);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* ========================================================================== */
+/* 10 · FOOTER                                                                */
+/* ========================================================================== */
+
+.gx-foot {
+  background: var(--gx-tone-black);
+  /* the page is dark, so the seam can't rely on tone alone */
+  border-top: 1px solid var(--nh-hairline);
+  padding: clamp(2.25rem, 4vw, 3.75rem) 0 clamp(1rem, 2vw, 1.6rem);
+  /* one base colour for every glyph in the block; the only second tone is
+     --nh-muted at the right-hand end of the wordmark gradient */
+  color: var(--nh-ink);
+  font-family: var(--font-archivo), "Archivo", system-ui, sans-serif;
+}
+
+.gx-foot__top {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: clamp(2rem, 5vw, 5rem);
+  flex-wrap: wrap;
+}
+
+.gx-foot__lead {
+  max-width: 34ch;
+}
+
+.gx-foot__leadEyebrow {
+  color: var(--nh-ink);
+}
+
+.gx-foot__lead p {
+  margin: 0.9rem 0 0;
+  color: var(--nh-ink);
+}
+
+.gx-foot__cols {
+  display: flex;
+  gap: clamp(2rem, 5vw, 5rem);
+  flex-wrap: wrap;
+}
+
+.gx-foot__col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.gx-foot__col h4 {
+  margin: 0 0 0.3rem;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--nh-ink);
+}
+
+.gx-foot__col a {
+  font-size: 13.5px;
+  color: var(--nh-ink);
+  transition: transform 0.3s var(--nh-ease-soft);
+}
+
+/* hover moves the link, never the hue */
+.gx-foot__col a:hover {
+  transform: translateX(3px);
+}
+
+.gx-foot__word {
+  margin: clamp(2.5rem, 6vw, 4.5rem) auto clamp(1.5rem, 3vw, 2.5rem);
+  font-size: clamp(3.4rem, 15.5vw, 15rem);
+  line-height: 0.82;
+  text-align: center;
+  /* The footer's one dual-colour mark: the white base runs into the theme blue
+     across the word. Everything else in the block is the single base colour. */
+  /* fit-content, so the box hugs the glyphs. background-clip paints the ramp
+     across the ELEMENT box, not the text — on a full-width block the word only
+     samples the left part of it and the closing stop never reaches a letter. */
+  width: fit-content;
+  color: transparent;
+  background: linear-gradient(
+    96deg,
+    var(--nh-ink) 0%,
+    var(--nh-ink) 34%,
+    var(--nh-muted) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-stroke: 0;
+  user-select: none;
+}
+
+.gx-foot__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding-top: clamp(1rem, 2vw, 1.5rem);
+  box-shadow: inset 0 1px 0 0 var(--nh-hairline);
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--nh-ink);
+}
+
+/* ========================================================================== */
+/* 11 · RESPONSIVE — three max-width steps, matching new_style.md §7          */
+/* ========================================================================== */
+
+@media (max-width: 1240px) {
+  .gx-hero__grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.62fr);
+  }
+
+  .gx-hero__rail {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: calc(100% + 16vw);
+  }
+
+  .gx-hero__col[data-col="2"] {
+    display: none;
+  }
+}
+
+@media (max-width: 1100px) {
+  .gx-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .gx-look__head,
+  .gx-intro__inner {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .gx-intro__inner {
+    align-items: start;
+  }
+
+  .gx-look__layout,
+  .gx-story__layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .gx-story__media {
+    aspect-ratio: 4 / 3;
+    order: -1;
+  }
+}
+
+@media (max-width: 900px) {
+  .gx-hero {
+    min-height: auto;
+  }
+
+  .gx-hero__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .gx-hero__copy {
+    padding-top: clamp(3rem, 12vw, 6rem);
+    padding-bottom: clamp(2rem, 6vw, 3rem);
+  }
+
+  .gx-hero__title {
+    max-width: 18ch;
+  }
+
+  .gx-hero__media {
+    position: relative;
+    height: 58svh;
+    min-height: 22rem;
+  }
+
+  .gx-hero__cue {
+    display: none;
+  }
+
+  .gx-look__stage {
+    aspect-ratio: 4 / 3.4;
+  }
+}
+
+@media (max-width: 860px) {
+  .gx-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .gx-shelf__head {
+    grid-template-columns: minmax(0, 1fr);
+    text-align: left;
+  }
+
+  .gx-shelf__title {
+    text-align: left;
+  }
+
+  .gx-shelf__head > :first-child,
+  .gx-shelf__head > :last-child {
+    display: none;
+  }
+
+  .gx-intro__specs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* the piece count is the first thing to give up room in the strip */
+  .gx-rail__head {
+    display: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .gx-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .gx-card {
+    aspect-ratio: 1 / 1.24;
+  }
+
+  .gx-intro__specs {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .gx-look__item {
+    grid-template-columns: 48px minmax(0, 1fr) auto;
+  }
+}
+
+/* ========================================================================== */
+/* 12 · REDUCED MOTION                                                        */
+/* ========================================================================== */
+
+/**
+ * This block covers the CSS side only. The Motion-driven work (reveals, blind
+ * slices, split headlines, scroll parallax) is gated at the source with
+ * `useReducedMotion()` — see `components/gender/motion.tsx`.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .gx-root *,
+  .gx-root *::before,
+  .gx-root *::after,
+  .gx-foot *,
+  .gx-foot *::before,
+  .gx-foot *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .gx-hero__track {
+    animation: none !important;
+  }
+}

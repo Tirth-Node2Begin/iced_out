@@ -1,0 +1,2496 @@
+/* ============================================================================
+   ICED_OUT — /new-man catalogue
+   The filter bar and product grid that hang below the hero and the editorial.
+
+   A separate sheet from new-home.css on purpose: that file is shared by
+   /new-home, /new-woman and the About experience, and nothing here should be
+   able to reach them. Every rule is additive and scoped under .nh-root, so the
+   palette, easing and gutter tokens declared there resolve unchanged.
+   ========================================================================= */
+
+.nh-root .nh-cat {
+  /* Local tokens for this section only. The bar and the tiles share a set of
+     glass values, and having them in one place is what keeps the two reading
+     as parts of the same object rather than two separately-tuned surfaces. */
+  --cat-plate: rgba(20, 23, 25, 0.72);
+  --cat-plate-stuck: rgba(14, 16, 18, 0.88);
+  --cat-edge: rgba(255, 255, 255, 0.11);
+  --cat-edge-soft: rgba(255, 255, 255, 0.07);
+  --cat-fill: rgba(255, 255, 255, 0.055);
+  --cat-fill-hover: rgba(255, 255, 255, 0.1);
+}
+
+/* ------------------------------------------------------------ section head */
+.nh-root .nh-cat__head {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: start;
+  gap: 1rem;
+  margin-bottom: clamp(1.5rem, 3vw, 2.75rem);
+}
+
+.nh-root .nh-cat__title {
+  font-size: clamp(1.7rem, 3.4vw, 3.2rem);
+  margin: 0;
+  text-align: center;
+}
+
+.nh-root .nh-cat__headRight {
+  text-align: right;
+}
+
+/* ------------------------------------------------------------- filter bar */
+/* Sticks to the top of the viewport for exactly as long as the grid runs.
+   The bar on this surface is sticky too now (see SiteNav), so `top` is the
+   header's own height plus the breathing gap it used to be on its own —
+   without the clearance the plate pins underneath the bar and the controls are
+   covered for the whole length of the grid. `--nh-nav-h` is the same token the
+   bar sets its own height from, so the two cannot drift apart.
+
+   The bar retracts on the way down the page, which leaves the gap above the
+   plate empty while it is away. That is the right way round: the controls hold
+   the position they will be in when the bar comes back, rather than jumping a
+   header's height every time the shopper changes direction.
+
+   It is a frosted plate rather than a solid one: the grid passing under it is
+   what tells you the page is still moving while the controls stay put. */
+.nh-root .nh-filter__sentinel {
+  height: 1px;
+  margin-bottom: -1px;
+  pointer-events: none;
+}
+
+.nh-root .nh-filter {
+  position: sticky;
+  top: calc(var(--nh-nav-h, 92px) + 10px);
+  z-index: 40;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: clamp(1.25rem, 2.4vw, 2rem);
+  padding: 8px 8px 8px 14px;
+  border-radius: 999px;
+  background: var(--cat-plate);
+  /* Two shadows doing different jobs: the inset hairline draws the edge, and
+     the drop shadow lifts the plate off the grid running under it. Neither is
+     a border — a border would take a pixel out of the content box and shift
+     every control inside by half a step. */
+  box-shadow:
+    inset 0 0 0 1px var(--cat-edge),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.05),
+    0 16px 40px -26px rgba(0, 0, 0, 0.9);
+  -webkit-backdrop-filter: blur(20px) saturate(1.3);
+  backdrop-filter: blur(20px) saturate(1.3);
+  transition:
+    background-color 0.5s var(--nh-ease-soft),
+    box-shadow 0.5s var(--nh-ease-soft);
+}
+
+/* Pinned. Only the plate changes — never the height, or the space the bar
+   gives up in normal flow would change under the grid and jog the page. */
+.nh-root .nh-filter[data-stuck="true"] {
+  background: var(--cat-plate-stuck);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.14),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.06),
+    0 24px 60px -28px rgba(0, 0, 0, 1);
+}
+
+.nh-root .nh-filter__group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.nh-root .nh-filter__group--cats {
+  flex: 1 1 auto;
+}
+
+.nh-root .nh-filter__group--meta {
+  gap: 8px;
+  padding-right: 6px;
+}
+
+/* The three control groups travel as one unit. On a narrow screen this is the
+   element that wraps — a row-direction flex, so wrapping produces rows. The
+   bar itself must never be the thing that wraps once it has stacked: a
+   column-direction container with `wrap` lays out in COLUMNS. */
+.nh-root .nh-filter__controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  min-width: 0;
+}
+
+.nh-root .nh-filter__icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 15px;
+  color: var(--nh-muted-2);
+}
+
+/* A hairline between groups instead of boxing each one — it separates without
+   adding a second edge inside a plate that already has one. */
+.nh-root .nh-filter__rule {
+  flex: none;
+  width: 1px;
+  height: 20px;
+  background: var(--cat-edge-soft);
+}
+
+.nh-root .nh-filter__label {
+  flex: none;
+  font-size: 10px;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--nh-muted-2);
+}
+
+/* The chips are the one part allowed to run out of room: below tablet they
+   scroll sideways instead of wrapping the bar into a block.
+
+   `min-width: 0` is what makes that work. A flex item defaults to its
+   min-content width, so without it the row of chips sets the bar's width
+   instead of scrolling inside it — and on a phone that pushes the whole plate
+   past the viewport, where .nh-root's `overflow-x: clip` silently eats it. */
+.nh-root .nh-filter__chips {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow-x: auto;
+  scrollbar-width: none;
+  /* the marker is drawn behind the label and can bleed a hair past the row */
+  padding: 1px;
+}
+
+.nh-root .nh-filter__chips::-webkit-scrollbar {
+  display: none;
+}
+
+/* ------------------------------------------------------------------ chips */
+.nh-root .nh-chip {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  line-height: 1;
+  letter-spacing: 0.005em;
+  white-space: nowrap;
+  cursor: pointer;
+  color: var(--nh-muted);
+  background: transparent;
+  transition: color 0.35s var(--nh-ease);
+}
+
+.nh-root .nh-chip:hover,
+.nh-root .nh-chip[aria-checked="true"] {
+  color: var(--nh-ink);
+}
+
+.nh-root .nh-chip:active {
+  transform: scale(0.97);
+}
+
+/* the travelling marker — one element Motion moves between the chips */
+.nh-root .nh-chip__bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: 999px;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.15) 0%,
+    rgba(255, 255, 255, 0.08) 100%
+  );
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.14),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.12);
+}
+
+.nh-root .nh-chip__label {
+  position: relative;
+  z-index: 1;
+}
+
+.nh-root .nh-chip--check {
+  padding-left: 9px;
+  box-shadow: inset 0 0 0 1px var(--cat-edge-soft);
+  transition:
+    color 0.35s var(--nh-ease),
+    background-color 0.35s var(--nh-ease);
+}
+
+.nh-root .nh-chip--check:hover {
+  background: var(--cat-fill);
+}
+
+.nh-root .nh-chip--check[data-on="true"] {
+  background: var(--cat-fill-hover);
+  box-shadow: inset 0 0 0 1px var(--cat-edge);
+}
+
+.nh-root .nh-chip__box {
+  display: grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  flex: none;
+  border-radius: 5px;
+  color: var(--nh-solid-fg);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--cat-edge);
+  transition: background-color 0.3s var(--nh-ease-soft);
+}
+
+.nh-root .nh-chip--check[data-on="true"] .nh-chip__box {
+  background: var(--nh-solid-bg);
+  box-shadow: none;
+}
+
+/* ------------------------------------------------------------- sort menu */
+.nh-root .nh-sort {
+  position: relative;
+  flex: none;
+}
+
+.nh-root .nh-sort__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 32px;
+  padding: 0 11px 0 13px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  color: var(--nh-ink);
+  background: var(--cat-fill);
+  box-shadow: inset 0 0 0 1px var(--cat-edge-soft);
+  transition:
+    background-color 0.3s var(--nh-ease-soft),
+    box-shadow 0.3s var(--nh-ease-soft);
+}
+
+.nh-root .nh-sort__trigger:hover,
+.nh-root .nh-sort__trigger[aria-expanded="true"] {
+  background: var(--cat-fill-hover);
+  box-shadow: inset 0 0 0 1px var(--cat-edge);
+}
+
+.nh-root .nh-sort__lead {
+  font-size: 10px;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--nh-muted-2);
+}
+
+.nh-root .nh-sort__caret {
+  color: var(--nh-muted);
+  transition: transform 0.35s var(--nh-ease);
+}
+
+.nh-root .nh-sort__caret[data-open="true"] {
+  transform: rotate(180deg);
+}
+
+/* Hangs off the trigger rather than pushing the bar: absolute, so opening it
+   never changes the plate's height while it is pinned. */
+.nh-root .nh-sort__menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  min-width: 208px;
+  padding: 6px;
+  transform-origin: top right;
+  border-radius: 16px;
+  background: #16191b;
+  box-shadow:
+    inset 0 0 0 1px var(--cat-edge),
+    0 30px 70px -30px rgba(0, 0, 0, 1);
+}
+
+.nh-root .nh-sort__option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  height: 34px;
+  padding: 0 11px;
+  border-radius: 10px;
+  font-size: 13px;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+  color: var(--nh-muted);
+  transition:
+    background-color 0.22s var(--nh-ease-soft),
+    color 0.22s var(--nh-ease-soft);
+}
+
+.nh-root .nh-sort__option:hover {
+  background: var(--cat-fill);
+  color: var(--nh-ink);
+}
+
+.nh-root .nh-sort__option[aria-selected="true"] {
+  color: var(--nh-ink);
+}
+
+/* ------------------------------------------------------------ count/reset */
+.nh-root .nh-filter__count {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--nh-muted-2);
+  white-space: nowrap;
+}
+
+/* drops before the Clear button does — the leading number is the part that
+   actually answers "did my filter do anything" */
+.nh-root .nh-filter__countTail {
+  white-space: nowrap;
+}
+
+/* A fixed box for the digits: the old and new numbers are both in the DOM
+   while they cross over, and without a reserved slot the row would jump the
+   width of two characters every time a filter changed. */
+.nh-root .nh-filter__countBox {
+  position: relative;
+  display: inline-block;
+  width: 2ch;
+  height: 1.15em;
+}
+
+.nh-root .nh-filter__count b {
+  position: absolute;
+  inset: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--nh-ink);
+}
+
+.nh-root .nh-filter__reset {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  cursor: pointer;
+  color: var(--nh-solid-fg);
+  background: var(--nh-solid-bg);
+  transition: background-color 0.3s var(--nh-ease-soft);
+}
+
+.nh-root .nh-filter__reset:hover {
+  background: var(--nh-solid-bg-hover);
+}
+
+/* ------------------------------------------------------------------- grid */
+.nh-root .nh-mgrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: clamp(1rem, 1.6vw, 1.5rem) clamp(0.75rem, 1.1vw, 1rem);
+}
+
+/* The tile is one rounded card rather than a photograph with loose type under
+   it: the frame's radius is repeated on an outer shell, and the price block
+   sits inside it. Since the frame is now a link, the shell is what acknowledges
+   the cursor — it lifts a hair and its edge brightens. Nothing moves inside it,
+   so a row of tiles never rearranges itself under the pointer. */
+.nh-root .nh-mcard {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 7px 7px 11px;
+  border-radius: 22px;
+  background: var(--cat-fill);
+  box-shadow: inset 0 0 0 1px var(--cat-edge-soft);
+  transition:
+    background-color 0.4s var(--nh-ease-soft),
+    box-shadow 0.4s var(--nh-ease-soft),
+    transform 0.4s var(--nh-ease-soft);
+}
+
+.nh-root .nh-mcard:hover {
+  transform: translateY(-3px);
+  background: var(--cat-fill-hover);
+  box-shadow:
+    inset 0 0 0 1px var(--cat-edge),
+    0 22px 44px -30px rgba(0, 0, 0, 0.95);
+}
+
+/* The photograph and everything that sits on it. */
+.nh-root .nh-mcard__frame {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 3 / 4;
+  /* one step tighter than the shell's, so the two radii sit concentric rather
+     than the inner corner looking square inside the outer one */
+  border-radius: 16px;
+  background: var(--nh-card-bg);
+  box-shadow: inset 0 0 0 1px var(--cat-edge-soft);
+  isolation: isolate;
+}
+
+.nh-root .nh-mcard__media {
+  position: absolute;
+  inset: 0;
+  display: block;
+  overflow: hidden;
+}
+
+/* Mode `crop`: centre on a point and zoom around it. object-position and
+   transform-origin must resolve to the same point, or scaling walks the frame
+   off the garment it was measured against.
+
+   `.nmp-frame` — the product page's gallery, thumbnails and related tiles — is
+   carried on these selectors rather than given its own copy of the arithmetic:
+   a tile and the page it opens have to frame the same crop identically, and two
+   sets of numbers drift the first time one of them is corrected. */
+.nh-root .nh-mcard__media img,
+.nh-root .nmp-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: var(--op, 50% 50%);
+  transform: scale(var(--zoom, 1));
+  transform-origin: var(--op, 50% 50%);
+}
+
+/* Mode `quad`: one cell of a 2×2 contact sheet.
+   ---------------------------------------------------------------------------
+   `object-fit: cover` is the wrong tool here and no amount of origin
+   arithmetic rescues it: cover crops the sheet to the frame's shape BEFORE any
+   transform runs, so a third of the outer columns is already gone by the time
+   the scale tries to centre on one. Whatever the origin, the cell can then only
+   be centred by dragging the surviving strip inward, which leaves a bar of bare
+   card down one side.
+
+   So the image is not fitted at all — it is sized. Its height is two frame
+   heights, and it is square, so each cell measures exactly one frame height in
+   both axes: tall enough to fill the frame, wide enough to spare. Centring the
+   cell is then a translate of a quarter of the image, and `translate()`
+   percentages resolve against the element's own box — which means none of this
+   depends on the frame's aspect ratio, and nothing has to be re-derived if the
+   ratio ever changes.
+
+   The extra 4% is margin so the cell is cropped just inside its own edges,
+   where the seam cannot round back into view. */
+.nh-root .nh-mcard__media[data-mode="quad"] img,
+.nh-root .nmp-frame[data-mode="quad"] img,
+.nhq__shot[data-mode="quad"] img {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: auto;
+  height: calc(200% * var(--zoom, 1));
+  max-width: none;
+  transform: translate(-50%, -50%)
+    translate(
+      calc((0.5 - var(--qx, 0)) * 50%),
+      calc((0.5 - var(--qy, 0)) * 50%)
+    );
+}
+
+/* A faint floor under the flags and the heart, so neither depends on the
+   garment behind it being dark. */
+.nh-root .nh-mcard__frame::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  z-index: 1;
+  height: 34%;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(6, 7, 8, 0.34) 0%, rgba(6, 7, 8, 0) 100%);
+}
+
+/* The whole frame is the link to the product page. It sits under the flags and
+   the corner controls so those stay pressable. */
+.nh-root .nh-mcard__hit {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: block;
+  border-radius: inherit;
+  cursor: pointer;
+  background: transparent;
+}
+
+.nh-root .nh-mcard__hit:focus-visible {
+  outline: 2px solid var(--nh-solid-bg);
+  outline-offset: -3px;
+}
+
+.nh-root .nh-mcard__flags {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  pointer-events: none;
+}
+
+.nh-root .nh-mcard__flag {
+  display: inline-flex;
+  align-items: center;
+  height: 21px;
+  padding: 0 9px;
+  border-radius: 999px;
+  font-size: 9px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--nh-ink);
+  background: rgba(18, 20, 22, 0.7);
+  box-shadow: inset 0 0 0 1px var(--cat-edge);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+
+.nh-root .nh-mcard__flag--sold {
+  color: var(--nh-solid-fg);
+  background: var(--nh-solid-bg);
+  box-shadow: none;
+}
+
+/* The wishlist and the quick view, stacked at the top of the frame. They are
+   drawn at full strength rather than revealed on hover: there is no hover on a
+   phone, and the quick-add is the only way to size a piece without leaving the
+   listing. */
+.nh-root .nh-mcard__tools {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.nh-root .nh-mcard__tool {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  cursor: pointer;
+  color: var(--nh-chip-fg);
+  background: rgba(18, 20, 22, 0.7);
+  box-shadow: inset 0 0 0 1px var(--cat-edge);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  transition:
+    color 0.3s var(--nh-ease-soft),
+    background-color 0.3s var(--nh-ease-soft);
+}
+
+.nh-root .nh-mcard__tool:hover {
+  color: var(--nh-ink);
+  background: rgba(28, 31, 34, 0.88);
+}
+
+.nh-root .nh-mcard__tool--heart[data-on="true"] {
+  color: #ff6b6b;
+}
+
+.nh-root .nh-mcard__tool--heart[data-on="true"] svg {
+  fill: currentColor;
+}
+
+/* the whole shot dims rather than the tile being removed — a sold-out piece is
+   still information, and hiding it makes the grid look thinner than it is */
+.nh-root .nh-mcard[data-sold="true"] .nh-mcard__media img {
+  opacity: 0.45;
+  filter: grayscale(0.7);
+}
+
+/* -------------------------------------------------------------- card meta */
+/* The block from the supplied reference: selling price, struck MRP, a
+   percentage badge, then the name underneath. */
+.nh-root .nh-mcard__info {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 0 5px;
+}
+
+.nh-root .nh-mcard__prices {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 7px;
+}
+
+.nh-root .nh-mcard__price {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--nh-ink);
+}
+
+.nh-root .nh-mcard__mrp {
+  font-size: 11px;
+  letter-spacing: 0.01em;
+  color: var(--nh-muted-2);
+}
+
+.nh-root .nh-mcard__mrp s {
+  text-decoration-thickness: 1px;
+}
+
+.nh-root .nh-mcard__off {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 7px;
+  border-radius: 999px;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #0a1a10;
+  background: #3ecf7e;
+  white-space: nowrap;
+}
+
+.nh-root .nh-mcard__name {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.4;
+  letter-spacing: -0.005em;
+  color: var(--nh-ink-soft);
+  text-decoration: none;
+  transition: color 0.3s var(--nh-ease-soft);
+  /* two lines, then ellipsis — a long name must not push one tile in a row
+     taller than its neighbours */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+.nh-root .nh-mcard__name:hover {
+  color: var(--nh-ink);
+}
+
+/* ------------------------------------------------------- quick-add panel */
+/* Rendered through a portal, so these rules deliberately do not hang off
+   `.nh-root` — the sheet is only loaded by this route, and the tokens the
+   panel needs are restated on its own root. */
+.nhq {
+  --q-surface: #17191b;
+  --q-edge: rgba(255, 255, 255, 0.12);
+  --q-edge-soft: rgba(255, 255, 255, 0.08);
+  --q-fill: rgba(255, 255, 255, 0.06);
+  --q-fill-hover: rgba(255, 255, 255, 0.11);
+  --q-ink: #f1f3f3;
+  --q-muted: #8f9598;
+  --q-muted-2: #6e7477;
+  --q-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  padding: clamp(0.75rem, 3vw, 2rem);
+  font-family: var(--font-archivo), "Archivo", system-ui, sans-serif;
+  color: var(--q-ink);
+  letter-spacing: -0.01em;
+}
+
+.nhq__scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(6, 7, 8, 0.72);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+
+.nhq__panel {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  width: min(760px, 100%);
+  max-height: min(620px, 100%);
+  overflow: hidden;
+  border-radius: 24px;
+  background: var(--q-surface);
+  box-shadow:
+    inset 0 0 0 1px var(--q-edge),
+    0 40px 90px -30px rgba(0, 0, 0, 1);
+}
+
+.nhq__panel:focus-visible {
+  outline: none;
+}
+
+.nhq__close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  cursor: pointer;
+  color: var(--q-ink);
+  background: rgba(18, 20, 22, 0.72);
+  box-shadow: inset 0 0 0 1px var(--q-edge);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  transition: background-color 0.3s var(--q-ease);
+}
+
+.nhq__close:hover {
+  background: rgba(40, 44, 47, 0.95);
+}
+
+.nhq__media {
+  position: relative;
+  overflow: hidden;
+  background: #1a1c1e;
+}
+
+/* The two photographs mid-change share this one box, so the change is a
+   cross-fade in place rather than a reflow. */
+.nhq__shotLayer {
+  position: absolute;
+  inset: 0;
+}
+
+.nhq__shot {
+  position: absolute;
+  inset: 0;
+  display: block;
+  overflow: hidden;
+}
+
+.nhq__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: var(--op, 50% 50%);
+  transform: scale(var(--zoom, 1));
+  transform-origin: var(--op, 50% 50%);
+}
+
+/* --------------------------------------------------------- gallery controls */
+/* Drawn at rest rather than revealed on hover: the panel is opened by a tap as
+   often as by a cursor, and a control that only exists under a pointer does not
+   exist on a phone. They lift to full strength on hover. */
+.nhq__nav {
+  position: absolute;
+  top: 50%;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  margin-top: -15px;
+  border-radius: 999px;
+  cursor: pointer;
+  color: var(--q-ink);
+  background: rgba(18, 20, 22, 0.66);
+  box-shadow: inset 0 0 0 1px var(--q-edge);
+  opacity: 0.82;
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  transition:
+    opacity 0.3s var(--q-ease),
+    background-color 0.3s var(--q-ease);
+}
+
+.nhq__nav:hover {
+  opacity: 1;
+  background: rgba(40, 44, 47, 0.95);
+}
+
+.nhq__nav--prev {
+  left: 10px;
+}
+
+.nhq__nav--next {
+  right: 10px;
+}
+
+.nhq__dots {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 7px;
+  border-radius: 999px;
+  transform: translateX(-50%);
+  background: rgba(12, 14, 15, 0.5);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+/* A dot is 5px but its target is 16 — the padding is transparent, so the run
+   stays discreet while each dot is still big enough to hit. */
+.nhq__dot {
+  position: relative;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  background: transparent;
+}
+
+.nhq__dot::after {
+  content: "";
+  position: absolute;
+  inset: 5.5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.34);
+  transition:
+    background-color 0.3s var(--q-ease),
+    inset 0.3s var(--q-ease);
+}
+
+.nhq__dot:hover::after {
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.nhq__dot[data-on="true"]::after {
+  inset: 4.5px;
+  background: var(--q-ink);
+}
+
+.nhq__body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: clamp(1.25rem, 2.6vw, 2rem);
+  overflow-y: auto;
+}
+
+.nhq__eyebrow {
+  margin: 0;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--q-muted-2);
+}
+
+.nhq__title {
+  margin: 0;
+  font-size: clamp(1.1rem, 2vw, 1.45rem);
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.nhq__prices {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin-top: 2px;
+}
+
+.nhq__price {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+.nhq__mrp {
+  font-size: 13px;
+  color: var(--q-muted-2);
+}
+
+.nhq__off {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #0a1a10;
+  background: #3ecf7e;
+}
+
+.nhq__tax {
+  margin: -2px 0 0;
+  font-size: 11px;
+  color: var(--q-muted-2);
+}
+
+.nhq__sizes {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin-top: 8px;
+}
+
+.nhq__sizeHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.nhq__label {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--q-muted);
+}
+
+/* A button, not a link — it opens the size guide dialog over this panel rather
+   than going anywhere. It keeps the underline it had as a link; see the note on
+   `.nmp-guide` in new-man-product.css. */
+.nhq__guide {
+  padding: 0;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  color: var(--q-muted);
+  background: none;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.nhq__guide:hover {
+  color: var(--q-ink);
+}
+
+.nhq__sizeRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.nhq__size {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 46px;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 12px;
+  font: inherit;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  color: var(--q-ink);
+  background: var(--q-fill);
+  box-shadow: inset 0 0 0 1px var(--q-edge-soft);
+  transition:
+    background-color 0.24s var(--q-ease),
+    color 0.24s var(--q-ease),
+    box-shadow 0.24s var(--q-ease);
+}
+
+.nhq__size:hover:not(:disabled) {
+  background: var(--q-fill-hover);
+}
+
+.nhq__size[aria-checked="true"] {
+  color: #0d0e10;
+  background: #f2f4f4;
+  box-shadow: none;
+}
+
+/* sold-out sizes stay in the row — knowing an L is gone is information, and
+   dropping it makes the run look shorter than it is */
+.nhq__size[data-state="out"] {
+  color: rgba(255, 255, 255, 0.3);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+  text-decoration: line-through;
+  cursor: not-allowed;
+}
+
+.nhq__size[data-state="low"]::after {
+  content: "";
+  width: 4px;
+  height: 4px;
+  margin-left: 6px;
+  border-radius: 999px;
+  background: #e5a13a;
+}
+
+.nhq__size[aria-checked="true"][data-state="low"]::after {
+  background: #b9781a;
+}
+
+.nhq__low,
+.nhq__error {
+  margin: 0;
+  font-size: 11.5px;
+}
+
+.nhq__low {
+  color: #e5a13a;
+}
+
+.nhq__error {
+  color: #ff8080;
+}
+
+.nhq__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.nhq__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: 1;
+  height: 46px;
+  padding: 0 18px;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 12.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  color: var(--q-ink);
+  background: var(--q-fill);
+  box-shadow: inset 0 0 0 1px var(--q-edge-soft);
+  transition:
+    background-color 0.3s var(--q-ease),
+    color 0.3s var(--q-ease),
+    opacity 0.3s var(--q-ease);
+}
+
+.nhq__btn:hover:not(:disabled) {
+  background: var(--q-fill-hover);
+}
+
+.nhq__btn--solid {
+  color: #0d0e10;
+  background: #f2f4f4;
+  box-shadow: none;
+}
+
+.nhq__btn--solid:hover:not(:disabled) {
+  background: #ffffff;
+}
+
+.nhq__btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.nhq__btn--icon {
+  flex: none;
+  width: 46px;
+  padding: 0;
+}
+
+.nhq__btn--icon[data-on="true"] {
+  color: #ff6b6b;
+}
+
+.nhq__btn--icon[data-on="true"] svg {
+  fill: currentColor;
+}
+
+.nhq__done {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 12px;
+}
+
+.nhq__doneLine {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  font-size: 13px;
+}
+
+.nhq__doneMark {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  border-radius: 999px;
+  color: #0a1a10;
+  background: #3ecf7e;
+}
+
+.nhq__details {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  align-self: flex-start;
+  margin-top: 14px;
+  font-size: 11.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--q-muted);
+  transition: color 0.3s var(--q-ease);
+}
+
+.nhq__details:hover {
+  color: var(--q-ink);
+}
+
+.nhq__notes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 10px 0 0;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--q-edge-soft);
+  list-style: none;
+  font-size: 11px;
+  color: var(--q-muted-2);
+}
+
+/* the panel stacks before it runs out of room for two columns */
+@media (max-width: 720px), (max-height: 560px) {
+  .nhq__panel {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
+    max-height: 100%;
+  }
+
+  .nhq__media {
+    aspect-ratio: 16 / 10;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nhq__size,
+  .nhq__btn,
+  .nhq__close,
+  .nhq__nav,
+  .nhq__dot::after {
+    transition: none;
+  }
+}
+
+/* ------------------------------------------------------------ empty state */
+.nh-root .nh-mgrid__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.9rem;
+  padding: clamp(3rem, 8vw, 6rem) var(--nh-gutter);
+  text-align: center;
+  border-radius: var(--nh-radius-lg);
+  background: var(--nh-surface-2);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.nh-root .nh-mgrid__emptyTitle {
+  margin: 0;
+  font-size: clamp(1.2rem, 2.4vw, 2rem);
+}
+
+.nh-root .nh-mgrid__empty .nh-body {
+  max-width: 40ch;
+  margin: 0;
+}
+
+/* --------------------------------------------------------- load more / foot */
+.nh-root .nh-cat__more {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: clamp(1.75rem, 3.2vw, 2.75rem);
+}
+
+.nh-root .nh-cat__notes {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: clamp(1rem, 2.4vw, 2.5rem);
+  margin: clamp(2.5rem, 5vw, 4.5rem) 0 0;
+  padding: clamp(1.5rem, 2.6vw, 2.25rem) 0 0;
+  border-top: 1px solid var(--nh-hairline);
+  list-style: none;
+}
+
+.nh-root .nh-cat__note {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.nh-root .nh-cat__noteKey {
+  flex: none;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--nh-muted-2);
+  padding-top: 2px;
+}
+
+.nh-root .nh-cat__note b {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 13.5px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  color: var(--nh-ink);
+}
+
+.nh-root .nh-cat__note .nh-body {
+  display: block;
+}
+
+/* --------------------------------------------------------------- responsive */
+/* Wide screens take a fifth track rather than stretching four tiles to a
+   billboard — the grid reads as merchandise at this size, and the tile's type
+   was measured for roughly this column width. */
+@media (min-width: 1500px) {
+  .nh-root .nh-mgrid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+@media (max-width: 1240px) {
+  /* the plate stops being a capsule before the controls start colliding with
+     its own rounded ends */
+  .nh-root .nh-filter {
+    border-radius: var(--nh-radius-lg);
+  }
+}
+
+@media (max-width: 1100px) {
+  .nh-root .nh-mgrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .nh-root .nh-cat__notes {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+}
+
+@media (max-width: 980px) {
+  /* the bar stacks: the chips keep the top row to themselves and scroll, the
+     controls sit under them behind one horizontal rule */
+  .nh-root .nh-filter {
+    flex-direction: column;
+    align-items: stretch;
+    /* `nowrap` matters: a column flex container that is also allowed to wrap
+       lays its items out in multiple COLUMNS and sizes itself to their content,
+       which stops `align-items: stretch` constraining a group to the bar. The
+       chips then set the bar's width instead of scrolling inside it. */
+    flex-wrap: nowrap;
+    gap: 10px;
+    padding: 10px 12px;
+  }
+
+  /* the bar's own hairline lies down; the ones inside the control row stay
+     upright, since that row is still horizontal */
+  .nh-root .nh-filter > .nh-filter__rule {
+    width: 100%;
+    height: 1px;
+  }
+
+  .nh-root .nh-filter__controls {
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+    row-gap: 10px;
+  }
+
+  .nh-root .nh-filter__group--meta {
+    margin-left: auto;
+    padding-right: 0;
+  }
+
+  /* the fade tells you the row keeps going past the edge */
+  .nh-root .nh-filter__chips {
+    -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 26px), transparent 100%);
+    mask-image: linear-gradient(90deg, #000 calc(100% - 26px), transparent 100%);
+  }
+}
+
+@media (max-width: 860px) {
+  .nh-root .nh-mgrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .nh-root .nh-cat__head {
+    grid-template-columns: 1fr;
+  }
+
+  .nh-root .nh-cat__head .nh-eyebrow {
+    text-align: left;
+  }
+}
+
+@media (max-width: 620px) {
+  /* Below this the controls need two rows of their own. The dividers between
+     them go: with the groups on separate lines an upright hairline no longer
+     divides anything, it just floats. */
+  .nh-root .nh-filter__rule--v {
+    display: none;
+  }
+
+  .nh-root .nh-filter__controls {
+    justify-content: space-between;
+  }
+
+  .nh-root .nh-filter__group--toggles {
+    flex: 1 0 100%;
+  }
+
+  .nh-root .nh-sort__lead,
+  .nh-root .nh-filter__countTail {
+    display: none;
+  }
+
+  /* flipped: anchored right, the panel would open off the left edge of a
+     narrow screen once the trigger moves to the start of its row */
+  .nh-root .nh-sort__menu {
+    right: auto;
+    left: 0;
+    min-width: 190px;
+    transform-origin: top left;
+  }
+}
+
+@media (max-width: 460px) {
+  .nh-root .nh-mgrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nh-root .nh-mcard,
+  .nh-root .nh-mcard__tool,
+  .nh-root .nh-mcard__name,
+  .nh-root .nh-filter {
+    transition: none;
+  }
+
+  /* the lift goes too — a transform that lands instantly is a jump */
+  .nh-root .nh-mcard:hover {
+    transform: none;
+  }
+}
+
+/* --------------------------------------------------------------- bag drawer */
+/* The confirmation "add to bag" opens on this route. Portalled to <body>, so
+   like the quick-add panel above these rules deliberately do not hang off
+   `.nh-root`, and restate the tokens they need on their own root. The `.io-*`
+   drawer in chrome.css is the storefront's; this route does not load chrome.css
+   because chrome.css also restyles `.nh-nav`, and the bar here is
+   new-home.css's. */
+.nmb {
+  --b-surface: #17191b;
+  --b-edge: rgba(255, 255, 255, 0.12);
+  --b-edge-soft: rgba(255, 255, 255, 0.08);
+  --b-fill: rgba(255, 255, 255, 0.06);
+  --b-fill-hover: rgba(255, 255, 255, 0.11);
+  --b-ink: #f1f3f3;
+  --b-muted: #8f9598;
+  --b-muted-2: #6e7477;
+  --b-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  position: fixed;
+  inset: 0;
+  z-index: 130;
+  font-family: var(--font-archivo), "Archivo", system-ui, sans-serif;
+  color: var(--b-ink);
+  letter-spacing: -0.01em;
+}
+
+.nmb__scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(6, 7, 8, 0.72);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+
+/* Pinned to the right edge and full height — the panel that was there before.
+   `grid-template-rows: auto minmax(0, 1fr) auto` is what lets the line list be
+   the only thing that scrolls: the head and the totals stay put, so the price
+   never leaves the screen while the bag is being edited. */
+.nmb__panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  width: min(430px, 100%);
+  background: var(--b-surface);
+  box-shadow:
+    inset 1px 0 0 var(--b-edge),
+    -30px 0 90px -30px rgba(0, 0, 0, 1);
+}
+
+.nmb__panel:focus-visible {
+  outline: none;
+}
+
+/* -------------------------------------------------------------------- head */
+.nmb__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px 22px 16px;
+  border-bottom: 1px solid var(--b-edge-soft);
+}
+
+.nmb__title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.nmb__count {
+  margin: 4px 0 0;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--b-muted);
+}
+
+.nmb__close {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border-radius: 999px;
+  cursor: pointer;
+  color: var(--b-ink);
+  background: var(--b-fill);
+  box-shadow: inset 0 0 0 1px var(--b-edge-soft);
+  transition: background-color 0.3s var(--b-ease);
+}
+
+.nmb__close:hover {
+  background: var(--b-fill-hover);
+}
+
+/* ------------------------------------------------------------------- lines */
+.nmb__body {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px 22px;
+}
+
+.nmb__lines {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nmb__line {
+  display: grid;
+  grid-template-columns: 66px minmax(0, 1fr) auto;
+  gap: 14px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--b-edge-soft);
+}
+
+.nmb__line:last-child {
+  border-bottom: 0;
+}
+
+/* the same sprite sheet `.product-sprite` reads, restated here because
+   commerce.css is not loaded on this route */
+.nmb__thumb {
+  height: 82px;
+  border-radius: 12px;
+  background-image: url("/images/drop-001-products.webp");
+  background-image: image-set(
+    url("/images/drop-001-products.avif") type("image/avif"),
+    url("/images/drop-001-products.webp") type("image/webp")
+  );
+  background-repeat: no-repeat;
+  background-size: 200% 200%;
+  box-shadow: inset 0 0 0 1px var(--b-edge-soft);
+}
+
+.nmb__thumb[data-pos="top-left"] {
+  background-position: 0 0;
+}
+
+.nmb__thumb[data-pos="top-right"] {
+  background-position: 100% 0;
+}
+
+.nmb__thumb[data-pos="bottom-left"] {
+  background-position: 0 100%;
+}
+
+.nmb__thumb[data-pos="bottom-right"] {
+  background-position: 100% 100%;
+}
+
+.nmb__lineBody {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.nmb__name {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.nmb__meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--b-muted);
+}
+
+.nmb__meta i {
+  font-style: normal;
+  color: var(--b-muted-2);
+}
+
+.nmb__lineFoot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: auto;
+  padding-top: 8px;
+}
+
+.nmb__qty {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: var(--b-fill);
+  box-shadow: inset 0 0 0 1px var(--b-edge-soft);
+}
+
+.nmb__qty button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  cursor: pointer;
+  color: var(--b-muted);
+  transition:
+    color 0.3s var(--b-ease),
+    background-color 0.3s var(--b-ease);
+}
+
+.nmb__qty button:hover {
+  color: var(--b-ink);
+  background: var(--b-fill-hover);
+}
+
+.nmb__qty span {
+  min-width: 22px;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.nmb__remove {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  color: var(--b-muted-2);
+  transition: color 0.3s var(--b-ease);
+}
+
+.nmb__remove:hover {
+  color: #ff8080;
+}
+
+.nmb__lineSide {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  text-align: right;
+}
+
+.nmb__price {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.nmb__each {
+  font-size: 10.5px;
+  color: var(--b-muted-2);
+}
+
+/* ------------------------------------------------------------------ coupon */
+.nmb__foot {
+  padding: 16px 22px 20px;
+  border-top: 1px solid var(--b-edge-soft);
+  background: var(--b-surface);
+}
+
+.nmb__coupon {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.nmb__couponForm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nmb__couponField {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex: 1;
+  min-width: 0;
+  height: 42px;
+  padding: 0 14px;
+  border-radius: 999px;
+  color: var(--b-muted);
+  background: var(--b-fill);
+  box-shadow: inset 0 0 0 1px var(--b-edge-soft);
+  transition: box-shadow 0.3s var(--b-ease);
+}
+
+.nmb__couponField:focus-within {
+  box-shadow: inset 0 0 0 1px var(--b-edge);
+}
+
+.nmb__couponField input {
+  width: 100%;
+  min-width: 0;
+  font: inherit;
+  font-size: 12.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--b-ink);
+  background: none;
+  border: 0;
+  outline: none;
+}
+
+.nmb__couponField input::placeholder {
+  letter-spacing: 0.06em;
+  text-transform: none;
+  color: var(--b-muted-2);
+}
+
+.nmb__couponApply {
+  height: 42px;
+  padding: 0 18px;
+  flex: none;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 11.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  color: var(--b-ink);
+  background: var(--b-fill);
+  box-shadow: inset 0 0 0 1px var(--b-edge-soft);
+  transition:
+    background-color 0.3s var(--b-ease),
+    opacity 0.3s var(--b-ease);
+}
+
+.nmb__couponApply:hover:not(:disabled) {
+  background: var(--b-fill-hover);
+}
+
+.nmb__couponApply:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.nmb__couponOn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: rgba(62, 207, 126, 0.09);
+  box-shadow: inset 0 0 0 1px rgba(62, 207, 126, 0.24);
+}
+
+/* held, not discounting: the tick and the green go, the code stays */
+.nmb__couponOn[data-pending] {
+  background: rgba(229, 161, 58, 0.09);
+  box-shadow: inset 0 0 0 1px rgba(229, 161, 58, 0.26);
+}
+
+.nmb__couponOn[data-pending] .nmb__couponMark {
+  color: #241a06;
+  background: #e5a13a;
+}
+
+.nmb__couponMark {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  flex: none;
+  border-radius: 999px;
+  color: #0a1a10;
+  background: #3ecf7e;
+}
+
+.nmb__couponOn p {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 0;
+  min-width: 0;
+}
+
+.nmb__couponOn strong {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+.nmb__couponOn span {
+  font-size: 11px;
+  color: var(--b-muted);
+}
+
+.nmb__couponOff {
+  margin-left: auto;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  color: var(--b-muted-2);
+  transition: color 0.3s var(--b-ease);
+}
+
+.nmb__couponOff:hover {
+  color: var(--b-ink);
+}
+
+.nmb__couponError {
+  margin: 0;
+  font-size: 11.5px;
+  color: #ff8080;
+}
+
+/* ------------------------------------------------------------------ totals */
+.nmb__totals {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 0 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--b-edge-soft);
+}
+
+.nmb__totals > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.nmb__totals dt,
+.nmb__totals dd {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--b-muted);
+}
+
+.nmb__totals dd {
+  font-variant-numeric: tabular-nums;
+}
+
+.nmb__totals--off dt,
+.nmb__totals--off dd {
+  color: #3ecf7e;
+  letter-spacing: 0.04em;
+}
+
+.nmb__totals--sum dt,
+.nmb__totals--sum dd {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--b-ink);
+}
+
+/* ----------------------------------------------------------------- actions */
+.nmb__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.nmb__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 46px;
+  padding: 0 18px;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 12.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  color: var(--b-ink);
+  background: var(--b-fill);
+  box-shadow: inset 0 0 0 1px var(--b-edge-soft);
+  transition:
+    background-color 0.3s var(--b-ease),
+    color 0.3s var(--b-ease);
+}
+
+.nmb__btn:hover {
+  background: var(--b-fill-hover);
+}
+
+.nmb__btn--solid {
+  color: #0d0e10;
+  background: #f2f4f4;
+  box-shadow: none;
+}
+
+.nmb__btn--solid:hover {
+  background: #ffffff;
+}
+
+.nmb__note {
+  margin: 12px 0 0;
+  font-size: 10.5px;
+  text-align: center;
+  color: var(--b-muted-2);
+}
+
+/* ------------------------------------------------------------------- empty */
+.nmb__empty {
+  grid-row: span 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 32px 26px;
+  text-align: center;
+}
+
+.nmb__emptyGlyph {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  margin-bottom: 6px;
+  border-radius: 999px;
+  color: var(--b-muted);
+  background: var(--b-fill);
+  box-shadow: inset 0 0 0 1px var(--b-edge-soft);
+}
+
+.nmb__empty h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.nmb__empty p {
+  margin: 0 0 10px;
+  font-size: 12.5px;
+  color: var(--b-muted);
+}
+
+@media (max-width: 480px) {
+  .nmb__panel {
+    width: 100%;
+  }
+
+  .nmb__line {
+    grid-template-columns: 54px minmax(0, 1fr) auto;
+  }
+
+  .nmb__thumb {
+    height: 68px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nmb__btn,
+  .nmb__close,
+  .nmb__qty button,
+  .nmb__couponApply,
+  .nmb__couponField {
+    transition: none;
+  }
+}
+
+/* ========================================================================== */
+/* SIZE GUIDE DIALOG                                                          */
+/* ========================================================================== */
+/* Portalled to <body> like the quick-add panel and the bag drawer, so — as with
+   those — these rules deliberately do NOT hang off `.nh-root` and restate the
+   few tokens they need on their own root. The class prefix is this component's
+   alone, and the sheet is only loaded by /new-man, so nothing else can reach it.
+
+   It is opened from BOTH surfaces on this route: the listing's quick-add panel
+   and the product page's size picker. That is why it lives in this sheet rather
+   than in new-man-product.css, which only the detail page loads.
+
+   DRAWN WITH HAIRLINES AND SPACE, NOT WITH BOXES. What is on screen is a table
+   of numbers and four sentences about a tape measure; every card, pill, badge
+   and fill around those was another edge competing with the figures for the
+   eye. One surface, one rule under each heading, and the only filled thing in
+   the dialog is the row the shopper has already chosen. */
+.nsg {
+  --g-surface: #16181a;
+  --g-edge: rgba(255, 255, 255, 0.1);
+  --g-edge-soft: rgba(255, 255, 255, 0.06);
+  --g-ink: #f1f3f3;
+  --g-ink-soft: #d5d9da;
+  --g-muted: #8f9598;
+  --g-muted-2: #6e7477;
+  --g-warn: #e5a13a;
+  --g-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  position: fixed;
+  inset: 0;
+  /* above the quick-add panel (120) and the image viewer (140) — this is the
+     only overlay on the route that is ever opened from inside another */
+  z-index: 160;
+  display: grid;
+  place-items: center;
+  padding: clamp(0.5rem, 2.5vw, 2rem);
+  font-family: var(--font-archivo), "Archivo", system-ui, sans-serif;
+  color: var(--g-ink);
+  letter-spacing: -0.01em;
+}
+
+.nsg__scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(6, 7, 8, 0.76);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+
+/* Two rows: a head that stays, and everything else scrolling under it. The
+   width is set by the widest chart at a comfortable measure — six columns of
+   figures spread across a full-bleed dialog stop reading as rows. */
+.nsg__panel {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: min(820px, 100%);
+  max-height: min(760px, 100%);
+  overflow: hidden;
+  border-radius: 18px;
+  background: var(--g-surface);
+  box-shadow:
+    inset 0 0 0 1px var(--g-edge),
+    0 40px 90px -34px rgba(0, 0, 0, 1);
+}
+
+.nsg__panel:focus-visible {
+  outline: none;
+}
+
+/* ------------------------------------------------------------------- head */
+.nsg__head {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 18px clamp(3.25rem, 6vw, 3.75rem) 18px clamp(1.1rem, 3vw, 1.75rem);
+  box-shadow: inset 0 -1px 0 var(--g-edge-soft);
+}
+
+/* What it is, and what it is about, on one line. */
+.nsg__title {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.nsg__title span {
+  margin-left: 9px;
+  font-weight: 400;
+  color: var(--g-muted-2);
+}
+
+/* Units. A segmented pair rather than a switch: "CM / IN" says what both states
+   are, where a switch labelled "inches" only says what one of them is. Held at
+   a whisper — it is a preference, not the subject. */
+.nsg__units {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 1px;
+  padding: 2px;
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 1px var(--g-edge-soft);
+}
+
+.nsg__unit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  color: var(--g-muted-2);
+  background: transparent;
+  transition:
+    color 0.24s var(--g-ease),
+    background-color 0.24s var(--g-ease);
+}
+
+.nsg__unit:hover {
+  color: var(--g-ink);
+}
+
+.nsg__unit[data-on="true"] {
+  color: var(--g-ink);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.nsg__close {
+  position: absolute;
+  top: 15px;
+  right: clamp(0.85rem, 2vw, 1.25rem);
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  cursor: pointer;
+  color: var(--g-muted);
+  background: transparent;
+  transition:
+    color 0.24s var(--g-ease),
+    background-color 0.24s var(--g-ease);
+}
+
+.nsg__close:hover {
+  color: var(--g-ink);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+/* ------------------------------------------------------------------- body */
+/* Carries `data-lenis-prevent` in the markup — without it Lenis eats the wheel
+   before it reaches this box and the dialog cannot be scrolled at all. */
+.nsg__body {
+  padding: clamp(1.1rem, 3vw, 1.75rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* ----------------------------------------------------------------- charts */
+/* Text with a rule under the live one. Three pills in a row read as three
+   buttons of equal weight; this reads as one of three things being shown. */
+.nsg__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  box-shadow: inset 0 -1px 0 var(--g-edge-soft);
+}
+
+.nsg__tab {
+  position: relative;
+  padding: 0 0 10px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--g-muted-2);
+  background: none;
+  transition: color 0.24s var(--g-ease);
+}
+
+.nsg__tab:hover {
+  color: var(--g-ink-soft);
+}
+
+.nsg__tab[data-on="true"] {
+  color: var(--g-ink);
+}
+
+.nsg__tab[data-on="true"]::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 1px;
+  background: var(--g-ink);
+}
+
+/* The chart the open piece is graded on. A dot, not a badge — it has to be
+   found once, in a row of three words. */
+.nsg__tab[data-own]::before {
+  content: "";
+  position: absolute;
+  top: 4px;
+  right: -7px;
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--g-muted);
+}
+
+.nsg__tab[data-own][data-on="true"]::before {
+  background: var(--g-ink);
+}
+
+.nsg__caption {
+  max-width: 68ch;
+  margin: 16px 0 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--g-muted);
+}
+
+#nsg-chart:focus-visible {
+  outline: none;
+}
+
+/* The one thing in the dialog allowed to scroll sideways, and only when the
+   window is too narrow for six columns of figures. Nothing folds a table. */
+.nsg__tableWrap {
+  margin-top: 18px;
+  overflow-x: auto;
+}
+
+.nsg__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.nsg__table th,
+.nsg__table td {
+  padding: 10px 0 10px 18px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.nsg__table thead th {
+  padding-bottom: 9px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--g-muted-2);
+  box-shadow: inset 0 -1px 0 var(--g-edge-soft);
+}
+
+/* The size column anchors the row, so it is the one left-aligned cell and it
+   takes only the width its content needs — the rest of the table divides what
+   is left, which is what stops five figures scattering across a wide dialog. */
+.nsg__table th[scope="col"]:first-child,
+.nsg__table th[scope="row"] {
+  width: 1%;
+  padding-left: 0;
+  text-align: left;
+}
+
+.nsg__table th[scope="row"] {
+  font-weight: 500;
+  color: var(--g-ink);
+}
+
+/* the stock footnote on a size, not a second column */
+.nsg__table th[scope="row"] i {
+  margin-left: 7px;
+  font-style: normal;
+  font-size: 10.5px;
+  color: var(--g-muted-2);
+}
+
+.nsg__table th[scope="row"] i[data-tone="low"] {
+  color: var(--g-warn);
+}
+
+.nsg__table tbody tr {
+  box-shadow: inset 0 -1px 0 var(--g-edge-soft);
+}
+
+.nsg__table tbody tr:last-child {
+  box-shadow: none;
+}
+
+.nsg__table tbody td {
+  color: var(--g-ink-soft);
+}
+
+/* A body measurement and a garment measurement are not the same kind of
+   number. Rather than label every header, the body column is simply held back
+   a step and the line under the table says which one it is. */
+.nsg__table [data-body="true"] {
+  color: var(--g-muted);
+}
+
+/* The size chosen on the page behind — the only filled thing in the dialog,
+   which is what lets it be found without a colour or a badge. */
+.nsg__table tbody tr[data-mine] td,
+.nsg__table tbody tr[data-mine] th {
+  color: var(--g-ink);
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.nsg__table tbody tr[data-mine] th[scope="row"] {
+  font-weight: 600;
+}
+
+.nsg__table tbody tr[data-out] td,
+.nsg__table tbody tr[data-out] th {
+  color: var(--g-muted-2);
+}
+
+/* A size the piece is offered in is a control here as well as a label: a
+   shopper who has just worked out they are an L should not have to find L
+   again in the picker behind the dialog. */
+.nsg__pick {
+  padding: 0;
+  font: inherit;
+  font-weight: inherit;
+  cursor: pointer;
+  color: inherit;
+  background: none;
+  text-underline-offset: 3px;
+}
+
+.nsg__pick:hover {
+  text-decoration: underline;
+}
+
+.nsg__tableNote {
+  margin: 12px 0 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--g-muted-2);
+}
+
+/* ------------------------------------------------------------------ blocks */
+.nsg__block {
+  margin-top: clamp(1.75rem, 4vw, 2.5rem);
+}
+
+.nsg__blockHead {
+  margin: 0 0 16px;
+  padding-bottom: 9px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--g-muted-2);
+  box-shadow: inset 0 -1px 0 var(--g-edge-soft);
+}
+
+/* --------------------------------------------------------- how to measure */
+.nsg__measure {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: clamp(1rem, 3vw, 2rem);
+  align-items: start;
+}
+
+/* No frame. The silhouette is a line drawing on the same surface as everything
+   else — a card around it made it an illustration in a box rather than the
+   thing the four steps are pointing at. */
+.nsg__diagram svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.nsg__d-shape {
+  fill: rgba(255, 255, 255, 0.03);
+  stroke: rgba(255, 255, 255, 0.26);
+  stroke-width: 1.4;
+  stroke-linejoin: round;
+}
+
+.nsg__d-line {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.16);
+  stroke-width: 1.2;
+}
+
+.nsg__d-measure {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.6);
+  stroke-width: 1.2;
+  stroke-dasharray: 3.5 3;
+}
+
+.nsg__d-dot {
+  fill: rgba(255, 255, 255, 0.75);
+}
+
+.nsg__d-tag {
+  fill: var(--g-ink);
+  font-size: 11px;
+  font-weight: 600;
+  text-anchor: middle;
+}
+
+.nsg__steps {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* The numeral ties the step to the numbered tick on the drawing beside it —
+   they are the same figure, which is the whole reason the drawing is numbered
+   rather than labelled with four words that would not fit on it. */
+.nsg__step {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr);
+  gap: 10px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--g-muted);
+}
+
+.nsg__stepNum {
+  font-variant-numeric: tabular-nums;
+  color: var(--g-muted-2);
+}
+
+.nsg__stepText b {
+  font-weight: 600;
+  color: var(--g-ink);
+}
+
+/* ------------------------------------------------------------------ notes */
+.nsg__notes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: clamp(1rem, 3vw, 1.75rem);
+  margin: 0;
+}
+
+.nsg__note dt {
+  margin: 0 0 4px;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.nsg__note dd {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--g-muted);
+}
+
+.nsg__policy {
+  margin: clamp(1.75rem, 4vw, 2.5rem) 0 0;
+  padding-top: 14px;
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--g-muted-2);
+  box-shadow: inset 0 1px 0 var(--g-edge-soft);
+}
+
+.nsg__srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* The drawing goes above the steps rather than beside them, and is capped: at
+   one column a silhouette stretched to the full width is the largest thing in a
+   dialog whose subject is a table. */
+@media (max-width: 700px) {
+  .nsg__measure {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .nsg__diagram {
+    max-width: 150px;
+  }
+}
+
+@media (max-width: 560px) {
+  .nsg__panel {
+    max-height: 100%;
+  }
+
+  .nsg__table th,
+  .nsg__table td {
+    padding-left: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nsg__unit,
+  .nsg__tab,
+  .nsg__close {
+    transition: none;
+  }
+}

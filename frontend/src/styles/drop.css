@@ -1,0 +1,911 @@
+/**
+ * drop.css — everything /new-drop carries UNDER its hero.
+ *
+ * Three sections, in the order a visitor needs them:
+ *
+ *   .gx-hero      (untouched, gender.css §3)
+ *   #gx-head      the release header — what this drop is, at display size
+ *   #gx-edit      01 / The release — the category rail and eight cards
+ *   #gx-lookbook  02 / The look    — two campaign frames
+ *   footer
+ *
+ * NOTHING HERE TOUCHES THE HERO. Every selector is namespaced `gxd-*` and the
+ * only shared classes it reads are `.gx-root`'s tokens and `.gx-display` — this
+ * file declares no colour of its own, so a palette change stays a one-block
+ * edit in gender.css.
+ *
+ * THE SHAPE — rounding is for COMPONENTS ONLY. Cards, image frames, the facts
+ * strip, every chip and pill are rounded. The sections holding them are not:
+ * no plate, no card-within-a-card, no rounded box wrapping a rounded box. A
+ * section is its content, full width, with a hairline between it and the next.
+ *
+ * Three tones, climbing in one direction:
+ *
+ *   page  --nh-surface     #181c20   flat, edge to edge, no seams
+ *   strip --nh-surface-2   #1e2328   the facts strip — an object on the page
+ *   card  --nh-card-bg     #232830   the fill behind every photograph
+ *
+ * THE SECTION RHYTHM. Every section opens with the same head: a numbered
+ * eyebrow, a title, and one thing on the right — the filter, or a line of
+ * copy. Repeating one head shape is what makes a page scannable; a different
+ * heading treatment per section is a page that has to be re-learned each time.
+ *
+ * House rules carried over from new_style.md §9 (they are load-bearing):
+ *   1. `overflow: clip`, never `hidden` — `hidden` makes the element a scroll
+ *      container and freezes every sticky/scroll-linked transform inside it.
+ *   2. Hairlines are `box-shadow: inset 0 0 0 1px`, never `border` — a border
+ *      eats a pixel of the content box and shifts the layout.
+ *   3. Colour transitions ride `--nh-ease-soft`; transforms ride `--nh-ease`.
+ *   4. Anything that fades out fades into the surface, never into white.
+ *
+ * SPECIFICITY NOTE. The shadcn primitives used here (ToggleGroup, Button) ship
+ * Tailwind utilities on their roots, and a utility is a single class. Every
+ * rule that re-skins one is written as a DESCENDANT of its block
+ * (`.gxd-filter [data-slot="toggle-group-item"]`) so it lands at two or three
+ * classes and wins whichever stylesheet the bundler emits first.
+ */
+
+/* ========================================================================== */
+/* 0 · THE PAGE UNDER THE HERO                                                */
+/* ========================================================================== */
+
+.gxd-body {
+  /* the radius scale — components only; sections take none of it */
+  --gxd-radius-card: 18px;
+  --gxd-radius-pill: 999px;
+  --gxd-gap: clamp(0.85rem, 1.4vw, 1.4rem);
+
+  position: relative;
+  /* the same tone `.gx-root` sets, so the fold under the hero is a change of
+     content, not a change of colour */
+  background: var(--nh-surface);
+  /* clip, never hidden — a scroll container here would freeze the sticky bar */
+  overflow-x: clip;
+}
+
+.gxd-wrap {
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 var(--nh-gutter);
+}
+
+/* ========================================================================== */
+/* 1 · THE SECTION                                                            */
+/* ========================================================================== */
+
+/**
+ * No plate. A section is vertical space and, from the second one on, a rule.
+ *
+ * The rule is drawn on `.gxd-wrap` rather than the section, so it stops at the
+ * gutter instead of running edge to edge — and the padding that separates it
+ * from the content moves onto the wrap with it, or the line would sit hard
+ * against the section's top edge.
+ */
+.gxd-section {
+  padding: clamp(2.75rem, 5vw, 5.5rem) 0;
+}
+
+.gxd-section + .gxd-section {
+  padding-top: 0;
+}
+
+.gxd-section + .gxd-section .gxd-wrap {
+  padding-top: clamp(2.75rem, 5vw, 5.5rem);
+  box-shadow: inset 0 1px 0 0 var(--nh-hairline);
+}
+
+/* ========================================================================== */
+/* 2 · THE RELEASE HEADER — `#gx-head`                                        */
+/* ========================================================================== */
+
+/**
+ * The one place on the page that answers "what am I looking at", and the only
+ * one set at display size. The hero sells the drop; this states it — kicker,
+ * headline, one paragraph, then the three numbers that define the run.
+ *
+ * It is a column, not a two-column split. The previous cut hung the numbers
+ * off the right of the copy, which left a short headline floating beside a
+ * small strip with a gap of dead space between them at every width.
+ */
+.gxd-header {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(1.15rem, 2.2vw, 1.85rem);
+}
+
+.gxd-header__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
+}
+
+/* the standing terms of the release, as a chip rather than a fourth line of
+   copy — it is a label, and labels are shapes */
+.gxd-header__badge {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 14px;
+  border-radius: var(--gxd-radius-pill);
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  font-size: 11px;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+  color: var(--nh-ink-soft);
+}
+
+/* the two-cut headline, at the largest size on the page after the hero's own.
+   `.gx-display` (gender.css §1) carries the weight, tracking and case; this
+   only sets the scale and the measure. */
+.gxd-header__title {
+  margin: 0;
+  max-width: 18ch;
+  font-size: clamp(2.1rem, 5vw, 4.15rem);
+}
+
+.gxd-header__copy {
+  margin: 0;
+  max-width: 62ch;
+  font-size: clamp(14px, 1.05vw, 15.5px);
+  line-height: 1.65;
+  color: var(--nh-muted);
+}
+
+/* --- the three numbers ---------------------------------------------------- */
+/**
+ * A full-width strip of three. The 1px grid gap lets the container colour
+ * through, which is how the dividers are drawn — no borders, and no
+ * `:first-child`/`:last-child` radius dance to keep the corners clean.
+ */
+.gxd-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-radius: var(--gxd-radius-card);
+  background: var(--nh-hairline);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  overflow: clip;
+}
+
+.gxd-facts li {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: clamp(1rem, 1.8vw, 1.5rem) clamp(1.1rem, 2vw, 1.75rem);
+  /* one step off the page, so the rounded strip reads as an object sitting on
+     the section rather than as three hairlines drawn on it */
+  background: var(--nh-surface-2);
+}
+
+.gxd-facts b {
+  font-size: clamp(1.5rem, 2.6vw, 2.15rem);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: var(--nh-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.gxd-facts span {
+  font-size: 11px;
+  line-height: 1.2;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--nh-muted);
+}
+
+/* ========================================================================== */
+/* 3 · SECTION HEAD                                                           */
+/* ========================================================================== */
+
+.gxd-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem 2rem;
+  margin-bottom: clamp(1.5rem, 2.6vw, 2.25rem);
+}
+
+.gxd-head__lead {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.gxd-head__title {
+  margin: 0;
+  font-size: clamp(1.2rem, 2.1vw, 1.75rem);
+  font-weight: 500;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+  color: var(--nh-ink);
+}
+
+.gxd-head__note {
+  margin: 0;
+  max-width: 40ch;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--nh-muted);
+}
+
+/* ========================================================================== */
+/* 4 · THE FILTER — shadcn ToggleGroup, re-skinned                            */
+/* ========================================================================== */
+
+/**
+ * Six categories is few enough to read at a glance, so the rail stays open
+ * rather than collapsing into a select. There is no capsule around it: the
+ * pills are the control, and a container behind them is one more edge to draw.
+ * The primitive carries roving focus and single-selection; the rest is paint.
+ */
+.gxd-filter[data-slot="toggle-group"] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: auto;
+}
+
+.gxd-filter [data-slot="toggle-group-item"] {
+  height: 34px;
+  min-width: 0;
+  padding: 0 15px;
+  border: 0;
+  border-radius: var(--gxd-radius-pill);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  color: var(--nh-muted);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  transition:
+    background-color 0.3s var(--nh-ease-soft),
+    color 0.3s var(--nh-ease-soft);
+}
+
+.gxd-filter [data-slot="toggle-group-item"]:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--nh-ink);
+}
+
+/* the selected step inverts, the same move the primary pill makes — written at
+   three classes so the primitive's own `data-[state=on]` stands down */
+.gxd-filter [data-slot="toggle-group-item"][data-state="on"] {
+  background: var(--nh-solid-bg);
+  box-shadow: none;
+  color: var(--nh-solid-fg);
+}
+
+.gxd-filter [data-slot="toggle-group-item"]:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 2px;
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+/* ========================================================================== */
+/* 5 · THE PRODUCT CARD                                                       */
+/* ========================================================================== */
+
+.gxd-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: clamp(1.5rem, 2.4vw, 2.25rem) var(--gxd-gap);
+}
+
+.gxd-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+/* --- the frame ------------------------------------------------------------ */
+/**
+ * The frame lifts on hover and takes a contact shadow with it. That lift is
+ * the whole reason the meta lives outside the frame: a card that moves as one
+ * block drags its own text around, which reads as a glitch rather than as a
+ * response.
+ */
+.gxd-card__frame {
+  position: relative;
+  /* the chips and the CTA stack against the frame, not the page */
+  isolation: isolate;
+  aspect-ratio: 1 / 1.25;
+  border-radius: var(--gxd-radius-card);
+  overflow: hidden;
+  background: var(--nh-card-bg);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+  transition:
+    transform 0.5s var(--nh-ease),
+    box-shadow 0.5s var(--nh-ease-soft);
+}
+
+.gxd-card:hover .gxd-card__frame,
+.gxd-card:focus-within .gxd-card__frame {
+  transform: translateY(-4px);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.12),
+    0 26px 42px -30px rgba(0, 0, 0, 0.95);
+}
+
+.gxd-card__frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* the two must agree or the crop drifts as it scales */
+  object-position: var(--op, 50% 50%);
+  transform-origin: var(--op, 50% 50%);
+  transform: scale(var(--z, 1));
+  transition: transform 1.05s var(--nh-ease);
+}
+
+/* the zoom multiplies the crop's own scale — a flat `scale(1.05)` would throw
+   away the framing the crop was chosen for */
+.gxd-card:hover .gxd-card__frame img {
+  transform: scale(calc(var(--z, 1) * 1.05));
+}
+
+/* the top half of the frame darkens a little on hover so the white chips and
+   the CTA keep their contrast over whatever the photograph is doing */
+.gxd-card__frame::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(8, 10, 12, 0.34) 0%,
+    rgba(8, 10, 12, 0) 34%,
+    rgba(8, 10, 12, 0) 58%,
+    rgba(8, 10, 12, 0.46) 100%
+  );
+  opacity: 0.55;
+  transition: opacity 0.45s var(--nh-ease-soft);
+}
+
+.gxd-card:hover .gxd-card__frame::after {
+  opacity: 1;
+}
+
+/* the whole frame is the link; the save button on top of it is a real button,
+   and a button nested inside an anchor is invalid HTML that browsers resolve
+   by dropping one of the two */
+.gxd-card__hit {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+}
+
+.gxd-card__hit:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.75);
+  outline-offset: -3px;
+}
+
+/* --- chips ---------------------------------------------------------------- */
+.gxd-card__chip {
+  position: absolute;
+  top: 11px;
+  left: 11px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  height: 25px;
+  padding: 0 12px;
+  border-radius: var(--gxd-radius-pill);
+  background: var(--nh-chip-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--nh-chip-fg);
+  pointer-events: none;
+}
+
+/* "New" is the one chip that earns the inverted treatment — everything else is
+   a category or a fabric note, and inverting all of them inverts none of them */
+.gxd-card__chip[data-new="true"] {
+  background: var(--nh-solid-bg);
+  box-shadow: none;
+  color: var(--nh-solid-fg);
+}
+
+.gxd-card .gxd-save {
+  position: absolute;
+  top: 11px;
+  right: 11px;
+  z-index: 4;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--gxd-radius-pill);
+  background: var(--nh-chip-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: var(--nh-chip-fg);
+  transition:
+    background-color 0.3s var(--nh-ease-soft),
+    color 0.3s var(--nh-ease-soft);
+}
+
+.gxd-card .gxd-save:hover {
+  background: rgba(40, 45, 49, 0.94);
+  color: var(--nh-ink);
+}
+
+.gxd-card .gxd-save[data-on="true"] {
+  background: var(--nh-solid-bg);
+  color: var(--nh-solid-fg);
+}
+
+.gxd-card .gxd-save[data-on="true"] svg {
+  fill: currentColor;
+}
+
+/* --- the hover CTA -------------------------------------------------------- */
+/**
+ * It rises out of the foot of the frame on hover or keyboard focus. Nothing is
+ * hidden behind it — the whole frame was already the link — so a touch device
+ * that never fires hover loses a flourish, not a function.
+ */
+.gxd-card__cta {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  height: 40px;
+  padding: 0 5px 0 16px;
+  border-radius: var(--gxd-radius-pill);
+  background: var(--nh-panel);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  font-size: 12px;
+  letter-spacing: 0.01em;
+  color: var(--nh-ink);
+  /* the link underneath owns the click; this is only a label */
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(10px);
+  transition:
+    opacity 0.35s var(--nh-ease-soft),
+    transform 0.45s var(--nh-ease);
+}
+
+.gxd-card:hover .gxd-card__cta,
+.gxd-card:focus-within .gxd-card__cta {
+  opacity: 1;
+  transform: none;
+}
+
+.gxd-card__cta span {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--gxd-radius-pill);
+  background: var(--nh-solid-bg);
+  color: var(--nh-solid-fg);
+}
+
+/* --- sold out ------------------------------------------------------------- */
+.gxd-card__flag {
+  position: absolute;
+  left: 11px;
+  bottom: 11px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 12px;
+  border-radius: var(--gxd-radius-pill);
+  background: rgba(12, 14, 16, 0.85);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  font-size: 10.5px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--nh-ink-soft);
+}
+
+.gxd-card[data-sold="true"] .gxd-card__frame img {
+  filter: grayscale(1) brightness(0.8);
+}
+
+/* --- the meta, below the frame -------------------------------------------- */
+.gxd-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.gxd-card__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.gxd-card__name {
+  font-size: 14px;
+  line-height: 1.35;
+  letter-spacing: -0.008em;
+  color: var(--nh-ink);
+  /* a long name must not push the price out of the row */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gxd-card__price {
+  display: inline-flex;
+  flex: none;
+  align-items: baseline;
+  gap: 7px;
+  font-size: 13.5px;
+  line-height: 1.35;
+  color: var(--nh-ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.gxd-card__price s {
+  color: var(--nh-muted-2);
+  font-size: 12px;
+  text-decoration-thickness: 1px;
+}
+
+.gxd-card__sub {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.3;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--nh-muted);
+}
+
+/* --- the empty state ------------------------------------------------------ */
+.gxd-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: clamp(3rem, 7vw, 5rem) 1rem;
+  text-align: center;
+}
+
+.gxd-empty h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  color: var(--nh-ink);
+}
+
+.gxd-empty p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--nh-muted);
+}
+
+/* ========================================================================== */
+/* 6 · THE FOOT PILL — shadcn Button, re-skinned                              */
+/* ========================================================================== */
+
+.gxd-foot {
+  display: flex;
+  justify-content: center;
+  margin-top: clamp(1.75rem, 3vw, 2.75rem);
+}
+
+.gxd-foot .gxd-pill {
+  height: 44px;
+  padding: 0 8px 0 24px;
+  gap: 0.85rem;
+  border: 0;
+  border-radius: var(--gxd-radius-pill);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  color: var(--nh-ink);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  transition:
+    background-color 0.3s var(--nh-ease-soft),
+    color 0.3s var(--nh-ease-soft);
+}
+
+.gxd-foot .gxd-pill:hover {
+  background: var(--nh-solid-bg);
+  box-shadow: none;
+  color: var(--nh-solid-fg);
+}
+
+/* the inverted circle tucked inside the pill (new_style.md §5.8 foot) */
+.gxd-pill__dot {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--gxd-radius-pill);
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--nh-ink);
+  transition:
+    background-color 0.3s var(--nh-ease-soft),
+    color 0.3s var(--nh-ease-soft),
+    transform 0.4s var(--nh-ease);
+}
+
+.gxd-foot .gxd-pill:hover .gxd-pill__dot {
+  background: var(--nh-solid-fg);
+  color: var(--nh-solid-bg);
+  transform: translateX(2px);
+}
+
+.gxd-foot .gxd-pill:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.72);
+  outline-offset: 3px;
+}
+
+/* ========================================================================== */
+/* 7 · THE LOOKBOOK FRAMES — `#gx-lookbook`                                   */
+/* ========================================================================== */
+
+.gxd-picks {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(1.15rem, 2.2vw, 2rem);
+}
+
+.gxd-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+/* the same frame the product card uses, at a wider ratio and with the same
+   lift — one rounded shape, one behaviour, for every photograph on the page */
+.gxd-pick__frame {
+  position: relative;
+  display: block;
+  aspect-ratio: 1 / 0.72;
+  border-radius: var(--gxd-radius-card);
+  overflow: hidden;
+  background: var(--nh-card-bg);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+  transition:
+    transform 0.5s var(--nh-ease),
+    box-shadow 0.5s var(--nh-ease-soft);
+}
+
+.gxd-pick:hover .gxd-pick__frame {
+  transform: translateY(-4px);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.12),
+    0 26px 42px -30px rgba(0, 0, 0, 0.95);
+}
+
+.gxd-pick__frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: var(--op, 50% 50%);
+  transform-origin: var(--op, 50% 50%);
+  transform: scale(var(--z, 1));
+  transition: transform 1.05s var(--nh-ease);
+}
+
+.gxd-pick:hover .gxd-pick__frame img {
+  transform: scale(calc(var(--z, 1) * 1.04));
+}
+
+.gxd-pick__frame:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.75);
+  outline-offset: 3px;
+}
+
+.gxd-pick__label {
+  position: absolute;
+  top: 13px;
+  left: 13px;
+  z-index: 2;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  height: 25px;
+  padding: 0 12px;
+  border-radius: var(--gxd-radius-pill);
+  background: var(--nh-chip-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--nh-chip-fg);
+}
+
+.gxd-pick__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.gxd-pick__title {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: clamp(1.05rem, 1.6vw, 1.35rem);
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--nh-ink);
+}
+
+.gxd-pick__title svg {
+  color: var(--nh-muted);
+  transition:
+    transform 0.35s var(--nh-ease),
+    color 0.3s var(--nh-ease-soft);
+}
+
+.gxd-pick:hover .gxd-pick__title svg {
+  transform: translate(2px, -2px);
+  color: var(--nh-ink);
+}
+
+.gxd-pick__copy {
+  margin: 0;
+  max-width: 48ch;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--nh-muted);
+}
+
+/* ========================================================================== */
+/* 8 · RESPONSIVE                                                             */
+/* ========================================================================== */
+
+@media (max-width: 1180px) {
+  .gxd-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .gxd-head {
+    align-items: flex-start;
+  }
+
+  .gxd-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .gxd-picks {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .gxd-pick__frame {
+    aspect-ratio: 1 / 0.86;
+  }
+}
+
+@media (max-width: 560px) {
+  /* The rail scrolls sideways rather than wrapping into a block of pills. The
+     mask is the affordance: the last pill fades out instead of being cut,
+     which is what says "there is more" without a scrollbar. */
+  .gxd-filter[data-slot="toggle-group"] {
+    max-width: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-mask-image: linear-gradient(
+      90deg,
+      #000 0,
+      #000 calc(100% - 40px),
+      transparent 100%
+    );
+    mask-image: linear-gradient(
+      90deg,
+      #000 0,
+      #000 calc(100% - 40px),
+      transparent 100%
+    );
+  }
+
+  .gxd-filter[data-slot="toggle-group"]::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* three numbers stacked read as three rows of a table; kept side by side
+     they stay one object, which is what the strip is for */
+  .gxd-facts li {
+    padding: 0.85rem 0.75rem;
+    align-items: center;
+    text-align: center;
+  }
+
+  .gxd-facts span {
+    font-size: 10px;
+    letter-spacing: 0.04em;
+  }
+
+  .gxd-card__cta {
+    display: none;
+  }
+}
+
+/* ========================================================================== */
+/* 9 · REDUCED MOTION                                                         */
+/* ========================================================================== */
+
+/**
+ * new_style.md §6.10 only reaches `transition` and `@keyframes`; anything
+ * Motion applies arrives as inline style and slips straight past it. The
+ * components honour the preference at the source — this block covers the
+ * hover choreography, which is pure CSS.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .gxd-card__frame,
+  .gxd-card__frame img,
+  .gxd-card__frame::after,
+  .gxd-card__cta,
+  .gxd-pick__frame,
+  .gxd-pick__frame img,
+  .gxd-pick__title svg,
+  .gxd-pill__dot {
+    transition: none;
+  }
+
+  .gxd-card:hover .gxd-card__frame,
+  .gxd-card:focus-within .gxd-card__frame,
+  .gxd-pick:hover .gxd-pick__frame {
+    transform: none;
+  }
+
+  .gxd-card:hover .gxd-card__frame img,
+  .gxd-pick:hover .gxd-pick__frame img {
+    transform: scale(var(--z, 1));
+  }
+
+  .gxd-card:hover .gxd-card__cta,
+  .gxd-card:focus-within .gxd-card__cta {
+    transform: none;
+  }
+
+  .gxd-pick:hover .gxd-pick__title svg,
+  .gxd-foot .gxd-pill:hover .gxd-pill__dot {
+    transform: none;
+  }
+}

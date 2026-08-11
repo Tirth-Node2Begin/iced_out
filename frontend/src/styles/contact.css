@@ -1,0 +1,909 @@
+/* ============================================================================
+   contact.css — the /contact experience
+   ----------------------------------------------------------------------------
+   Two shapes, one rule.
+
+   1. The header band is square-edged and full-bleed. It is the page's ground:
+      it meets the sticky bar with no gap and no corner radius.
+   2. Everything below it is rounded — panels, channel rows, the safety note,
+      every input, every pill, every accordion card. Nothing under the header
+      has a square corner.
+
+   Built to `new_style.md`: the §10 token block, the §4.3 house curve, and the
+   §9 hairline rule (inset box-shadow, never a border, on anything that sits in
+   the measured layout).
+
+   The page is assembled from shadcn registry primitives — field, item,
+   input-group, toggle-group, accordion, checkbox, spinner, empty. Those read
+   the shadcn token names (`--background`, `--border`, `--primary`, …), which
+   resolve to the light default at `:root`. The bridge block below re-points
+   every one of them at the nh palette **inside `.ct-root` only**, so the
+   registry components inherit this page's dark look without a single component
+   file being forked, and nothing outside the scope moves.
+
+   Everything is namespaced `ct-*`. Nothing here leaks past `.ct-root`.
+   ========================================================================= */
+
+.ct-root {
+  /* ---- new_style §10 · surfaces ------------------------------------- */
+  --nh-surface: #101113;
+  --nh-surface-2: #16181a;
+  --nh-surface-3: #0c0d0f;
+
+  /* ---- §2.3 · ink ---------------------------------------------------- */
+  --nh-ink: #f1f3f3;
+  --nh-ink-soft: #d5d9da;
+  --nh-muted: #8f9598;
+  --nh-muted-2: #6e7477;
+
+  /* ---- §2.4 · controls: primary inverts, secondary goes glass -------- */
+  --nh-solid-bg: #f2f4f4;
+  --nh-solid-fg: #0d0e10;
+  --nh-solid-bg-hover: #ffffff;
+  --nh-ghost-bg: rgba(255, 255, 255, 0.08);
+  --nh-ghost-bg-hover: rgba(255, 255, 255, 0.15);
+  --nh-hairline: rgba(255, 255, 255, 0.11);
+  --nh-chip-bg: rgba(255, 255, 255, 0.05);
+
+  /* ---- §4.3 easing · §4.2 rhythm ------------------------------------- */
+  --nh-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --nh-ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
+  --nh-gutter: clamp(1rem, 3.2vw, 3.25rem);
+
+  /* ---- the radius ladder · rule 2 above ------------------------------
+     One scale, used everywhere below the header. `--ct-r-plate` is the big
+     plate, `--ct-r-card` the blocks inside it, `--ct-r-field` the controls. */
+  --ct-r-plate: clamp(20px, 2.2vw, 26px);
+  --ct-r-card: 18px;
+  --ct-r-field: 14px;
+
+  /* the well every control sits in, one step off the panel */
+  --ct-well: rgba(255, 255, 255, 0.035);
+  --ct-well-hover: rgba(255, 255, 255, 0.055);
+  --ct-well-focus: rgba(255, 255, 255, 0.07);
+
+  /* ======================================================================
+     THE BRIDGE — shadcn tokens re-pointed at the nh palette.
+     Scoped, so `:root`'s light defaults survive untouched everywhere else.
+     ==================================================================== */
+  --background: #101113;
+  --foreground: #f1f3f3;
+  --card: #16181a;
+  --card-foreground: #f1f3f3;
+  --popover: #16181a;
+  --popover-foreground: #f1f3f3;
+  --primary: #f2f4f4;
+  --primary-foreground: #0d0e10;
+  --secondary: rgba(255, 255, 255, 0.08);
+  --secondary-foreground: #f1f3f3;
+  --muted: rgba(255, 255, 255, 0.06);
+  --muted-foreground: #8f9598;
+  --accent: rgba(255, 255, 255, 0.08);
+  --accent-foreground: #f1f3f3;
+  --destructive: #e08b83;
+  --border: rgba(255, 255, 255, 0.11);
+  --input: rgba(255, 255, 255, 0.11);
+  --ring: rgba(241, 243, 243, 0.34);
+  /* every registry `rounded-lg` lands on this page's own control radius
+     instead of shadcn's 10px default */
+  --radius: 0.875rem;
+  --font-sans: var(--font-archivo), "Archivo", system-ui, sans-serif;
+
+  /* ---- §1 root declaration ------------------------------------------ */
+  position: relative;
+  min-height: 100vh;
+  /* no top padding — the header band is full-bleed and meets the bar directly */
+  padding-block: 0 clamp(3.5rem, 8vw, 6.5rem);
+  background: var(--nh-surface);
+  color: var(--nh-ink);
+  font-family: var(--font-archivo), "Archivo", system-ui, sans-serif;
+  letter-spacing: -0.01em;
+  /* clip, never hidden — §9.1 */
+  overflow-x: clip;
+}
+
+.ct-root *,
+.ct-root *::before,
+.ct-root *::after {
+  box-sizing: border-box;
+}
+
+/* --------------------------------------------------------------- rhythm */
+
+.ct-shell {
+  width: min(100% - var(--nh-gutter) * 2, 1180px);
+  margin-inline: auto;
+}
+
+.ct-section {
+  padding-block: clamp(0.85rem, 1.6vw, 1.25rem);
+}
+
+/* the header is a ground, not a plate — the first plate needs real air under
+   it before the rounded vocabulary starts */
+.ct-head + .ct-section {
+  padding-top: clamp(1.75rem, 3.6vw, 3rem);
+}
+
+/* ------------------------------------------------------------------ type */
+
+/* §3.3 — the eyebrow, with its 5px dot */
+.ct-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--nh-muted);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.ct-eyebrow::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+/* the one heading style inside the plates: quiet, sentence case, no shouting */
+.ct-h {
+  margin: 0;
+  color: var(--nh-ink);
+  font-size: clamp(1.05rem, 1.7vw, 1.3rem);
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+}
+
+.ct-h__sub {
+  margin: 7px 0 0;
+  color: var(--nh-muted);
+  font-size: 13px;
+  line-height: 1.55;
+  letter-spacing: 0;
+}
+
+/* ======================================================================
+   01 · THE HEADER BAND
+   ----------------------------------------------------------------------
+   Flat, square, full-bleed. One tone below the page so the rounded plates
+   read as lifted off it, and a single hairline where it ends. No gradient
+   theatre, no ray fan, no ghost cut — a support page opens with a sentence.
+   ==================================================================== */
+
+.ct-head {
+  padding-block: clamp(2.75rem, 6vw, 5rem) clamp(2.25rem, 4.5vw, 3.5rem);
+  background: var(--nh-surface-3);
+  box-shadow: inset 0 -1px 0 0 var(--nh-hairline);
+}
+
+.ct-head__title {
+  margin: clamp(1rem, 1.8vw, 1.5rem) 0 0;
+  max-width: 18ch;
+  color: var(--nh-ink);
+  font-size: clamp(2.1rem, 5vw, 3.5rem);
+  font-weight: 400;
+  line-height: 1.03;
+  letter-spacing: -0.04em;
+  text-wrap: balance;
+}
+
+.ct-head__sub {
+  margin: clamp(0.9rem, 1.6vw, 1.25rem) 0 0;
+  max-width: 56ch;
+  color: var(--nh-muted);
+  font-size: 14.5px;
+  line-height: 1.6;
+  letter-spacing: 0;
+  text-wrap: pretty;
+}
+
+/* three facts, one line, dot-separated — they are facts, not features, so
+   they get no cards and no icons */
+.ct-head__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px 14px;
+  margin: clamp(1.5rem, 2.6vw, 2.25rem) 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--nh-muted-2);
+  font-size: 12px;
+  line-height: 1.4;
+  letter-spacing: 0.01em;
+}
+
+/* the separator is a dot carried by every fact but the first, sitting in the
+   same 14px the list gaps by — so the rhythm reads even either side of it */
+.ct-head__facts li {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.ct-head__facts li + li::before {
+  content: "";
+  width: 3px;
+  height: 3px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+/* ======================================================================
+   02 · WORKSPACE — channels beside the form
+   ==================================================================== */
+
+.ct-work {
+  display: grid;
+  grid-template-columns: minmax(0, 0.84fr) minmax(0, 1.16fr);
+  gap: clamp(0.75rem, 1.4vw, 1.15rem);
+  align-items: start;
+}
+
+.ct-aside {
+  position: sticky;
+  top: clamp(5rem, 9vh, 7rem);
+  display: grid;
+  gap: clamp(0.75rem, 1.4vw, 1.15rem);
+}
+
+/* ---- the plate ----------------------------------------------------
+   The one shape the page is made of below the header: a large-radius plate
+   with its hairline drawn as an inset shadow (§9.2) so the content box stays
+   exact. */
+
+.ct-panel {
+  position: relative;
+  padding: clamp(1.5rem, 2.8vw, 2.25rem);
+  border-radius: var(--ct-r-plate);
+  background: var(--nh-surface-2);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  isolation: isolate;
+}
+
+/* ---- channels ---------------------------------------------------- */
+
+.ct-channels {
+  display: grid;
+  gap: 8px;
+  margin-top: clamp(1.1rem, 2vw, 1.5rem);
+}
+
+/* an `Item` re-skinned to the page: rounded card, glass on hover */
+.ct-channel[data-slot="item"] {
+  gap: 14px;
+  padding: 14px 15px;
+  border: 0;
+  border-radius: var(--ct-r-card);
+  background: rgba(255, 255, 255, 0.022);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  color: inherit;
+  text-decoration: none;
+  transition:
+    background 0.3s var(--nh-ease-soft),
+    transform 0.35s var(--nh-ease);
+}
+
+/* The email and phone rows are `mailto:`/`tel:` handoffs, not routes, so they
+   render as buttons. Border, background, font and colour the rule above and the
+   base sheet already hand a button; the two things it still does not inherit
+   are the pointer and the text alignment an anchor gets free. */
+button.ct-channel[data-slot="item"] {
+  cursor: pointer;
+  text-align: left;
+}
+
+button.ct-channel[data-slot="item"]:hover {
+  background: var(--nh-ghost-bg);
+  transform: translateY(-1px);
+}
+
+/* The studio address does nothing when pressed, so it is a div and reads one
+   step quieter — no hover, no arrow, no pointer promising a destination. */
+.ct-channel--static[data-slot="item"] {
+  background: transparent;
+}
+
+.ct-channel [data-slot="item-media"] {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  background: var(--nh-chip-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  color: var(--nh-ink);
+}
+
+.ct-channel [data-slot="item-media"] svg {
+  width: 15px;
+  height: 15px;
+  stroke-width: 1.5;
+}
+
+.ct-channel [data-slot="item-title"] {
+  color: var(--nh-ink);
+  font-size: 13.5px;
+  font-weight: 400;
+  letter-spacing: -0.005em;
+}
+
+.ct-channel [data-slot="item-description"] {
+  color: var(--nh-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+/* the §5.8 circular `→`, at the end of every channel row */
+.ct-channel__go {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.09);
+  color: var(--nh-ink);
+  transition:
+    background 0.3s var(--nh-ease-soft),
+    transform 0.4s var(--nh-ease);
+}
+
+.ct-channel__go svg {
+  width: 13px;
+  height: 13px;
+  stroke-width: 1.5;
+}
+
+button.ct-channel:hover .ct-channel__go {
+  background: rgba(255, 255, 255, 0.17);
+  transform: translateX(2px);
+}
+
+/* ---- the safety note — one rounded line, not a panel ---------------- */
+
+.ct-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0;
+  padding: 15px 17px;
+  border-radius: var(--ct-r-plate);
+  background: rgba(255, 255, 255, 0.022);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  color: var(--nh-muted);
+  font-size: 12.5px;
+  line-height: 1.55;
+  letter-spacing: 0;
+}
+
+.ct-note svg {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin-top: 2px;
+  stroke-width: 1.5;
+}
+
+/* ======================================================================
+   03 · THE FORM — every field the page shipped with, re-proportioned once
+   ==================================================================== */
+
+.ct-root form [data-slot="field-group"] {
+  margin-top: clamp(1.5rem, 2.6vw, 2rem);
+  gap: clamp(1rem, 1.7vw, 1.4rem);
+}
+
+.ct-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(0.85rem, 1.5vw, 1.25rem);
+}
+
+/* ---- controls ------------------------------------------------------
+   The registry ships these at h-8 for dense product UI. This page is an
+   editorial surface, so they are re-proportioned once, here, by data-slot —
+   the component files stay stock. */
+
+.ct-root [data-slot="field-label"] {
+  color: var(--nh-muted);
+  font-size: 10.5px;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ct-root [data-slot="field-description"] {
+  color: var(--nh-muted-2);
+  font-size: 11.5px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.ct-root [data-slot="input"],
+.ct-root [data-slot="textarea"],
+.ct-root [data-slot="input-group"] {
+  height: 46px;
+  border-color: var(--nh-hairline);
+  border-radius: var(--ct-r-field);
+  background: var(--ct-well);
+  color: var(--nh-ink);
+  font-size: 13.5px;
+  letter-spacing: -0.005em;
+  transition:
+    background 0.3s var(--nh-ease-soft),
+    border-color 0.3s var(--nh-ease-soft);
+}
+
+.ct-root [data-slot="input"],
+.ct-root [data-slot="textarea"] {
+  padding-inline: 15px;
+}
+
+/* `InputGroupInput` re-slots the control, so it needs naming separately */
+.ct-root [data-slot="input-group-control"] {
+  height: 100%;
+  padding-inline: 15px;
+  background: transparent;
+  color: var(--nh-ink);
+  font-size: 13.5px;
+  letter-spacing: -0.005em;
+}
+
+.ct-root [data-slot="input-group-control"]::placeholder {
+  color: var(--nh-muted-2);
+}
+
+.ct-root [data-slot="input-group-addon"] + [data-slot="input-group-control"] {
+  padding-inline-start: 0;
+}
+
+.ct-root [data-slot="textarea"] {
+  height: auto;
+  min-height: 140px;
+  padding-block: 14px;
+  line-height: 1.55;
+  resize: none;
+}
+
+.ct-root [data-slot="input"]:hover,
+.ct-root [data-slot="textarea"]:hover,
+.ct-root [data-slot="input-group"]:hover {
+  background: var(--ct-well-hover);
+}
+
+.ct-root [data-slot="input"]:focus-visible,
+.ct-root [data-slot="textarea"]:focus-visible,
+.ct-root [data-slot="input-group"]:focus-within {
+  border-color: rgba(241, 243, 243, 0.3);
+  background: var(--ct-well-focus);
+}
+
+.ct-root [data-slot="input"]::placeholder,
+.ct-root [data-slot="textarea"]::placeholder {
+  color: var(--nh-muted-2);
+}
+
+/* the prefix reads as a separate cell, divided by the page's own hairline —
+   without it `ORD` and the placeholder run together into one string */
+.ct-root [data-slot="input-group-addon"] {
+  align-self: stretch;
+  margin-block: 8px;
+  padding-inline: 15px 13px;
+  box-shadow: inset -1px 0 0 0 var(--nh-hairline);
+  color: var(--nh-muted-2);
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* ---- reason pills — §5.2 vocabulary on a toggle group -------------- */
+
+.ct-reasons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+}
+
+.ct-reason[data-slot="toggle-group-item"] {
+  height: 36px;
+  min-width: 0;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--nh-ghost-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  color: var(--nh-ink);
+  font-size: 11.5px;
+  font-weight: 400;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+  transition:
+    background 0.35s var(--nh-ease-soft),
+    color 0.35s var(--nh-ease-soft),
+    transform 0.35s var(--nh-ease);
+}
+
+.ct-reason[data-slot="toggle-group-item"]:hover {
+  background: var(--nh-ghost-bg-hover);
+  transform: translateY(-1px);
+}
+
+.ct-reason[data-state="on"] {
+  background: var(--nh-solid-bg);
+  box-shadow: none;
+  color: var(--nh-solid-fg);
+}
+
+.ct-reason[data-state="on"]:hover {
+  background: var(--nh-solid-bg-hover);
+}
+
+/* ---- consent ------------------------------------------------------- */
+
+.ct-consent {
+  align-items: flex-start;
+  gap: 11px;
+  padding: 15px 16px;
+  border-radius: var(--ct-r-card);
+  background: rgba(255, 255, 255, 0.022);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.ct-consent [data-slot="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  border-color: rgba(255, 255, 255, 0.22);
+  border-radius: 6px;
+  background: var(--ct-well);
+  transition: background 0.3s var(--nh-ease-soft), border-color 0.3s var(--nh-ease-soft);
+}
+
+.ct-consent [data-slot="checkbox"]:hover {
+  border-color: rgba(255, 255, 255, 0.34);
+  background: var(--ct-well-hover);
+}
+
+.ct-consent [data-slot="field-label"] {
+  color: var(--nh-ink-soft);
+  font-size: 12.5px;
+  line-height: 1.5;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* ---- submit — the §5.8 foot pill ----------------------------------- */
+
+.ct-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+}
+
+.ct-submit[data-slot="button"] {
+  height: 46px;
+  padding: 0 6px 0 24px;
+  gap: 14px;
+  border-radius: 999px;
+  background: var(--nh-solid-bg);
+  color: var(--nh-solid-fg);
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+  transition:
+    background 0.35s var(--nh-ease-soft),
+    transform 0.35s var(--nh-ease);
+}
+
+.ct-submit[data-slot="button"]:hover:not(:disabled) {
+  background: var(--nh-solid-bg-hover);
+  transform: translateY(-1px);
+}
+
+.ct-submit__go {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: var(--nh-solid-fg);
+  color: var(--nh-solid-bg);
+  transition: transform 0.4s var(--nh-ease);
+}
+
+.ct-submit[data-slot="button"]:hover:not(:disabled) .ct-submit__go {
+  transform: translateX(2px);
+}
+
+.ct-submit__go svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 1.6;
+}
+
+/* ---- sent ---------------------------------------------------------- */
+
+.ct-sent[data-slot="empty"] {
+  padding: clamp(2.5rem, 6vw, 4rem) 1rem;
+  background: none;
+}
+
+/* `EmptyMedia` slots itself as `empty-icon`, not `empty-media` */
+.ct-sent [data-slot="empty-icon"] {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  margin-bottom: 6px;
+  border-radius: 999px;
+  background: var(--nh-solid-bg);
+  color: var(--nh-solid-fg);
+}
+
+.ct-sent [data-slot="empty-icon"] svg {
+  width: 22px;
+  height: 22px;
+  stroke-width: 1.8;
+}
+
+.ct-sent [data-slot="empty-title"] {
+  color: var(--nh-ink);
+  font-size: clamp(1.25rem, 2.2vw, 1.6rem);
+  font-weight: 400;
+  letter-spacing: -0.03em;
+}
+
+.ct-sent [data-slot="empty-description"] {
+  max-width: 40ch;
+  color: var(--nh-muted);
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+
+.ct-sent__ref {
+  margin-top: 4px;
+  color: var(--nh-muted-2);
+  font-size: 11px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+/* ======================================================================
+   04 · FAQ — one rounded card per question
+   ==================================================================== */
+
+.ct-faq__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: clamp(1rem, 1.8vw, 1.4rem);
+}
+
+/* §5.2's glass pill, back to the form for anyone the five answers miss.
+
+   It is a <button>, not an anchor: the form is on this page, so there was never
+   a document to navigate to. `cursor` is the only thing the shape needed on the
+   way across — a button is drawn with the arrow, and this reads as a control. */
+.ct-faq__back {
+  display: inline-flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--nh-ghost-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  color: var(--nh-ink);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11.5px;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+  transition:
+    background 0.35s var(--nh-ease-soft),
+    transform 0.35s var(--nh-ease);
+}
+
+.ct-faq__back:hover {
+  background: var(--nh-ghost-bg-hover);
+  transform: translateY(-1px);
+}
+
+/* the registry stacks accordion items on a shared bottom border; here each one
+   is its own rounded card, so the border goes and a gap takes its place */
+.ct-faq [data-slot="accordion"] {
+  gap: 8px;
+}
+
+.ct-faq [data-slot="accordion-item"] {
+  padding-inline: clamp(1.1rem, 2vw, 1.5rem);
+  border: 0;
+  border-radius: var(--ct-r-plate);
+  background: var(--nh-surface-2);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  overflow: hidden;
+  transition: background 0.4s var(--nh-ease-soft);
+}
+
+.ct-faq [data-slot="accordion-item"]:hover,
+.ct-faq [data-slot="accordion-item"][data-state="open"] {
+  background: #1a1c1f;
+}
+
+.ct-faq [data-slot="accordion-trigger"] {
+  gap: 18px;
+  align-items: center;
+  padding-block: 19px;
+  color: var(--nh-ink);
+  font-size: 14.5px;
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  text-decoration: none;
+  transition: color 0.3s var(--nh-ease-soft);
+}
+
+/* the registry underlines the trigger on hover; this page moves the colour
+   instead, so the row stays a plate rather than becoming a link */
+.ct-faq [data-slot="accordion-trigger"]:hover {
+  color: var(--nh-solid-bg-hover);
+  text-decoration: none;
+}
+
+/* ---- the open/close motion ------------------------------------------
+   The registry ships `animate-accordion-down` / `animate-accordion-up` on the
+   content, but this project defines no `--animate-*` theme tokens, so both
+   classes resolve to nothing and the answer used to appear instantly. The
+   keyframes below are the missing half: height off Radix's measured
+   `--radix-accordion-content-height`, on the §4.3 house curve. Radix's
+   `Presence` holds the element mounted until the close animation ends, which
+   is the contract this relies on. */
+
+.ct-faq [data-slot="accordion-content"] {
+  overflow: hidden;
+}
+
+.ct-faq [data-slot="accordion-content"][data-state="open"] {
+  animation: ct-faq-open 0.44s var(--nh-ease);
+}
+
+.ct-faq [data-slot="accordion-content"][data-state="closed"] {
+  animation: ct-faq-close 0.32s var(--nh-ease-soft);
+}
+
+/* the card grows first and the answer settles into it a beat later, so the
+   text is never caught mid-stretch */
+.ct-faq [data-slot="accordion-content"][data-state="open"] > div {
+  animation: ct-faq-answer 0.5s var(--nh-ease) backwards;
+  animation-delay: 0.06s;
+}
+
+@keyframes ct-faq-open {
+  from {
+    height: 0;
+  }
+  to {
+    height: var(--radix-accordion-content-height);
+  }
+}
+
+@keyframes ct-faq-close {
+  from {
+    height: var(--radix-accordion-content-height);
+  }
+  to {
+    height: 0;
+  }
+}
+
+@keyframes ct-faq-answer {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* one chevron that turns, rather than two that swap places mid-gesture — the
+   registry hides the down arrow and reveals the up arrow on the same frame,
+   which is the one part of the toggle that could not be eased */
+.ct-faq [data-slot="accordion-trigger-icon"] {
+  color: var(--nh-muted-2);
+  transition:
+    transform 0.44s var(--nh-ease),
+    color 0.3s var(--nh-ease-soft);
+}
+
+.ct-faq [data-slot="accordion-trigger-icon"]:first-of-type {
+  display: inline-block;
+}
+
+.ct-faq [data-slot="accordion-trigger-icon"]:last-of-type {
+  display: none;
+}
+
+.ct-faq [aria-expanded="true"] [data-slot="accordion-trigger-icon"]:first-of-type {
+  transform: rotate(180deg);
+  color: var(--nh-ink);
+}
+
+/* The registry pins this inner div to `--radix-accordion-content-height`. That
+   makes the box its own yardstick: Radix re-measures on every open, and once
+   the div is frozen at the old value it measures that instead of the answer's
+   real height — so a rewrap (a resize, a font swap) leaves the last lines
+   clipped. Handing the height back to the content keeps the measurement
+   honest; the outer element is what clips during the animation anyway. */
+.ct-faq [data-slot="accordion-content"] > div {
+  height: auto;
+  padding-block: 0 20px;
+}
+
+.ct-faq [data-slot="accordion-content"] p {
+  margin: 0;
+  max-width: 68ch;
+  color: var(--nh-muted);
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+
+/* ======================================================================
+   RESPONSIVE — §7's steps, applied to this page's two grids
+   ==================================================================== */
+
+@media (max-width: 1000px) {
+  .ct-work {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ct-aside {
+    position: static;
+  }
+}
+
+@media (max-width: 720px) {
+  .ct-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ct-head__title {
+    max-width: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .ct-actions {
+    justify-content: stretch;
+  }
+
+  .ct-submit[data-slot="button"] {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .ct-faq__head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+/* §6.10 — the CSS half of the reduced-motion contract. The Motion-driven
+   entrances are gated separately with `useReducedMotion()` in the page. */
+@media (prefers-reduced-motion: reduce) {
+  .ct-root *,
+  .ct-root *::before,
+  .ct-root *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

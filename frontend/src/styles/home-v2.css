@@ -1,0 +1,1199 @@
+/* ============================================================================
+   AUREN — the site root (also mirrored at /home-v2)
+
+   Layout and type scale rebuilt 1:1 from video-frames-2/ (03365516…mp4,
+   26.52s @ 60fps, 3200x2400).
+
+   Palette, materials and motion tokens come from `new_style.md` — the
+   /new-home design system — so the page reads as part of this site rather
+   than the cream studio site the capture was taken from. The mapping is
+   value-for-value:
+
+     capture            new_style token        role
+     #F3F3F0 cream   →  --nh-surface  #101113  page ground
+     #DDDBD7 grey    →  --nh-surface-2 #16181a alternating sections
+     #0B0B0B ink     →  --nh-ink      #f1f3f3  primary text
+     #82827F muted   →  --nh-muted    #8f9598  secondary text
+     #111111 footer  →  --nh-surface-3 #0a0b0c footer plate
+     #282828 mark    →  --nh-ghost    #1e2226  oversized wordmark
+     #FFFFFF card    →  --nh-card-bg  #1a1c1e  quote card
+
+   Everything is scoped under .hv2, so this, the storefront theme and the dark
+   /new-home build coexist in one app.
+
+   Measurements: the capture shows a ~1920px viewport inside the 3200px frame
+   (scale 1.355). Sizes are expressed in vw against that reference so the page
+   keeps the source's proportions at any width, with clamp() holding the ends.
+   ========================================================================= */
+
+.hv2 {
+  /* --- surfaces (new_style §2.1 / §10) ------------------------------------ */
+  --hv2-surface: #101113;
+  --hv2-surface-2: #16181a;
+  --hv2-surface-3: #0a0b0c;
+  --hv2-card-bg: #1a1c1e;
+
+  /* --- ink (new_style §2.3) ---------------------------------------------- */
+  --hv2-ink: #f1f3f3;
+  --hv2-ink-soft: #d5d9da;
+  --hv2-muted: #8f9598;
+  --hv2-muted-2: #6e7477;
+
+  /* The unlit state of every scroll-driven text reveal. The reveal steps the
+     word from this to full ink — it never fades opacity, which is what keeps
+     the type crisp mid-reveal instead of going translucent. On a dark ground
+     that means a step *down* toward the surface, not a lighter grey. */
+  --hv2-dim: #4a5053;
+
+  /* --- controls & edges (new_style §2.4) ---------------------------------- */
+  --hv2-solid-bg: #f2f4f4;
+  --hv2-solid-fg: #0d0e10;
+  --hv2-solid-bg-hover: #ffffff;
+  --hv2-hairline: rgba(255, 255, 255, 0.13);
+  --hv2-hairline-soft: rgba(255, 255, 255, 0.08);
+
+  /* --- oversized display type (new_style §2.6) ---------------------------- */
+  --hv2-ghost: #1e2226;
+
+  /* --- shape (new_style §4.1) --------------------------------------------- */
+  --hv2-radius-card: 14px;
+  --hv2-radius-lg: 22px;
+
+  /* --- motion (new_style §4.3) -------------------------------------------- */
+  --hv2-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --hv2-ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* the page gutter reads as ~1.25% of viewport in the capture */
+  --hv2-gutter: clamp(16px, 1.25vw, 26px);
+
+  /* The site bar is sticky and sits in flow above this page, so anything that
+     pins to top:0 has to clear it or it renders underneath (the bar carries
+     z-index 70). new_style §4.2: 92px, dropping to 74px at ≤860px. */
+  --hv2-nav-h: 92px;
+
+  background: var(--hv2-surface);
+  color: var(--hv2-ink);
+  font-family: var(--font-archivo), "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-synthesis-weight: none;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: clip;
+}
+
+/* The app's body is white by default, and on this page it is the only white
+   surface in the whole stack — so any sub-pixel gap at a composited edge reads
+   as a light hairline rather than as nothing. Carrying the ground all the way
+   to the root canvas means a seam has nothing bright to expose. Scoped by
+   :has() so the storefront's own body colour is untouched. Literal rather than
+   var(): the token is declared on .hv2, which is below body. */
+body:has(.hv2) {
+  background-color: #101113;
+}
+
+.hv2 ::selection {
+  background: var(--hv2-ink);
+  color: var(--hv2-surface);
+}
+
+.hv2 a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.hv2-shell {
+  padding-inline: var(--hv2-gutter);
+}
+
+/* ---------------------------------------------------------------------------
+   RevealImage frame — the page's one image entrance (see motion.tsx).
+   The frame clips while the picture inside settles back from an over-scale.
+   ------------------------------------------------------------------------ */
+.hv2-reveal {
+  position: relative;
+  overflow: hidden;
+}
+
+/* The clipping layer sits inside the trigger, never on it — see RevealImage. */
+.hv2-reveal__clip {
+  width: 100%;
+  height: 100%;
+  will-change: clip-path;
+}
+
+.hv2-reveal img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  backface-visibility: hidden;
+}
+
+/* ---------------------------------------------------------------------------
+   Type scale
+   ------------------------------------------------------------------------ */
+
+/* Eyebrows: 10–12px, all-caps. The capture keeps tracking near zero at this
+   size; new_style's .nh-eyebrow opens to 0.06em, which is the value used here
+   since the eyebrow is a shared system element. */
+.hv2-eyebrow {
+  font-size: clamp(10px, 0.62vw, 12px);
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1;
+  color: var(--hv2-muted);
+}
+
+.hv2-body {
+  font-size: clamp(13px, 0.83vw, 16px);
+  line-height: 1.45;
+  letter-spacing: -0.003em;
+  color: var(--hv2-muted);
+}
+
+/* Section headings — "Recognized for modern, thoughtful design",
+   "What our clients say", "Designed for creativity…" all sit on this cut.
+   Calibrated off the frames: the awards heading runs 100px of leading and
+   43vw of measure at a 1920 viewport, i.e. ~4.9vw. */
+.hv2-h2 {
+  font-size: clamp(36px, 4.9vw, 98px);
+  line-height: 1.02;
+  letter-spacing: -0.034em;
+  font-weight: 500;
+}
+
+.hv2-display {
+  font-weight: 500;
+  letter-spacing: -0.04em;
+  line-height: 0.86;
+}
+
+/* ---------------------------------------------------------------------------
+   Hero
+   ------------------------------------------------------------------------ */
+/* The bar already occupies its height in flow, so the hero takes what is left
+   of the first screen rather than a full 100svh on top of it. */
+.hv2-hero {
+  min-height: calc(100svh - var(--hv2-nav-h));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.hv2-hero__head {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  padding-bottom: clamp(10px, 1.1vw, 22px);
+}
+
+/* "The Studio" measures 70.4% of the content width in the settled frame. */
+.hv2-hero__title {
+  font-size: clamp(58px, 16.35vw, 330px);
+  line-height: 0.78;
+  letter-spacing: -0.045em;
+  font-weight: 500;
+  margin: 0;
+  /* same reasoning as the founder names — display type at this scale should not
+     be draggable into one solid selection slab */
+  user-select: none;
+}
+
+/* On the site root the headline is inked by <BrandMorph> instead, which flies
+   it up into the bar — see .hv2-brandmorph. The type stays here in flow so the
+   section keeps its shape and the page keeps its h1; it just isn't drawn. */
+.hv2-hero__title[data-morphed] {
+  color: transparent;
+}
+
+/* The headline is split to the glyph so the brand morph can fly it a letter at
+   a time. Inline-block, so each letter's rect is its line box rather than the
+   font's content area — that box is what the flight measures its start from. */
+.hv2-hero__letter {
+  display: inline-block;
+}
+
+/* Each line rides up from behind its own mask on load. */
+.hv2-hero__mask {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: bottom;
+  padding-bottom: 0.06em;
+}
+
+/* ---------------------------------------------------------------------------
+   Brand morph — the site root's wordmark, in transit. One of these per word:
+   they open over the hero's (undrawn) headline and ride up into the bar's brand
+   slot one at a time, left to right, as the hero scrolls away, then hold there.
+   Both ends of every word are measured off the real elements; everything here
+   is only what the type needs while it is between them.
+   See components/home-v2/brand-morph.tsx.
+   ------------------------------------------------------------------------ */
+.hv2-brandmorph {
+  position: fixed;
+  top: 0;
+  left: 0;
+  /* Over the bar (.nh-nav-scope, 80), because the last leg of the trip is flown
+     *through* it: the bar fades a frosted plate in as soon as the page moves,
+     and underneath it the glyphs were swallowed just before they arrived. Still
+     under the overlays that portal out of the bar (120+), so the search dock and
+     the menu sheet cover the flight as they should.
+     Nothing is left up here at the end — see [data-landed] below. */
+  z-index: 90;
+  /* the bar's brand link keeps the clicks — its wordmark is still in flow
+     underneath this, it is simply not inked */
+  pointer-events: none;
+  font-weight: 500;
+  color: var(--hv2-ink);
+  white-space: nowrap;
+  will-change: transform;
+}
+
+/* A block, so the word's line box starts flush with the container's top edge
+   and the measured start and landing points can be applied to the container
+   directly with nothing to correct for in between. */
+.hv2-brandmorph__mask {
+  display: block;
+  overflow: hidden;
+  padding-bottom: 0.06em;
+}
+
+/* Once the words are up, the clip has done its job — and at the small end of
+   the trip a 1em box would start shaving ascenders. */
+.hv2-brandmorph__mask[data-revealed] {
+  overflow: visible;
+}
+
+/* Arrived. The bar draws the wordmark from here on (.nh-nav__wordmark), on the
+   spot this flight measured its landing off, so the swap is the same pixels —
+   and the type is inside the bar's own layer rather than floating over it. */
+.hv2-brandmorph[data-landed] {
+  visibility: hidden;
+}
+
+.hv2-hero__strip {
+  display: flex;
+  align-items: flex-end;
+  gap: 0;
+  height: clamp(180px, 23vw, 440px);
+  /* the strip overhangs both gutters in the source */
+  margin-inline: calc(var(--hv2-gutter) * -1);
+  will-change: transform;
+}
+
+/* Panels stay flush — a continuous strip, so no corner radius here. */
+.hv2-hero__panel {
+  position: relative;
+  overflow: hidden;
+  min-width: 0;
+  will-change: clip-path;
+}
+
+.hv2-hero__panel img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  backface-visibility: hidden;
+}
+
+/* ---------------------------------------------------------------------------
+   Manifesto — the statement is centred in a tall field with the two year
+   markers pinned to the gutters on the vertical midline.
+   ------------------------------------------------------------------------ */
+.hv2-manifesto {
+  position: relative;
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  padding-block: clamp(80px, 9vw, 190px);
+}
+
+.hv2-manifesto__rail {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: clamp(10px, 0.62vw, 12px);
+  letter-spacing: 0.04em;
+  font-weight: 400;
+  color: var(--hv2-muted);
+}
+
+.hv2-manifesto__rail--from { left: var(--hv2-gutter); }
+.hv2-manifesto__rail--to { right: var(--hv2-gutter); }
+
+/* Measured: 3 lines, ~63px leading and 56vw of measure at 1920. */
+.hv2-manifesto__text {
+  max-width: 56vw;
+  margin: 0;
+  text-align: center;
+  font-size: clamp(28px, 3vw, 60px);
+  line-height: 1.09;
+  letter-spacing: -0.032em;
+  font-weight: 500;
+}
+
+/* ---------------------------------------------------------------------------
+   Philosophy
+   ------------------------------------------------------------------------ */
+.hv2-philosophy {
+  background: var(--hv2-surface-2);
+  position: relative;
+  padding-block: clamp(64px, 6.4vw, 138px);
+  overflow: hidden;
+}
+
+/* Both columns share one centre line — with the old bottom-left inset gone
+   there is nothing to justify hanging the copy off the top. */
+.hv2-philosophy__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: clamp(24px, 3vw, 64px);
+  align-items: center;
+}
+
+/* Measured: 5 lines over 43vw of measure. Expressed in vw rather than `ch`
+   because the statement's own font-size is 2x this box's inherited one — a
+   `ch` here would resolve against 16px and come out less than half as wide. */
+.hv2-philosophy__copy {
+  max-width: 43.5vw;
+}
+
+.hv2-philosophy__statement {
+  margin: clamp(14px, 1.4vw, 30px) 0 0;
+  font-size: clamp(21px, 2.06vw, 41px);
+  line-height: 1.16;
+  letter-spacing: -0.028em;
+  font-weight: 500;
+}
+
+.hv2-philosophy__mainWrap {
+  justify-self: end;
+  width: min(100%, 36vw);
+  will-change: transform;
+}
+
+.hv2-philosophy__main {
+  width: 100%;
+  aspect-ratio: 36 / 40;
+  border-radius: var(--hv2-radius-card);
+}
+
+/* ---------------------------------------------------------------------------
+   Founders — a pinned stage.
+
+   The section is a tall runway; the pin holds one viewport while the roster
+   advances. The portrait box and the text column are both fixed in place — the
+   portraits crossfade inside their frame and the copy swaps inside its column,
+   so nothing travels down the page.
+
+   Column geometry follows the capture: the portrait runs 22%→54% of the
+   viewport, the copy starts at 54%, and the name overhangs back to 45% so it
+   prints across the right edge of the photo.
+   ------------------------------------------------------------------------ */
+.hv2-founders {
+  position: relative;
+}
+
+.hv2-founders__pin {
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  padding-top: var(--hv2-nav-h);
+  display: grid;
+  grid-template-columns: 22% 32% minmax(0, 1fr);
+  align-content: center;
+  align-items: center;
+  row-gap: clamp(20px, 2.4vw, 50px);
+}
+
+.hv2-founders__eyebrow {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: start;
+  padding-top: clamp(8px, 1vw, 20px);
+}
+
+/* The portrait frame never moves; the images stack inside it and crossfade. */
+.hv2-founders__stage {
+  grid-column: 2;
+  grid-row: 1;
+  position: relative;
+  aspect-ratio: 3 / 4;
+  max-height: 68svh;
+  border-radius: var(--hv2-radius-card);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.hv2-founders__portrait {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  backface-visibility: hidden;
+  will-change: opacity, transform;
+}
+
+.hv2-founders__text {
+  grid-column: 3;
+  grid-row: 1;
+  align-self: stretch;
+  display: grid;
+  align-content: center;
+  min-width: 0;
+}
+
+.hv2-founders__card {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(10px, 1.1vw, 22px);
+}
+
+.hv2-founder__index {
+  font-size: clamp(11px, 0.72vw, 14px);
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  color: var(--hv2-muted);
+}
+
+/* The name overhangs the portrait — it starts inside the photo column and
+   reads across it, which is why it sits above the stage in z-order. */
+.hv2-founder__name {
+  margin: 0 0 0 -9vw;
+  font-size: clamp(40px, 8.3vw, 166px);
+  line-height: 0.94;
+  letter-spacing: -0.048em;
+  font-weight: 500;
+  position: relative;
+  z-index: 2;
+  pointer-events: none;
+  /* Dragging is how people scroll a pinned section, and a drag across type this
+     large paints the whole name as one solid ::selection slab. The name is
+     still in the DOM for assistive tech and for the page's text content. */
+  user-select: none;
+}
+
+.hv2-founder__name span {
+  display: block;
+}
+
+.hv2-founder__role {
+  margin-top: clamp(10px, 1.4vw, 30px);
+  color: var(--hv2-muted);
+  font-size: clamp(10px, 0.66vw, 13px);
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.hv2-founder__bio {
+  margin: 0;
+  max-width: 34ch;
+}
+
+/* Roster position — four rules that fill as the stage pages. */
+.hv2-founders__ticks {
+  grid-column: 3;
+  grid-row: 1;
+  align-self: end;
+  display: flex;
+  gap: 8px;
+  padding-bottom: clamp(8px, 1.4vw, 30px);
+}
+
+.hv2-founders__tick {
+  width: clamp(26px, 2.2vw, 46px);
+  height: 2px;
+  background: var(--hv2-hairline-soft);
+  overflow: hidden;
+}
+
+.hv2-founders__tick i {
+  display: block;
+  height: 100%;
+  background: var(--hv2-ink);
+  transform-origin: left;
+}
+
+/* ---------------------------------------------------------------------------
+   Studio highlights — four slots in one row: three image cards plus a copy
+   panel that changes position as the active card advances, so the cards
+   reflow around it. Motion's layout engine animates the shuffle.
+   ------------------------------------------------------------------------ */
+
+/* The section is the scroll runway; the pin is what the viewer actually sees.
+   No `overflow` on the runway — it would turn the section into the sticky
+   element's scroll box and kill the pin outright. */
+.hv2-highlights {
+  position: relative;
+  height: 300svh;
+}
+
+/* The pin has to hold the heading AND a full row of cards inside one viewport,
+   so it is height-constrained rather than free-flowing: `height` (not
+   `min-height`) plus an overflow guard means the row can never push the section
+   taller than the screen it is pinned to. */
+.hv2-highlights__pin {
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-block: calc(var(--hv2-nav-h) + clamp(6px, 0.6vw, 14px)) clamp(24px, 2.6vw, 56px);
+  overflow: hidden;
+}
+
+.hv2-highlights__head {
+  text-align: center;
+  display: grid;
+  gap: clamp(8px, 0.8vw, 16px);
+  justify-items: center;
+  margin-bottom: clamp(20px, 2.2vw, 46px);
+}
+
+/* Slightly tighter than the page heading so the row keeps its share of the
+   screen — this is the one section where the two have to share a viewport. */
+.hv2-highlights .hv2-h2 {
+  font-size: clamp(30px, 3.9vw, 78px);
+}
+
+/* Narrowed so the cards shrink proportionally and the whole section clears the
+   fold, rather than cropping the frames to a shorter aspect. */
+.hv2-highlights__row {
+  display: flex;
+  align-items: flex-start;
+  gap: clamp(10px, 1.15vw, 24px);
+  width: min(100%, 82vw);
+  margin-inline: auto;
+}
+
+.hv2-highlights__slot {
+  flex: 1 1 0;
+  min-width: 0;
+  will-change: transform;
+}
+
+.hv2-card__index {
+  font-size: clamp(11px, 0.72vw, 14px);
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  color: var(--hv2-muted);
+  display: block;
+  margin-bottom: clamp(6px, 0.62vw, 13px);
+}
+
+.hv2-card__frame {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  border-radius: var(--hv2-radius-card);
+}
+
+.hv2-card__frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  backface-visibility: hidden;
+}
+
+/* The two-line title straddles the bottom edge of the photo. One text block,
+   `difference` blending: over the dark page it resolves to near-white, over
+   any bright area of the photograph it inverts to dark. That is the same rule
+   new_style §2.6 states for oversized type — always a step away from the
+   ground, never equal to it — expressed as a blend instead of two colours.
+   Line one lands on the photo, line two on the page. */
+.hv2-card__title {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  margin: 0;
+  color: #fff;
+  mix-blend-mode: difference;
+  font-size: clamp(20px, 2.05vw, 41px);
+  line-height: 1.06;
+  letter-spacing: -0.035em;
+  font-weight: 500;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.hv2-card__shell {
+  position: relative;
+  /* exactly one title line, so the second line clears the frame */
+  padding-bottom: clamp(21px, 2.18vw, 44px);
+  /* `difference` blends against the backdrop *inside this stacking context*.
+     The motion layout transform on the slot already opens one, so the shell
+     has to carry an opaque page-coloured ground or the half of the title that
+     hangs below the photo would blend against nothing and blow out to white. */
+  background: var(--hv2-surface);
+}
+
+/* ---------------------------------------------------------------------------
+   Copy card — the fourth slot.
+
+   It reuses .hv2-card__shell, so its index line and title-overhang padding are
+   the picture cards' own metrics; the frame below repeats the 3/4 ratio and
+   radius. The result is a box the exact size of the photograph beside it, with
+   a tinted panel where the picture would be.
+
+   Each highlight carries its own tone, so the panel recolours as it shuffles
+   along the row — three greys held at close lightness and separated by
+   temperature (neutral, cool, warm) rather than by hue, so the shuffle reads
+   as one material catching the light differently, not three paint chips. One
+   flat fill per tone — no gradient, no border, no rule — with the ink a near
+   -black drawn from the page surface.
+   ------------------------------------------------------------------------ */
+.hv2-copy {
+  --hv2-tone-fill: #d9dbda;
+  --hv2-tone-ink: #17191b;
+}
+
+/* The shell's opaque ground exists for one reason: to give a picture card's
+   `difference`-blended title something to blend against below the photo. This
+   card has no such title, so the ground is pure liability — an opaque box on a
+   composited slot whose edges land on fractional pixels, which is what shows
+   up as a hairline down its right side and along its foot. Nothing to paint
+   means no box edge to seam. */
+.hv2-card__shell.hv2-copy {
+  background: transparent;
+}
+
+.hv2-copy[data-tone="02"] {
+  --hv2-tone-fill: #c6cbcd;
+  --hv2-tone-ink: #14171a;
+}
+
+.hv2-copy[data-tone="03"] {
+  --hv2-tone-fill: #cfccc8;
+  --hv2-tone-ink: #1a1816;
+}
+
+/* The index is rendered but hidden: it holds the same line box as the picture
+   cards' index, which is what keeps the two frames on one baseline. */
+.hv2-copy__gutter {
+  visibility: hidden;
+}
+
+/* `height: auto` alongside the ratio means the panel matches the photograph at
+   every width the row can take, yet still grows rather than clipping the body
+   if the type ever outruns the box. */
+.hv2-copy__frame {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  height: auto;
+  border-radius: var(--hv2-radius-card);
+  background: var(--hv2-tone-fill);
+  border: 0;
+  padding: clamp(16px, 1.5vw, 32px);
+  display: flex;
+}
+
+.hv2-copy__inner {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(14px, 1.3vw, 26px);
+}
+
+/* Head sits at the top, body at the foot — the same top-to-bottom reading the
+   picture cards get from their bottom-anchored titles. */
+/* A step above .hv2-body: this copy is the panel's whole content rather than a
+   caption beside a picture, and the frame has the room for it. */
+.hv2-copy__body {
+  margin: auto 0 0;
+  font-size: clamp(15px, 1.25vw, 23px);
+  line-height: 1.5;
+  letter-spacing: -0.005em;
+  color: color-mix(in srgb, var(--hv2-tone-ink) 82%, var(--hv2-tone-fill));
+  text-wrap: pretty;
+}
+
+.hv2-copy__head {
+  display: flex;
+  align-items: baseline;
+  gap: clamp(8px, 0.62vw, 13px);
+}
+
+.hv2-copy__badge {
+  flex: none;
+  font-size: clamp(11px, 0.75vw, 15px);
+  line-height: 1;
+  letter-spacing: 0.03em;
+  color: color-mix(in srgb, var(--hv2-tone-ink) 60%, var(--hv2-tone-fill));
+}
+
+.hv2-copy__label {
+  font-size: clamp(18px, 1.35vw, 26px);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  font-weight: 500;
+  color: var(--hv2-tone-ink);
+}
+
+/* ---------------------------------------------------------------------------
+   Awards
+   ------------------------------------------------------------------------ */
+.hv2-awards {
+  background: var(--hv2-surface-2);
+  padding-block: clamp(70px, 7.4vw, 158px) clamp(90px, 10vw, 210px);
+}
+
+.hv2-awards__heading {
+  max-width: 43vw;
+  margin: 0 0 clamp(40px, 4.4vw, 94px);
+}
+
+.hv2-awards__rule {
+  height: 1px;
+  background: var(--hv2-hairline);
+  transform-origin: left;
+}
+
+/* Off the frames: the awards table ends at 49% and the featured column starts
+   at 63%, so the tracks are uneven and the gap is the leftover. */
+.hv2-awards__grid {
+  display: grid;
+  grid-template-columns: 49% 37%;
+  justify-content: space-between;
+  gap: 0 clamp(24px, 4vw, 90px);
+  margin-top: clamp(26px, 2.6vw, 56px);
+}
+
+.hv2-awards__label {
+  margin-bottom: clamp(14px, 1.5vw, 32px);
+}
+
+.hv2-awards__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 24px;
+  padding-block: clamp(11px, 1.06vw, 22px);
+  border-bottom: 1px solid var(--hv2-hairline-soft);
+  color: var(--hv2-ink);
+}
+
+.hv2-awards__row:last-child {
+  border-bottom: 0;
+}
+
+.hv2-awards__num {
+  font-variant-numeric: tabular-nums;
+  display: inline-flex;
+  overflow: hidden;
+  height: 1.2em;
+  line-height: 1.2;
+}
+
+/* one column per digit, translated by the rolling odometer */
+.hv2-digit {
+  display: inline-block;
+  overflow: hidden;
+  height: 1.2em;
+}
+
+.hv2-digit__reel {
+  display: flex;
+  flex-direction: column;
+}
+
+.hv2-digit__reel span {
+  height: 1.2em;
+  line-height: 1.2;
+  display: block;
+}
+
+/* ---------------------------------------------------------------------------
+   Selected clients
+   ------------------------------------------------------------------------ */
+.hv2-clients {
+  padding-block: clamp(70px, 7.4vw, 158px) clamp(80px, 8.5vw, 180px);
+}
+
+.hv2-clients__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.06fr);
+  gap: clamp(30px, 5vw, 110px);
+  align-items: start;
+}
+
+.hv2-clients__copy {
+  max-width: 32ch;
+}
+
+.hv2-clients__photo {
+  width: min(78%, 24vw);
+  aspect-ratio: 1 / 1;
+  border-radius: var(--hv2-radius-card);
+  margin-top: clamp(48px, 9.5vw, 200px);
+}
+
+.hv2-clients__list {
+  list-style: none;
+  margin: clamp(12px, 1.3vw, 28px) 0 0;
+  padding: 0;
+  max-width: 28vw;
+}
+
+/* Measured: ~112px row pitch and 27vw of measure at 1920. */
+.hv2-clients__item {
+  padding-block: clamp(13px, 1.55vw, 31px);
+  border-bottom: 1px solid var(--hv2-hairline-soft);
+  font-size: clamp(21px, 2.45vw, 49px);
+  line-height: 1.1;
+  letter-spacing: -0.034em;
+  font-weight: 500;
+}
+
+.hv2-clients__item:last-child {
+  border-bottom: 0;
+}
+
+/* ---------------------------------------------------------------------------
+   Testimonials
+   ------------------------------------------------------------------------ */
+.hv2-testimonials {
+  padding-block: clamp(60px, 6vw, 130px) clamp(70px, 7.5vw, 160px);
+  overflow: hidden;
+}
+
+.hv2-testimonials__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
+  gap: clamp(24px, 3vw, 64px);
+  align-items: center;
+}
+
+.hv2-testimonials__nav {
+  display: flex;
+  gap: clamp(8px, 0.72vw, 15px);
+  margin-top: clamp(30px, 5.5vw, 118px);
+}
+
+/* Primary control: inverts to a light pill rather than going glass —
+   new_style §2.4. */
+.hv2-arrow {
+  width: clamp(34px, 2.5vw, 50px);
+  aspect-ratio: 1;
+  border-radius: 999px;
+  background: var(--hv2-solid-bg);
+  display: grid;
+  place-items: center;
+  border: 0;
+  cursor: pointer;
+  color: var(--hv2-solid-fg);
+  transition:
+    background 0.35s var(--hv2-ease-soft),
+    transform 0.35s var(--hv2-ease);
+}
+
+.hv2-arrow:hover {
+  background: var(--hv2-solid-bg-hover);
+  transform: translateY(-2px);
+}
+
+.hv2-arrow:active {
+  transform: scale(0.94);
+}
+
+.hv2-arrow svg {
+  width: 42%;
+  height: 42%;
+}
+
+.hv2-quote {
+  background: var(--hv2-card-bg);
+  border: 1px solid var(--hv2-hairline-soft);
+  border-radius: var(--hv2-radius-lg);
+  padding: clamp(14px, 1.35vw, 29px);
+  position: relative;
+  overflow: hidden;
+}
+
+/* The grid lives on the animated child, not the card — a `display: contents`
+   wrapper cannot be transformed, so the slide would silently do nothing. */
+.hv2-quote__inner {
+  display: grid;
+  grid-template-columns: clamp(110px, 12.6vw, 250px) minmax(0, 1fr);
+  gap: clamp(16px, 1.9vw, 40px);
+}
+
+.hv2-quote__photo {
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  border-radius: calc(var(--hv2-radius-lg) - 8px);
+}
+
+.hv2-quote__photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.hv2-quote__body {
+  display: flex;
+  flex-direction: column;
+  padding-block: clamp(4px, 0.5vw, 11px);
+}
+
+.hv2-quote__index {
+  font-size: clamp(11px, 0.72vw, 14px);
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  color: var(--hv2-muted);
+  margin-bottom: clamp(10px, 1.1vw, 23px);
+}
+
+.hv2-quote__text {
+  margin: 0;
+  font-size: clamp(15px, 1.06vw, 21px);
+  line-height: 1.34;
+  letter-spacing: -0.018em;
+  font-weight: 500;
+  max-width: 44ch;
+  color: var(--hv2-ink);
+}
+
+.hv2-quote__who {
+  margin-top: auto;
+  padding-top: clamp(24px, 3vw, 64px);
+}
+
+.hv2-quote__name {
+  font-size: clamp(12px, 0.79vw, 16px);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--hv2-ink-soft);
+}
+
+.hv2-quote__role {
+  font-size: clamp(12px, 0.79vw, 16px);
+  color: var(--hv2-muted);
+  letter-spacing: -0.01em;
+}
+
+/* ---------------------------------------------------------------------------
+   Footer — the deepest plate on the page, with the oversized wordmark
+   bleeding off the bottom edge.
+   ------------------------------------------------------------------------ */
+/* One base colour for every glyph in the block — the theme ink. The only
+   second tone is --hv2-muted, and it appears once: the right-hand end of the
+   wordmark gradient, which is the footer's single dual-colour mark. */
+.hv2-footer {
+  background: var(--hv2-surface-3);
+  color: var(--hv2-ink);
+  padding-top: clamp(28px, 3vw, 58px);
+  overflow: hidden;
+  position: relative;
+}
+
+.hv2-footer__links {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) auto;
+  gap: 12px;
+  font-size: clamp(12px, 0.79vw, 16px);
+  letter-spacing: -0.008em;
+  color: var(--hv2-ink);
+}
+
+.hv2-footer__meta {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) auto;
+  gap: 12px;
+  margin-top: clamp(24px, 3vw, 60px);
+  font-size: clamp(12px, 0.79vw, 16px);
+  color: var(--hv2-ink);
+  letter-spacing: -0.008em;
+}
+
+/* the copyright sits under Services, the policy under Careers */
+.hv2-footer__meta > :first-child { grid-column: 2; }
+.hv2-footer__meta > :last-child { grid-column: 5; }
+
+.hv2-footer__link {
+  position: relative;
+  width: fit-content;
+  transition: color 0.3s var(--hv2-ease-soft);
+}
+
+/* the underline sweep below already carries the hover, so nothing here needs
+   to move — which keeps the blue the blue at every state */
+.hv2-footer__link:hover {
+  opacity: 1;
+}
+
+.hv2-footer__link::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -2px;
+  height: 1px;
+  width: 100%;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.45s var(--hv2-ease);
+}
+
+.hv2-footer__link:hover::after {
+  transform: scaleX(1);
+}
+
+/* The oversized-type recipe from new_style §3.4: weight 300, width axis at
+   118%, uppercase, 0.005em tracking, sub-1 line-height. That extended-light
+   cut is the page's brand voice, and it is the one place the capture's own
+   letterform is deliberately overridden by the design system. */
+.hv2-footer__wordmark {
+  margin: clamp(16px, 1.8vw, 38px) 0 -0.2em;
+  /* sits inside the page gutters like every other block — as margin, not
+     padding, so the fit-content box is the glyphs alone and the gradient maps
+     exactly onto them */
+  margin-inline: var(--hv2-gutter);
+  /* The footer's one dual-colour mark: the white base runs into the theme blue
+     across the word. Everything else in the block is the single base colour. */
+  /* fit-content, so the box hugs the glyphs. background-clip paints the ramp
+     across the ELEMENT box, not the text — on a full-width block the word only
+     samples the left part of it and the closing stop never reaches a letter. */
+  width: fit-content;
+  color: transparent;
+  background: linear-gradient(
+    96deg,
+    var(--hv2-ink) 0%,
+    var(--hv2-ink) 34%,
+    var(--hv2-muted) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  /* sized so "ICED OUT" fills the measure on ONE line — the wordmark is a
+     single graphic element, so it must never wrap */
+  font-size: 16.8vw;
+  white-space: nowrap;
+  font-weight: 300;
+  font-stretch: 118%;
+  line-height: 0.82;
+  letter-spacing: 0.005em;
+  text-transform: uppercase;
+  user-select: none;
+  will-change: transform;
+}
+
+/* ---------------------------------------------------------------------------
+   Responsive — the capture is desktop-only, so the breakpoints below are a
+   reasonable reading of the same layout rather than a transcription.
+   ------------------------------------------------------------------------ */
+@media (max-width: 1024px) {
+  .hv2-founders__pin { grid-template-columns: 36% minmax(0, 1fr); }
+  .hv2-founders__eyebrow { grid-column: 1 / -1; grid-row: 1; }
+  .hv2-founders__stage { grid-column: 1; grid-row: 2; }
+  .hv2-founders__text { grid-column: 2; grid-row: 2; }
+  .hv2-founders__ticks { grid-column: 2; grid-row: 3; align-self: start; }
+  .hv2-founder__name { margin-left: -11vw; }
+
+  .hv2-highlights__row { flex-wrap: wrap; }
+  .hv2-highlights__slot { flex: 1 1 44%; }
+}
+
+@media (max-width: 860px) {
+  .hv2 { --hv2-nav-h: 74px; }
+}
+
+@media (max-width: 720px) {
+  .hv2 { --hv2-gutter: 16px; }
+
+  .hv2-hero__title { font-size: 19vw; }
+  .hv2-hero__strip { height: 40vw; }
+
+  .hv2-manifesto__text { font-size: 7vw; max-width: none; }
+  .hv2-manifesto__rail { display: none; }
+
+  .hv2-philosophy__grid,
+  .hv2-clients__grid,
+  .hv2-testimonials__grid,
+  .hv2-awards__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .hv2-philosophy__mainWrap { width: 100%; justify-self: stretch; }
+
+  .hv2-founders__pin {
+    grid-template-columns: minmax(0, 1fr);
+    align-content: center;
+    row-gap: 22px;
+  }
+  .hv2-founders__eyebrow { grid-column: 1; grid-row: 1; padding-top: 0; }
+  .hv2-founders__stage { grid-column: 1; grid-row: 2; width: 62%; max-height: 42svh; }
+  .hv2-founders__text { grid-column: 1; grid-row: 3; }
+  .hv2-founders__ticks { grid-column: 1; grid-row: 4; padding-bottom: 0; }
+  .hv2-founder__name { margin-left: 0; font-size: 12vw; }
+
+  .hv2-highlights__slot { flex: 1 1 100%; }
+  .hv2-card__title { font-size: 7.2vw; bottom: 0; }
+  .hv2-card__shell { padding-bottom: 7.7vw; }
+
+  .hv2-clients__photo { width: 68%; margin-top: 34px; }
+  .hv2-clients__list { max-width: none; }
+  .hv2-clients__item { font-size: 6.6vw; }
+
+  .hv2-quote__inner { grid-template-columns: minmax(0, 1fr); }
+  .hv2-quote__photo { width: 56%; }
+
+  .hv2-footer__links,
+  .hv2-footer__meta { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .hv2-footer__meta > :first-child,
+  .hv2-footer__meta > :last-child { grid-column: auto; }
+  /* no size override — 22.85vw is already the full-bleed fit at every width */
+}
+
+/* ---------------------------------------------------------------------------
+   AOS — forced onto the house curve.
+
+   AOS only ships named easing presets, none of which is the page's
+   cubic-bezier(.22, 1, .36, 1). Overriding the timing function here is what
+   keeps an AOS reveal and a Motion reveal indistinguishable; without it the
+   two systems visibly run on different curves in the same viewport.
+   ------------------------------------------------------------------------ */
+.hv2 [data-aos] {
+  transition-timing-function: var(--hv2-ease);
+  transition-property: opacity, transform;
+}
+
+/* A shorter, flatter rise than the AOS default — the page's reveals travel
+   ~22px, not the stock 100px, which at this type size reads as a lurch. */
+.hv2 [data-aos="hv2-rise"] {
+  opacity: 0;
+  transform: translate3d(0, 22px, 0);
+}
+
+.hv2 [data-aos="hv2-rise"].aos-animate {
+  opacity: 1;
+  transform: none;
+}
+
+/* Used on the hairline-divided tables, where a sideways settle reads better
+   against the rules than a vertical one. */
+.hv2 [data-aos="hv2-slide"] {
+  opacity: 0;
+  transform: translate3d(-18px, 0, 0);
+}
+
+.hv2 [data-aos="hv2-slide"].aos-animate {
+  opacity: 1;
+  transform: none;
+}
+
+/* new_style §6.10 neuters CSS transitions only; the Motion-driven work is
+   inline-styled from JS and is gated separately with useReducedMotion(). */
+@media (prefers-reduced-motion: reduce) {
+  .hv2 *,
+  .hv2 *::before,
+  .hv2 *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

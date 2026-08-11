@@ -1,0 +1,1972 @@
+/* ============================================================================
+   ICED_OUT — new home page
+   Reconstructed 1:1 from video-frames/ (original-c7b6...mp4, 28.44s @ 60fps)
+   Scoped under .nh-root so it never touches the existing storefront theme.
+   ========================================================================= */
+
+.nh-root {
+  /* ------------------------------------------------------------------
+     DARK PALETTE
+     Every colour on the page resolves through these; nothing below this
+     block hardcodes a literal. Flipping the theme is a matter of swapping
+     this one list.
+
+     Two rules carried over from the light build that are easy to get wrong:
+     - the oversized type sits a step *away* from the page (darker on light,
+       lighter on dark) — never the same value as the surface;
+     - anything that faded into white to blend with the page now has to fade
+       into --nh-surface instead, or cards end in a bright halo.
+     ------------------------------------------------------------------ */
+
+  /* surfaces */
+  --nh-surface: #101113;
+  --nh-surface-2: #16181a;
+  --nh-surface-3: #0a0b0c;
+  --nh-card-bg: #1a1c1e;
+  /* The bar is transparent over the hero — these describe only the glass rail
+     that floats on it and the panel that hangs beneath. Kept low enough that
+     the hero reads through, high enough that the capsule still has an edge.
+     The panel is the one opaque surface: a soft black (#1a1a1a) rather than
+     #000, so it sits as a plate above the page instead of reading as a hole
+     punched through it — white type either way.
+
+     `--nh-nav-plate` is the surface the bar takes on once the page is under it
+     rather than the hero: the same near-opaque cast as `--nh-surface`, so the
+     bar reads as the page's own top edge and not as a second colour. */
+  --nh-nav-edge: rgba(255, 255, 255, 0.09);
+  --nh-nav-plate: rgba(16, 17, 19, 0.76);
+  --nh-nav-glass: rgba(255, 255, 255, 0.045);
+  --nh-nav-pill-bg: rgba(255, 255, 255, 0.1);
+  --nh-nav-pill-fg: rgba(241, 243, 243, 0.72);
+  --nh-mega-bg: #1a1a1a;
+  --nh-mega-edge: rgba(255, 255, 255, 0.14);
+  --nh-mega-rule: rgba(255, 255, 255, 0.1);
+  --nh-mega-fg: rgba(255, 255, 255, 0.88);
+  --nh-mega-muted: rgba(255, 255, 255, 0.45);
+  --nh-ring: #151b1e;
+
+  /* hero gradient — keeps the cool cast of the reference, inverted */
+  --nh-hero-top: #171e22;
+  --nh-hero-mid: #131719;
+  --nh-hero-bot: #0e0f11;
+  --nh-hero-glow: #1e282d;
+
+  /* ink */
+  --nh-ink: #f1f3f3;
+  --nh-ink-soft: #d5d9da;
+  --nh-muted: #8f9598;
+  --nh-muted-2: #6e7477;
+
+  /* controls — primary inverts to a light pill, secondary becomes glass */
+  --nh-solid-bg: #f2f4f4;
+  --nh-solid-fg: #0d0e10;
+  --nh-solid-bg-hover: #ffffff;
+  --nh-ghost-bg: rgba(255, 255, 255, 0.08);
+  --nh-ghost-bg-hover: rgba(255, 255, 255, 0.15);
+  --nh-hairline: rgba(255, 255, 255, 0.13);
+
+  /* chips + frosted panels */
+  --nh-panel: rgba(15, 17, 19, 0.76);
+  --nh-chip-bg: rgba(22, 25, 27, 0.72);
+  --nh-chip-fg: #eef0f0;
+
+  /* the oversized display type, on the page and across a photograph.
+     `--nh-ghost-word` is the editorial's department word ("Men's wear",
+     "Women's wear"): it carries the section on its own, so it sits a few steps
+     above the marquee's whisper — legible as type, still recessed behind the
+     shots that slide across it. */
+  --nh-ghost: #1e2226;
+  --nh-ghost-word: #474d52;
+  --nh-ghost-over: rgba(255, 255, 255, 0.86);
+
+  --nh-radius-card: 14px;
+  --nh-radius-lg: 22px;
+  --nh-radius-xl: 28px;
+
+  --nh-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --nh-ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
+
+  --nh-gutter: clamp(1rem, 3.2vw, 3.25rem);
+
+  background: var(--nh-surface);
+  color: var(--nh-ink);
+  font-family: var(--font-archivo), "Archivo", system-ui, sans-serif;
+  letter-spacing: -0.01em;
+  /* `clip`, never `hidden`: overflow-x:hidden turns this into a scroll
+     container, which un-pins the showcase's sticky viewport and freezes every
+     scroll-linked transform on the page. */
+  overflow-x: clip;
+  min-height: 100vh;
+}
+
+.nh-root *,
+.nh-root *::before,
+.nh-root *::after {
+  box-sizing: border-box;
+}
+
+/* Keep text selection inside the cool-cast theme. The storefront-wide
+   selection colour is gold, so both the root and every descendant need a
+   scoped override for /new-home and the About experience. */
+.nh-root::selection,
+.nh-root *::selection {
+  background: var(--nh-hero-glow);
+  color: var(--nh-ink);
+}
+
+/* --------------------------------------------------------------- typography */
+.nh-display {
+  font-weight: 700;
+  line-height: 0.96;
+  letter-spacing: -0.035em;
+  text-transform: uppercase;
+  font-stretch: 100%;
+}
+
+/* the second half of every headline is the light/wide cut of the same family */
+.nh-display .nh-light {
+  font-weight: 300;
+  font-stretch: 112%;
+  letter-spacing: -0.015em;
+}
+
+.nh-eyebrow {
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--nh-muted);
+  font-weight: 400;
+}
+
+.nh-body {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--nh-muted);
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+/* ------------------------------------------------------------------- navbar */
+/* The bar draws no surface of its own — whatever sits behind it (hero, page,
+   photograph) shows through, and only the two rails are glass. Everything
+   that gives it presence is a blur + hairline on those rails, so nothing here
+   paints a background across the full width. */
+.nh-nav {
+  position: relative;
+  z-index: 70;
+  width: 100%;
+  background: transparent;
+  /* The scope hands its pointer surface down to the bar — see .nh-nav-scope. */
+  pointer-events: auto;
+}
+
+/* ---- the backdrop, on the surfaces that carry no chrome.css --------------- */
+/* The bar drew nothing behind itself here because it scrolled away with the
+   hero and never had to be legible over anything else. It is sticky now (see
+   SiteNav), so it does: without a plate the wordmark and the session pill sit
+   directly on the product grid, and every photograph that scrolls under them
+   takes a piece of the type with it.
+
+   Scoped to `.nh-root`, which is only ever /new-home and the two department
+   surfaces. Every route that loads chrome.css already paints its own plate on
+   this same span and must not be handed a second one. */
+.nh-root .nh-nav__plate {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: 0;
+  pointer-events: none;
+  background: var(--nh-nav-plate);
+  backdrop-filter: blur(22px) saturate(1.3);
+  -webkit-backdrop-filter: blur(22px) saturate(1.3);
+  box-shadow: inset 0 -1px 0 0 var(--nh-hairline);
+  transition: opacity 0.5s var(--nh-ease-soft);
+}
+
+/* Anything scrolling underneath brings it in; so does an open mega panel,
+   which would otherwise appear to hang off a bar that isn't there. */
+.nh-root .nh-nav[data-elevated="true"] .nh-nav__plate,
+.nh-root .nh-nav[data-menu-open="true"] .nh-nav__plate {
+  opacity: 1;
+}
+
+.nh-nav__inner {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 1rem;
+  padding: 18px var(--nh-gutter);
+  height: var(--nh-nav-h, 92px);
+}
+
+/* ------------------------------------------------------------------- brand */
+.nh-nav__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--nh-ink);
+  justify-self: start;
+}
+
+.nh-nav__mark {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  transition: transform 0.5s var(--nh-ease);
+}
+
+.nh-nav__brand:hover .nh-nav__mark {
+  transform: rotate(180deg);
+}
+
+.nh-nav__wordmark {
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: 0.005em;
+  line-height: 1;
+  font-stretch: 106%;
+  white-space: nowrap;
+}
+
+/* On the site root the hero's headline flies up and settles here instead
+   (.hv2-brandmorph), so once the flight is up the bar stops drawing a second
+   copy of the wordmark. The span stays in flow either way — so the lockup keeps
+   its width, the link keeps its hit area, and the flight has a real slot to
+   measure its landing off — and it is faded rather than hidden, because the
+   hand-over happens under the shopper's eye as they start to scroll.
+
+   Only from `aloft`, never from the flight merely existing: at rest the letters
+   are still down on the hero, and a bar carrying nothing but the mark looked
+   like a wordmark that had failed to load. */
+.nh-nav__wordmark {
+  transition: opacity 0.3s var(--nh-ease);
+}
+
+.nh-nav__wordmark[data-morphed] {
+  opacity: 0;
+}
+
+/* Inline-block so each glyph's rect is its line box rather than the font's
+   content area — that box is what the flight lands on, and an inline span
+   would report a top a few pixels off it. */
+.nh-nav__letter {
+  display: inline-block;
+}
+
+/* -------------------------------------------------------------- centre rail */
+/* One glass capsule holding the destinations, as in the reference. The blur
+   is what separates it from the page, not a fill — at 4% white it still reads
+   over the dark hero without becoming a bar. */
+.nh-nav__rail {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  justify-self: center;
+  padding: 5px;
+  border: 1px solid var(--nh-nav-edge);
+  border-radius: 999px;
+  background: var(--nh-nav-glass);
+  backdrop-filter: blur(18px) saturate(1.25);
+  -webkit-backdrop-filter: blur(18px) saturate(1.25);
+}
+
+.nh-nav__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-self: end;
+}
+
+/* ------------------------------------------------------------ action icons */
+/* Search, wishlist, bag, account. Bare glyphs on the transparent bar — the
+   centre rail is the bar's one enclosed group, so these get the rail item's
+   hover disc rather than a capsule of their own. Sized off the ghost pill's
+   36px so the three groups share one baseline height. */
+.nh-nav__icons {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.nh-nav__icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  color: var(--nh-nav-pill-fg);
+  transition:
+    background-color 0.42s var(--nh-ease),
+    color 0.42s var(--nh-ease),
+    transform 0.42s var(--nh-ease);
+}
+
+.nh-nav__icon:hover,
+.nh-nav__icon:focus-visible,
+.nh-nav__icon[aria-current="page"] {
+  background: var(--nh-nav-pill-bg);
+  color: var(--nh-ink);
+}
+
+.nh-nav__icon:hover {
+  transform: translateY(-1px);
+}
+
+/* The tally rides the glyph's top-right corner, inked like the solid pill so
+   it reads as the one lit thing in the group. Absolute, so a count appearing
+   after hydration never re-flows the bar. */
+.nh-nav__badge {
+  position: absolute;
+  top: 0;
+  right: -1px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--nh-solid-bg);
+  color: var(--nh-solid-fg);
+  font-size: 9.5px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* -------------------------------------------------------------- rail pills */
+.nh-nav__pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  cursor: pointer;
+  color: var(--nh-nav-pill-fg);
+  transition:
+    background-color 0.42s var(--nh-ease),
+    color 0.42s var(--nh-ease),
+    transform 0.42s var(--nh-ease);
+}
+
+.nh-nav__pill--ghost:hover,
+.nh-nav__pill--ghost[data-active="true"],
+.nh-nav__pill--ghost[aria-current="page"] {
+  background: var(--nh-nav-pill-bg);
+  color: var(--nh-ink);
+}
+
+.nh-nav__pill--solid {
+  background: var(--nh-solid-bg);
+  color: var(--nh-solid-fg);
+  padding: 0 22px;
+  height: 40px;
+  font-weight: 500;
+}
+
+.nh-nav__pill--solid:hover {
+  background: var(--nh-solid-bg-hover);
+  transform: translateY(-1px);
+}
+
+.nh-nav__chevron {
+  opacity: 0.55;
+  transition: transform 0.42s var(--nh-ease);
+}
+
+.nh-nav__chevron[data-open="true"] {
+  transform: rotate(180deg);
+  opacity: 1;
+}
+
+/* --------------------------------------------------------------- mega menu */
+/* Hangs from the bar rather than pushing it: absolute, so the hero underneath
+   never shifts when a panel opens. */
+.nh-mega {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 3;
+  display: flex;
+  justify-content: center;
+  padding: 0 var(--nh-gutter);
+  will-change: transform, opacity;
+}
+
+/* Wide and shallow: the columns spread across the panel and each link list
+   flows into as many tracks as fit, so adding destinations grows the panel
+   sideways rather than dropping it further down the page.
+
+   The shell is the stable black surface — it holds its size and position
+   while the content inside it swaps, so switching between Men and Women
+   never makes the panel itself jump. */
+.nh-mega__panel {
+  position: relative;
+  display: grid;
+  width: min(1120px, 100%);
+  /* the floor the feature card is sized against — the columns alone are
+     shorter than any image worth showing */
+  min-height: 196px;
+  padding: 30px 32px;
+  overflow: hidden;
+  border: 1px solid var(--nh-mega-edge);
+  border-radius: var(--nh-radius-lg);
+  background: var(--nh-mega-bg);
+  box-shadow: 0 34px 90px -32px rgba(0, 0, 0, 0.95);
+}
+
+/* Incoming and outgoing share the one grid cell so neither displaces the
+   other while the cascade runs. */
+.nh-mega__content {
+  grid-area: 1 / 1;
+  display: flex;
+  align-items: stretch;
+  gap: clamp(2rem, 4.5vw, 4rem);
+  min-width: 0;
+}
+
+.nh-mega__col {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* A hairline between columns instead of a boxed group — it separates without
+   adding another edge to a panel that already has one. The flex gap sits to
+   the rule's left and this padding to its right, so it lands centred in the
+   channel rather than flush against the column before it. */
+.nh-mega__col + .nh-mega__col {
+  padding-left: clamp(2rem, 4.5vw, 4rem);
+  border-left: 1px solid var(--nh-mega-rule);
+}
+
+.nh-mega__heading {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--nh-mega-rule);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--nh-mega-muted);
+}
+
+.nh-mega__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 4px clamp(1.5rem, 3vw, 2.5rem);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Plain text, not a control: no fill, no radius, nothing that reads as a
+   button. The only hover affordance is the rule under the label. */
+.nh-mega__link {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 5px 0;
+  color: var(--nh-mega-fg);
+  font-size: 14.5px;
+  line-height: 1.35;
+  white-space: nowrap;
+  transition: color 0.35s var(--nh-ease);
+}
+
+.nh-mega__link:hover {
+  color: #ffffff;
+}
+
+.nh-mega__linkLabel {
+  position: relative;
+}
+
+.nh-mega__linkLabel::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -3px;
+  width: 100%;
+  height: 1px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform 0.45s var(--nh-ease);
+}
+
+.nh-mega__link:hover .nh-mega__linkLabel::after {
+  transform: scaleX(1);
+  transform-origin: left;
+}
+
+.nh-mega__tag {
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--nh-mega-muted);
+  transition: color 0.35s var(--nh-ease);
+}
+
+.nh-mega__link:hover .nh-mega__tag {
+  color: var(--nh-mega-fg);
+}
+
+/* ------------------------------------------------------------ feature card */
+/* Stretches to the column stack rather than carrying a fixed height, so the
+   card fills the panel's depth whatever the menu holds. */
+.nh-mega__featureWrap {
+  display: flex;
+  flex: none;
+  width: 300px;
+}
+
+.nh-mega__feature {
+  position: relative;
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  border-radius: var(--nh-radius-card);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.nh-mega__featureMedia {
+  position: absolute;
+  inset: 0;
+  display: block;
+  overflow: hidden;
+}
+
+.nh-mega__featureImg {
+  object-fit: cover;
+  transition: transform 0.8s var(--nh-ease);
+}
+
+.nh-mega__feature:hover .nh-mega__featureImg {
+  transform: scale(1.06);
+}
+
+.nh-mega__featureMeta {
+  position: absolute;
+  inset: auto 0 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 40px 16px 14px;
+  background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.92));
+}
+
+.nh-mega__featureTag {
+  font-size: 9.5px;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.66);
+}
+
+.nh-mega__featureLabel {
+  font-size: 16px;
+  line-height: 1.1;
+  color: #ffffff;
+}
+
+/* The bar outside .nh-root — the storefront shell mounts it above pages that
+   keep the storefront theme, so the tokens the header resolves through have
+   to travel with it. Nothing here restates a value: it is the same list
+   .nh-root declares, narrowed to the bar.
+
+   No background: the whole point of the transparent bar is that the page
+   behind shows through it. It overlays rather than occupies space, so pages
+   underneath start at the top of the viewport. */
+.nh-nav-scope {
+  --nh-nav-edge: rgba(255, 255, 255, 0.09);
+  --nh-nav-glass: rgba(255, 255, 255, 0.045);
+  --nh-nav-pill-bg: rgba(255, 255, 255, 0.1);
+  --nh-nav-pill-fg: rgba(241, 243, 243, 0.72);
+  --nh-mega-bg: #1a1a1a;
+  --nh-mega-edge: rgba(255, 255, 255, 0.14);
+  --nh-mega-rule: rgba(255, 255, 255, 0.1);
+  --nh-mega-fg: rgba(255, 255, 255, 0.88);
+  --nh-mega-muted: rgba(255, 255, 255, 0.45);
+  --nh-ink: #f1f3f3;
+  --nh-solid-bg: #f2f4f4;
+  --nh-solid-fg: #0d0e10;
+  --nh-solid-bg-hover: #ffffff;
+  --nh-radius-card: 14px;
+  --nh-radius-lg: 22px;
+
+  --nh-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --nh-ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
+  --nh-gutter: clamp(1rem, 3.2vw, 3.25rem);
+
+  position: sticky;
+  top: 0;
+  z-index: 70;
+  color: var(--nh-ink);
+  font-family: var(--font-archivo), "Archivo", system-ui, sans-serif;
+
+  /* The bar retracts on the way down the page (primary-nav.tsx) and what moves
+     is `.nh-nav`; the scope stays put, holding the bar's place. So the scope is
+     still a full-width strip across the top of the viewport with nothing drawn
+     in it — and a transparent box is hit-tested exactly like an opaque one, so
+     it would swallow every click on the content that had scrolled under it.
+     Handing the pointer surface down to the bar itself makes the strip mean
+     nothing when the bar is not in it, and changes nothing when it is: the two
+     boxes are the same box. */
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nh-nav__mark,
+  .nh-nav__chevron,
+  .nh-mega__featureImg,
+  .nh-mega__linkLabel::after {
+    transition: none;
+  }
+}
+
+/* --------------------------------------------------------------- primitives */
+.nh-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  height: 38px;
+  padding: 0 20px;
+  border-radius: 999px;
+  font-size: 12px;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+  font-weight: 400;
+  white-space: nowrap;
+  /* the pill is a link in most places and a button in the header once signed
+     in — without this the two would hover with different cursors */
+  cursor: pointer;
+  transition:
+    background-color 0.35s var(--nh-ease-soft),
+    color 0.35s var(--nh-ease-soft),
+    transform 0.35s var(--nh-ease);
+}
+
+/* the primary action inverts to a light pill; the secondary becomes glass so
+   the two stay distinguishable instead of both reading as "white on dark" */
+.nh-pill--dark {
+  background: var(--nh-solid-bg);
+  color: var(--nh-solid-fg);
+}
+
+.nh-pill--dark:hover {
+  background: var(--nh-solid-bg-hover);
+  transform: translateY(-1px);
+}
+
+/* hairlines are drawn as inset shadows, never borders — a border would eat a
+   pixel of every control's content box and shift the layout off the reference */
+.nh-pill--light {
+  background: var(--nh-ghost-bg);
+  color: var(--nh-ink);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.nh-pill--light:hover {
+  background: var(--nh-ghost-bg-hover);
+  transform: translateY(-1px);
+}
+
+.nh-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  background: var(--nh-solid-bg);
+  color: var(--nh-solid-fg);
+  transition:
+    background-color 0.35s var(--nh-ease-soft),
+    transform 0.35s var(--nh-ease);
+}
+
+.nh-icon-btn:hover {
+  background: var(--nh-solid-bg-hover);
+  transform: translateY(-1px);
+}
+
+/* -------------------------------------------------------------------- hero */
+/* Exactly one viewport tall, never taller.
+
+   This was `min-height: 100svh` against a 640px floor on the stage, so the
+   column summed to copy + 640 regardless of how much room there actually was —
+   ~998px on a 900px screen. The hero ran a hundred-odd pixels past the fold and
+   took the foot of the subject and both asides with it. Pinning the height and
+   letting the stage flex into whatever remains keeps the whole composition on
+   the first screen at every size; the subject scales to fit because it is
+   `contain`-fitted to the stage. */
+.nh-hero {
+  position: relative;
+  height: 100svh;
+  margin-top: -92px;
+  padding-top: 92px;
+  background:
+    radial-gradient(120% 80% at 50% 0%, var(--nh-hero-glow) 0%, rgba(30, 40, 45, 0) 62%),
+    linear-gradient(180deg, var(--nh-hero-top) 0%, var(--nh-hero-mid) 46%, var(--nh-hero-bot) 100%);
+  /* Clipped horizontally only. The subject is meant to hang past the bottom
+     edge at full size, and `overflow: hidden` sheared it off there; `clip` is
+     what makes the mixed pair legal, since `hidden` paired with `visible`
+     silently computes back to `auto` and would add a scrollbar. */
+  overflow-x: clip;
+  overflow-y: visible;
+  /* raised above the following sections so what hangs out paints over them
+     rather than disappearing behind the next section's background */
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Restores the clip the section gave up, for the ray fan alone. */
+.nh-hero__rayClip {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* The hairlines that fan out from behind the subject. Origin sits just below
+   the crown of the cap so they read as light thrown past the shoulders. */
+.nh-hero__rays {
+  position: absolute;
+  left: 50%;
+  top: 56%;
+  width: min(2000px, 165vw);
+  aspect-ratio: 1 / 1;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.nh-hero__ray {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 50%;
+  height: 1px;
+  transform-origin: 0 50%;
+  /* Tinted to the hero's cool cast rather than pure white, and dialled back
+     again now the fan is 19 lines instead of 8 — at the old alpha a full
+     circle of them reads as a starburst instead of stray light. Both ends
+     land on zero so the convergence point never builds up a bright knot. */
+  background: linear-gradient(
+    90deg,
+    rgba(184, 205, 214, 0) 0%,
+    rgba(184, 205, 214, 0.1) 32%,
+    rgba(184, 205, 214, 0.045) 70%,
+    rgba(184, 205, 214, 0) 100%
+  );
+}
+
+/* Tucked up under the nav. Every pixel taken off the copy block goes straight
+   to the stage, which is the flex child that absorbs the remainder — so this
+   lifts the headline and raises the subject with it. */
+.nh-hero__copy {
+  position: relative;
+  z-index: 20;
+  text-align: center;
+  padding: clamp(0.5rem, 1.2vw, 1.1rem) var(--nh-gutter) 0;
+}
+
+/* Stepped down ~12% from 6.05vw/6rem. The copy block is what the stage gets
+   the leftovers of, so trimming the headline is the one lever that lifts the
+   subject and shortens its overhang at the same time. */
+.nh-hero__title {
+  font-size: clamp(2.1rem, 5.3vw, 5.25rem);
+  margin: 0;
+}
+
+.nh-hero__cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: clamp(0.75rem, 1.4vw, 1.15rem);
+}
+
+/* The stage is the flexible half: it takes whatever height is left after the
+   copy, so the subject scales to the room available instead of dictating it.
+
+   The old floor was `clamp(320px, 46vw, 640px)` — a *width*-derived height, so
+   a wide-but-short window demanded 640px of stage no matter how little was
+   left, which is what pushed the hero past the fold. The floor is now measured
+   in svh, so it can never ask for more than the screen has. */
+.nh-hero__stage {
+  position: relative;
+  z-index: 10;
+  flex: 1;
+  min-height: min(300px, 32svh);
+  margin-top: clamp(-1.5rem, -2vw, -1rem);
+}
+
+/* The subject's resting position. Only this rule places it — the load settle
+   rides on .nh-hero__model and the scroll parallax on .nh-hero__modelParallax,
+   so moving the anchor here leaves both animations untouched.
+
+   Anchored by its TOP, just under the CTA row, and sized by width alone.
+
+   `aspect-ratio` matched to the portrait is what keeps it big. The frame used
+   to be `height: 100%` of the stage — a box far wider than it was tall once the
+   hero was capped at one viewport — so `contain` fitted the portrait to the
+   short side and letterboxed it down to under half the frame's width. Giving
+   the frame the image's own ratio means `contain` has nothing to letterbox: the
+   subject renders at the frame's full width.
+
+   The height that implies is more than the stage has, so it hangs past the
+   hero's bottom edge onto the section below. That is deliberate, and it is what
+   the overflow and z-index notes on .nh-hero exist to allow. */
+.nh-hero__modelWrap {
+  position: absolute;
+  left: 50%;
+  /* Measured from the stage's top edge, and negative: the frame is pulled up
+     behind the CTA row rather than starting below it. The portrait carries
+     transparent headroom above the subject, so the frame's top edge sits well
+     above where the head actually begins — anchoring it at a positive offset
+     left a large dead gap under the buttons. Viewport-relative so the pull
+     scales with the screen; the CTA paints over it (z-index 20 vs 12). */
+  top: clamp(-9rem, -12vh, -4.5rem);
+  bottom: auto;
+  transform: translateX(-50%);
+  /* sized so the head reads at the same share of the viewport as the
+     reference — the sourced portrait is a tighter crop than the original */
+  width: clamp(230px, 25vw, 400px);
+  aspect-ratio: 719 / 1267;
+  height: auto;
+  z-index: 12;
+}
+
+/* scroll parallax rides here, the load settle rides on .nh-hero__model —
+   two elements so the two transforms never overwrite each other */
+.nh-hero__modelParallax {
+  width: 100%;
+  height: 100%;
+}
+
+.nh-hero__model {
+  width: 100%;
+  height: 100%;
+  transform-origin: 50% 100%;
+}
+
+/* A background-removed PNG, so no mask is needed — the rays genuinely pass
+   behind the subject. `contain` shows the whole subject; bottom anchoring is
+   what lets it hang off the fold rather than shrink to fit.
+
+   Selector is deliberately over-qualified. BlindsImage's own `.nh-blinds img`
+   sets `object-fit: cover` for the photographic panels it is normally used on,
+   it is declared ~170 lines further down, and both rules score (0,1,1) — so on
+   source order alone `cover` won here and cropped the subject to fill the box.
+   Anchored to the bottom, everything it cropped came off the top: the head.
+   The extra class outscores it instead of relying on rule position. */
+.nh-hero__model .nh-blinds img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: 50% 100%;
+}
+
+/* Spec labels around the hero subject. The layer is deliberately wider than
+   the model so the labels sit just off its shoulders rather than on top of the
+   face, and it tracks the same centre line at every width. */
+.nh-hero__meta {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  top: 6%;
+  bottom: 4%;
+  width: clamp(330px, 46vw, 720px);
+  z-index: 18;
+  pointer-events: none;
+}
+
+.nh-hero__metaItem {
+  position: absolute;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.35;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+  color: rgba(241, 243, 243, 0.5);
+  white-space: nowrap;
+}
+
+.nh-hero__metaItem--tl {
+  top: 0;
+  left: 0;
+}
+
+.nh-hero__metaItem--tr {
+  top: 0;
+  right: 0;
+  text-align: right;
+}
+
+.nh-hero__metaItem--bl {
+  bottom: 0;
+  left: 0;
+  text-align: right;
+}
+
+.nh-hero__metaItem--br {
+  bottom: 0;
+  right: 0;
+}
+
+.nh-hero__metaDot {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: currentColor;
+  margin-top: 5px;
+  flex: none;
+}
+
+/* Anchored to the fold, not to the section's bottom edge. The hero is allowed
+   to run taller than 100svh so the model's torso can leave the frame — bottom
+   offsets measured off the section therefore drag the asides off-screen with
+   it. `100% - 100svh` is exactly that overflow (the section's border box starts
+   at the top of the page, under the overlaid nav), so adding it back keeps the
+   gap below each aside measured from the fold at every viewport height. */
+.nh-hero__aside {
+  position: absolute;
+  z-index: 22;
+  bottom: calc(100% - 100svh + clamp(2rem, 8vw, 6.5rem));
+  width: min(255px, 24vw);
+}
+
+.nh-hero__aside--left {
+  left: var(--nh-gutter);
+}
+
+.nh-hero__aside--right {
+  right: var(--nh-gutter);
+  width: min(300px, 26vw);
+}
+
+.nh-avatars {
+  display: flex;
+  align-items: center;
+  margin-bottom: clamp(1.5rem, 4vw, 2.75rem);
+}
+
+.nh-avatars span {
+  position: relative;
+  display: block;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  overflow: hidden;
+  box-shadow: 0 0 0 2px var(--nh-ring);
+}
+
+.nh-avatars span + span {
+  margin-left: -13px;
+}
+
+.nh-avatars img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.nh-hero__aside p {
+  text-indent: 5.5em;
+  margin: 0;
+}
+
+.nh-videocard {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 11;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--nh-surface-3);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  transform: translateZ(0);
+}
+
+.nh-videocard img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.62;
+  filter: grayscale(1) contrast(1.05);
+  transition: transform 0.9s var(--nh-ease);
+}
+
+.nh-videocard:hover img {
+  transform: scale(1.06);
+}
+
+.nh-videocard__play {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #fff;
+}
+
+/* ------------------------------------------------------- blinds reveal */
+.nh-blinds {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* every slice is a full-size copy; the band and the wipe are both carried by
+   one clip-path, so neighbouring slices can never round apart into a seam */
+.nh-blinds__strip {
+  position: absolute;
+  inset: 0;
+  will-change: clip-path, transform;
+}
+
+.nh-blinds img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ------------------------------------------------------------ section shell */
+.nh-section {
+  position: relative;
+  background: var(--nh-surface);
+  padding: clamp(4rem, 9vw, 9.5rem) 0;
+}
+
+.nh-wrap {
+  width: 100%;
+  max-width: 1560px;
+  margin: 0 auto;
+  padding: 0 var(--nh-gutter);
+}
+
+/* --------------------------------------------------- 02 · workout editorial */
+/* the composition is measured straight off the reference frame, so it is laid
+   out absolutely against a fixed-ratio stage rather than nudged with margins */
+.nh-editorial {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 800 / 480;
+  min-height: 420px;
+}
+
+.nh-editorial__ghostWrap {
+  position: absolute;
+  left: 0;
+  top: 56%;
+  width: 100%;
+  transform: translateY(-50%);
+  z-index: 1;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* The second copy of the word, clipped to a single frame. Each rule rebuilds
+   the section box inside that frame — width/height are the inverse of the
+   frame's own size, the offsets the inverse of its position — so the letters
+   land exactly on top of the page-level copy. Keep these in step with the
+   geometry on .nh-editorial__a/b/c below. */
+.nh-editorial__ghostClip {
+  position: absolute;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.nh-editorial__a .nh-editorial__ghostClip {
+  left: -43.4%;
+  top: -50%;
+  width: 694.44%;
+  height: 282.49%;
+}
+
+.nh-editorial__b .nh-editorial__ghostClip {
+  left: -134.76%;
+  top: -27.68%;
+  width: 371.75%;
+  height: 160%;
+}
+
+.nh-editorial__c .nh-editorial__ghostClip {
+  left: -517.81%;
+  top: -121.39%;
+  width: 684.93%;
+  height: 277.78%;
+}
+
+/* The base carries the geometry; the two variants below carry the colour, so
+   they have to come after it — same specificity, and the later rule wins. */
+.nh-editorial__ghost {
+  width: 100%;
+  text-align: center;
+  /* The cut is sized for the seven characters of the home page's word. The
+     line cannot wrap out of trouble (nowrap, below), so a longer department
+     word — "Women's wear" — scales down in proportion to its length instead
+     of running off the viewport. `--nh-ghost-chars` is set by the component;
+     the min() keeps shorter words from growing past the reference size. */
+  font-size: min(16.4vw, calc(16.4vw * 7 / var(--nh-ghost-chars, 7)));
+  font-weight: 300;
+  font-stretch: 118%;
+  letter-spacing: 0.005em;
+  line-height: 0.8;
+  text-transform: uppercase;
+  white-space: nowrap;
+  margin: 0;
+}
+
+/* one step lighter than the page, mirroring how the light build sat one step
+   darker — the relationship is what reads, not the absolute value */
+.nh-editorial__ghost--page {
+  color: var(--nh-ghost-word);
+}
+
+/* over a photograph the same letters still read near-white */
+.nh-editorial__ghost--over {
+  color: var(--nh-ghost-over);
+}
+
+.nh-editorial__media {
+  position: absolute;
+  border-radius: var(--nh-radius-card);
+  overflow: hidden;
+  background: var(--nh-card-bg);
+  z-index: 2;
+}
+
+.nh-editorial__a {
+  left: 6.25%;
+  top: 17.7%;
+  width: 14.4%;
+  height: 35.4%;
+}
+
+.nh-editorial__b {
+  left: 36.25%;
+  top: 17.3%;
+  width: 26.9%;
+  height: 62.5%;
+  border-radius: var(--nh-radius-lg);
+}
+
+.nh-editorial__c {
+  left: 75.6%;
+  top: 43.7%;
+  width: 14.6%;
+  height: 36%;
+}
+
+.nh-editorial__note {
+  position: absolute;
+  z-index: 3;
+}
+
+.nh-editorial__note--tr {
+  left: 74.4%;
+  top: 16%;
+  width: 17%;
+}
+
+.nh-editorial__note--bl {
+  left: 6.25%;
+  top: 77.7%;
+  width: 16%;
+}
+
+/* --------------------------------------------------------- 03 · top picks */
+.nh-picks__head {
+  display: grid;
+  grid-template-columns: 1fr minmax(0, 260px);
+  gap: 2rem;
+  align-items: start;
+  margin-bottom: clamp(1.75rem, 3.5vw, 3rem);
+}
+
+.nh-picks__title {
+  font-size: clamp(1.5rem, 3.25vw, 3.2rem);
+  margin: 0.9rem 0 0;
+}
+
+.nh-picks__grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: clamp(1rem, 1.6vw, 1.5rem);
+}
+
+.nh-pick {
+  position: relative;
+  border-radius: var(--nh-radius-lg);
+  overflow: hidden;
+  aspect-ratio: 1 / 1.02;
+  background: var(--nh-card-bg);
+  isolation: isolate;
+}
+
+.nh-pick img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 1.1s var(--nh-ease);
+}
+
+.nh-pick:hover img {
+  transform: scale(1.045);
+}
+
+/* the source fades every image into white at the foot of the card */
+.nh-pick::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  /* the foot of every pick dissolves into the page — that has to be the dark
+     surface now, or each card ends in a bright halo */
+  background: linear-gradient(
+    180deg,
+    rgba(6, 7, 8, 0.3) 0%,
+    rgba(6, 7, 8, 0.08) 34%,
+    rgba(16, 17, 19, 0.74) 86%,
+    var(--nh-surface) 100%
+  );
+  pointer-events: none;
+}
+
+.nh-pick__meta {
+  position: absolute;
+  top: clamp(1rem, 2vw, 1.75rem);
+  right: clamp(1rem, 2vw, 1.75rem);
+  z-index: 3;
+  text-align: right;
+  font-size: 12px;
+  letter-spacing: 0.03em;
+  line-height: 1.25;
+  color: rgba(255, 255, 255, 0.72);
+  text-transform: uppercase;
+}
+
+.nh-pick__title {
+  position: absolute;
+  left: clamp(1.1rem, 2.4vw, 2.25rem);
+  top: clamp(2.5rem, 6vw, 4.5rem);
+  z-index: 3;
+  margin: 0;
+  max-width: 9ch;
+  font-size: clamp(1.4rem, 2.5vw, 2.4rem);
+  font-weight: 400;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  color: #fff;
+}
+
+.nh-pick--b .nh-pick__title {
+  top: auto;
+  bottom: clamp(3.5rem, 9vw, 7rem);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+/* ------------------------------------------------- 04 · pinned showcase */
+.nh-showcase {
+  position: relative;
+  background: var(--nh-surface);
+}
+
+.nh-showcase__sticky {
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+/* runs on the section background only — the card is opaque and stacks above it,
+   so the type passes behind the shot rather than over it */
+.nh-showcase__marquee {
+  position: absolute;
+  left: 0;
+  z-index: 1;
+  width: 100%;
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+  color: var(--nh-ghost);
+  font-size: clamp(4.5rem, 12.5vw, 12.5rem);
+  font-weight: 300;
+  font-stretch: 118%;
+  line-height: 0.9;
+  letter-spacing: 0.005em;
+  text-transform: uppercase;
+}
+
+.nh-showcase__marquee--top {
+  top: 21%;
+}
+
+.nh-showcase__marquee--bottom {
+  bottom: 17%;
+}
+
+.nh-showcase__marquee span {
+  display: inline-block;
+  padding-right: 0.22em;
+}
+
+.nh-showcase__stack {
+  position: relative;
+  z-index: 5;
+  width: clamp(240px, 26vw, 400px);
+  aspect-ratio: 3 / 4.02;
+}
+
+.nh-card3d {
+  position: relative;
+  width: clamp(240px, 26vw, 400px);
+  aspect-ratio: 3 / 4.02;
+  border-radius: var(--nh-radius-lg);
+}
+
+.nh-card3d--stacked {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+}
+
+.nh-card3d__plate {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  /* the plate no longer runs dark-to-white: on a dark page that ended in a
+     glaring slab. It now lifts gently, which keeps every label light and
+     readable where the shot feathers out. */
+  background: linear-gradient(180deg, #1c1f21 0%, #26292b 34%, #33373a 68%, #3e4245 100%);
+  overflow: hidden;
+}
+
+.nh-card3d__kicker {
+  color: rgba(255, 255, 255, 0.75);
+  margin: 0 0 0.7rem;
+}
+
+.nh-card3d__introTitle {
+  font-size: clamp(1rem, 1.55vw, 1.5rem);
+  margin: 0;
+}
+
+.nh-card3d__shot {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  border-radius: inherit;
+  overflow: hidden;
+}
+
+/* the source art is a cut-out subject, so the plate stays visible around the
+   edges. These shots are full scenes, so the subject is masked down to a
+   central column to keep that read: two masks intersected — a vertical band
+   that leaves the plate exposed at the head and foot of the card, and a
+   soft-sided column so the shot reads as a subject rather than a pasted
+   rectangle. */
+.nh-card3d__shot img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 35%;
+  -webkit-mask-image:
+    linear-gradient(180deg, rgba(0, 0, 0, 0) 4%, #000 21%, #000 76%, rgba(0, 0, 0, 0) 95%),
+    radial-gradient(64% 100% at 50% 50%, #000 52%, rgba(0, 0, 0, 0) 100%);
+  mask-image:
+    linear-gradient(180deg, rgba(0, 0, 0, 0) 4%, #000 21%, #000 76%, rgba(0, 0, 0, 0) 95%),
+    radial-gradient(64% 100% at 50% 50%, #000 52%, rgba(0, 0, 0, 0) 100%);
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
+}
+
+.nh-card3d__label {
+  position: absolute;
+  z-index: 30;
+  font-size: 11.5px;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  max-width: 12ch;
+}
+
+.nh-card3d__label--tl {
+  top: 22%;
+  left: 7%;
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.nh-card3d__label--tr {
+  top: 22%;
+  right: 7%;
+  text-align: right;
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.nh-card3d__label--bl {
+  bottom: 12%;
+  left: 7%;
+  text-align: right;
+  color: rgba(241, 243, 243, 0.68);
+}
+
+.nh-card3d__label--br {
+  bottom: 12%;
+  right: 7%;
+  color: rgba(241, 243, 243, 0.68);
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.nh-card3d__dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: currentColor;
+  margin-top: 5px;
+  flex: none;
+}
+
+.nh-card3d__intro {
+  position: absolute;
+  z-index: 30;
+  top: 7%;
+  left: 0;
+  width: 100%;
+  text-align: center;
+  color: #fff;
+  padding: 0 6%;
+}
+
+/* ------------------------------------------------------- 05 · product grid */
+.nh-fits__head {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: start;
+  gap: 1rem;
+  margin-bottom: clamp(1.75rem, 3.4vw, 3.25rem);
+}
+
+.nh-fits__title {
+  font-size: clamp(1.7rem, 3.6vw, 3.4rem);
+  margin: 0;
+  text-align: center;
+}
+
+.nh-fits__grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: clamp(0.75rem, 1.3vw, 1.25rem);
+}
+
+.nh-product {
+  position: relative;
+  border-radius: var(--nh-radius-card);
+  overflow: hidden;
+  aspect-ratio: 1 / 1.45;
+  background: var(--nh-card-bg);
+  display: block;
+  isolation: isolate;
+}
+
+.nh-product img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 1.15s var(--nh-ease);
+}
+
+.nh-product:hover img {
+  transform: scale(1.055);
+}
+
+.nh-product__tags {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.nh-tag {
+  height: 26px;
+  padding: 0 13px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  font-size: 11.5px;
+  letter-spacing: 0.01em;
+  color: var(--nh-chip-fg);
+  background: var(--nh-chip-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+.nh-heart {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  display: inline-grid;
+  place-items: center;
+  color: var(--nh-chip-fg);
+  background: var(--nh-chip-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  transition: background-color 0.3s var(--nh-ease-soft);
+}
+
+.nh-product:hover .nh-heart {
+  background: rgba(38, 42, 45, 0.92);
+}
+
+.nh-product__panel {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 10px 10px 14px;
+  border-radius: 11px;
+  background: var(--nh-panel);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+
+.nh-product__name {
+  font-size: 13.5px;
+  line-height: 1.3;
+  letter-spacing: -0.005em;
+  color: var(--nh-ink);
+}
+
+.nh-product__price {
+  font-size: 12px;
+  line-height: 1.3;
+  color: var(--nh-muted);
+}
+
+.nh-product__go {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.09);
+  color: var(--nh-ink);
+  flex: none;
+  transition:
+    background-color 0.3s var(--nh-ease-soft),
+    transform 0.4s var(--nh-ease);
+}
+
+.nh-product:hover .nh-product__go {
+  background: rgba(255, 255, 255, 0.17);
+  transform: translateX(2px);
+}
+
+.nh-fits__foot {
+  display: flex;
+  justify-content: center;
+  margin-top: clamp(2rem, 4vw, 3.5rem);
+}
+
+.nh-fits__foot .nh-pill {
+  padding-right: 6px;
+  height: 40px;
+}
+
+.nh-fits__foot .nh-pill span {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: var(--nh-solid-fg);
+  color: var(--nh-solid-bg);
+}
+
+/* ------------------------------------------------------------------ footer */
+/* the page is dark now, so the footer can no longer rely on being darker than
+   it — it drops a step and takes a hairline to keep the edge legible */
+/* One base colour for every glyph in the block — the theme ink. The only
+   second tone is --nh-muted, and it appears once: the right-hand end of the
+   wordmark gradient, which is the footer's single dual-colour mark. */
+/* The footer outside .nh-root — it is the site-wide ending now, so the
+   storefront shell and the `.hv2` home scope mount it too and the tokens it
+   resolves through have to travel with it. Same idea as `.nh-nav-scope` above,
+   and nothing here restates a value: it is the list .nh-root declares,
+   narrowed to this block. Inside .nh-root these simply re-declare what is
+   already inherited. */
+.nh-foot {
+  --nh-surface-3: #0a0b0c;
+  --nh-ink: #f1f3f3;
+  --nh-muted: #8f9598;
+  --nh-hairline: rgba(255, 255, 255, 0.13);
+  --nh-ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
+  --nh-gutter: clamp(1rem, 3.2vw, 3.25rem);
+
+  background: var(--nh-surface-3);
+  border-top: 1px solid var(--nh-hairline);
+  color: var(--nh-ink);
+  font-family: var(--font-archivo), "Archivo", system-ui, sans-serif;
+  letter-spacing: -0.01em;
+  padding: clamp(2.25rem, 4vw, 3.75rem) 0 clamp(1rem, 2vw, 1.6rem);
+}
+
+.nh-foot *,
+.nh-foot *::before,
+.nh-foot *::after {
+  box-sizing: border-box;
+}
+
+.nh-foot__top {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2.5rem;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.nh-foot__lead {
+  max-width: 34ch;
+}
+
+.nh-foot__lead .nh-eyebrow,
+.nh-foot__lead .nh-body {
+  color: var(--nh-ink);
+}
+
+.nh-foot__lead .nh-body {
+  margin-top: 1rem;
+}
+
+/* Filled — as a 1px outline this was the faintest mark in the footer despite
+   being the largest thing in it. Solid, it is the block's field of colour. */
+.nh-foot__word {
+  font-size: clamp(3.4rem, 15.5vw, 15rem);
+  font-weight: 300;
+  font-stretch: 118%;
+  line-height: 0.82;
+  letter-spacing: 0.005em;
+  text-transform: uppercase;
+  /* The footer's one dual-colour mark: the white base runs into the theme blue
+     across the word. Everything else in the block is the single base colour.
+     Painted through the glyphs with background-clip, so it stays one text node
+     and the colour transition is the type itself, not a shape behind it. */
+  /* fit-content, so the box hugs the glyphs. background-clip paints the ramp
+     across the ELEMENT box, not the text — on a full-width block the word only
+     samples the left part of it and the closing stop never reaches a letter. */
+  width: fit-content;
+  color: transparent;
+  background: linear-gradient(
+    96deg,
+    var(--nh-ink) 0%,
+    var(--nh-ink) 34%,
+    var(--nh-muted) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-stroke: 0;
+  margin: clamp(2.5rem, 6vw, 5rem) 0 0;
+  white-space: nowrap;
+}
+
+.nh-foot__cols {
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(2rem, 6vw, 5rem);
+}
+
+.nh-foot__col h4 {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--nh-ink);
+  margin: 0 0 0.9rem;
+  font-weight: 400;
+}
+
+.nh-foot__col a {
+  display: block;
+  font-size: 13.5px;
+  color: var(--nh-ink);
+  padding: 3px 0;
+  transition: transform 0.3s var(--nh-ease-soft);
+}
+
+/* hover moves the link, never the hue — the blue is the blue at every state */
+.nh-foot__col a:hover {
+  transform: translateX(3px);
+}
+
+.nh-foot__bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: clamp(1.25rem, 2.4vw, 1.85rem);
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--nh-hairline);
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--nh-ink);
+}
+
+/* --------------------------------------------------------------- responsive */
+/* The centre rail is the first thing to run out of room — a 1fr / auto / 1fr
+   grid gives it only what the brand and the pill leave over. Tightening the
+   pills keeps all six destinations on one line down to tablet, where the rail
+   drops out entirely. */
+@media (max-width: 1180px) {
+  .nh-nav__inner {
+    gap: 1rem;
+    padding-inline: clamp(0.75rem, 2.4vw, 1.75rem);
+  }
+
+  .nh-nav__pill {
+    padding: 0 11px;
+    font-size: 11.5px;
+  }
+
+  .nh-nav__wordmark {
+    font-size: 17px;
+  }
+
+  .nh-nav__icons {
+    gap: 0;
+  }
+
+  .nh-nav__icon {
+    width: 34px;
+    height: 34px;
+  }
+}
+
+@media (max-width: 1100px) {
+  .nh-picks__head {
+    grid-template-columns: 1fr;
+  }
+
+  .nh-fits__grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 860px) {
+  /* Six pills will not fit beside a brand and a login, and a wrapped capsule
+     stops reading as one control. Brand and login only, until the bar earns a
+     drawer. */
+  .nh-nav__rail,
+  .nh-mega {
+    display: none;
+  }
+
+  .nh-nav__inner {
+    grid-template-columns: 1fr auto;
+    height: 74px;
+    padding-block: 14px;
+  }
+
+  .nh-hero {
+    margin-top: -74px;
+    padding-top: 74px;
+  }
+
+  .nh-hero__aside {
+    position: static;
+    width: 100%;
+    margin: 0 auto;
+    text-align: center;
+  }
+
+  .nh-hero__aside--left {
+    order: 3;
+    padding: 0 var(--nh-gutter) 2.5rem;
+  }
+
+  .nh-hero__aside--right {
+    display: none;
+  }
+
+  /* the labels have nowhere to sit once the model fills the column */
+  .nh-hero__meta {
+    display: none;
+  }
+
+  .nh-avatars {
+    justify-content: center;
+    margin-bottom: 1rem;
+  }
+
+  .nh-hero__aside p {
+    text-indent: 0;
+  }
+
+  /* below tablet the measured composition stops working — stack it instead */
+  .nh-editorial {
+    aspect-ratio: auto;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+
+  .nh-editorial__ghostWrap {
+    top: 42%;
+  }
+
+  .nh-editorial__ghost {
+    font-size: min(26vw, calc(26vw * 7 / var(--nh-ghost-chars, 7)));
+  }
+
+  .nh-editorial__media {
+    position: relative;
+    left: auto;
+    top: auto;
+    width: 100%;
+    height: auto;
+  }
+
+  .nh-editorial__a,
+  .nh-editorial__c {
+    aspect-ratio: 3 / 4;
+  }
+
+  .nh-editorial__b {
+    grid-column: 1 / -1;
+    aspect-ratio: 1 / 1;
+    order: -1;
+  }
+
+  .nh-editorial__note {
+    position: relative;
+    left: auto;
+    top: auto;
+    width: 100%;
+    grid-column: 1 / -1;
+  }
+
+  .nh-picks__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .nh-fits__grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .nh-fits__head {
+    grid-template-columns: 1fr;
+  }
+
+  .nh-fits__head .nh-eyebrow {
+    display: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .nh-fits__grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* With the rail gone the icons are the whole of the shopper's navigation, so
+     they stay — the wordmark gives up the width instead. It keeps its box
+     (never `display: none`): on the site root the hero headline measures this
+     slot to land on, and a collapsed one is a zero-width target. */
+  .nh-nav__wordmark {
+    font-size: 14px;
+  }
+
+  .nh-nav__icon {
+    width: 32px;
+    height: 32px;
+  }
+}
+
+/* Four glyphs, a wordmark and the session pill on a 320px bar. Nothing here
+   drops out: the pill is the only customer sign-out in the app, and the icons
+   are the only navigation left once the rail is gone — so the width comes out
+   of the spacing between them instead of out of the set. */
+@media (max-width: 400px) {
+  .nh-nav__inner {
+    gap: 8px;
+  }
+
+  .nh-nav__brand {
+    gap: 6px;
+  }
+
+  .nh-nav__mark {
+    width: 20px;
+    height: 20px;
+  }
+
+  .nh-nav__wordmark {
+    font-size: 13px;
+  }
+
+  .nh-nav__actions {
+    gap: 4px;
+  }
+
+  .nh-nav__icon {
+    width: 30px;
+    height: 30px;
+  }
+
+  .nh-nav__pill--solid {
+    padding: 0 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nh-root *,
+  .nh-root *::before,
+  .nh-root *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
