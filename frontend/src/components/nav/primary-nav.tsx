@@ -54,9 +54,13 @@ const INTENT = 8;
  * a navigation that had already finished. That is most of what "slow" meant
  * here — the page was ready, the furniture was still arriving.
  *
- * Module scope is exactly the right lifetime for this. It survives every
- * client-side navigation (the module is evaluated once) and resets on a real
- * page load, which is the one time the entrance is worth watching.
+ * Module scope is exactly the right lifetime for this *in the browser*. It
+ * survives every client-side navigation (the module is evaluated once) and
+ * resets on a real page load, which is the one time the entrance is worth
+ * watching. On the server the same module is shared by every request for the
+ * life of the process, so this flag says nothing about the shopper who is
+ * asking — which is why only the client is allowed to read it. See
+ * `playEntrance`.
  */
 let hasPlayedEntrance = false;
 
@@ -168,8 +172,19 @@ export function PrimaryNav({
      A lazy initialiser rather than an effect: the decision has to be made
      before the first paint, or the bar flashes in from -22px and *then* gets
      told not to. Under StrictMode's double-invoke the second call already sees
-     the flag set and returns false, which is the same answer. */
+     the flag set and returns false, which is the same answer.
+
+     The server answers `true` without touching the flag, and has to. HTML is
+     only ever rendered for a real document load, and a real document load hands
+     the browser a fresh module whose flag is false — so `true` is the answer the
+     client is certain to reach a moment later when it hydrates. Letting the
+     server read its own copy instead makes the reply depend on how many pages
+     that process has already served: a warm server says "already played",
+     paints the settled bar, and then hydration finds a client asking for the
+     -22px frame. React cannot patch inline styles across that disagreement, so
+     it drops the whole subtree's markup. */
   const [playEntrance] = useState(() => {
+    if (typeof window === "undefined") return true;
     if (hasPlayedEntrance) return false;
     hasPlayedEntrance = true;
     return true;
