@@ -17,6 +17,7 @@ import {
   redeemCoupon,
   type Coupon,
 } from "@/features/10-coupons/coupons";
+import { useVouchers } from "@/features/10-coupons/vouchers-context";
 import { useAuth } from "@/features/20-auth-security/auth-context";
 import type { CartLine } from "@/types/commerce";
 
@@ -68,25 +69,26 @@ function readBag(): CartLine[] {
 }
 
 /**
- * The stored coupon, resolved against the table on the way back in.
+ * The stored code — the code itself, never a resolved coupon.
  *
- * A code that has since been withdrawn comes back as `null` rather than as a
- * coupon nothing can honour — the same rule the bag applies to a product that
- * has left the catalogue.
+ * What a code is WORTH is not storable: a voucher's value is its remaining
+ * balance, and that changes as it is spent. So the bag remembers the code and
+ * resolves it against the live tables on every render (see `coupon` below).
+ * A code that has since been withdrawn, or a voucher spent to nothing, simply
+ * stops resolving — the same rule the bag applies to a product that has left
+ * the catalogue.
  */
-function readCoupon(): Coupon | null {
+function readCouponCode(): string | null {
   try {
-    const code = window.localStorage.getItem(COUPON_KEY);
-    if (!code) return null;
-    return COUPONS.find((entry) => entry.code === code) ?? null;
+    return window.localStorage.getItem(COUPON_KEY);
   } catch {
     return null;
   }
 }
 
-function writeCoupon(coupon: Coupon | null) {
+function writeCouponCode(code: string | null) {
   try {
-    if (coupon) window.localStorage.setItem(COUPON_KEY, coupon.code);
+    if (code) window.localStorage.setItem(COUPON_KEY, code);
     else window.localStorage.removeItem(COUPON_KEY);
   } catch {
     /* the coupon simply lasts as long as the tab */
@@ -160,18 +162,44 @@ const CartContext = createContext<CartContextValue | null>(null);
 export function CartProvider({ children }: { children: ReactNode }) {
   const [lines, setLines] = useState<CartLine[]>([]);
   const [isOpen, setDrawerOpen] = useState(false);
-  const [coupon, setCoupon] = useState<Coupon | null>(null);
+  const [couponCode, setCouponCode] = useState<string | null>(null);
   const [couponError, setCouponError] = useState<string | null>(null);
   /** false until the stored bag has been read — see the write effect below */
   const [restored, setRestored] = useState(false);
   const { subscribeToSignOut } = useAuth();
+  const { redeemable } = useVouchers();
+
+  /**
+   * Every code the bag will take: the promotional table, plus whatever store
+   * credit this browser is holding.
+   *
+   * A voucher is modelled as an amount coupon, so it needs no separate branch
+   * anywhere downstream — `discountFor` already clamps an amount to the
+   * subtotal, and every surface that quotes a discount quotes this one too.
+   */
+  const table = useMemo(() => [...redeemable, ...COUPONS], [redeemable]);
+
+  /**
+   * The applied coupon, resolved on every render rather than held in state.
+   *
+   * This is what lets a voucher work at all: its value is a balance that the
+   * vouchers store owns and that spending changes, so a copy frozen into cart
+   * state at the moment it was applied would quote the old number. It also
+   * sidesteps a mount-order problem — the vouchers store loads in a parent
+   * effect, which React runs AFTER this child's, so a voucher code restored
+   * here could not have been resolved at the time it was read.
+   */
+  const coupon = useMemo(
+    () => (couponCode ? (table.find((entry) => entry.code === couponCode) ?? null) : null),
+    [couponCode, table],
+  );
 
   /* Read after mount, never during render. The page is statically exported, so
      the markup React hydrates was written with an empty bag in it; seeding
      state from storage during the first render makes the two disagree. */
   useEffect(() => {
     setLines(readBag());
-    setCoupon(readCoupon());
+    setCouponCode(readCouponCode());
     setRestored(true);
   }, []);
 
@@ -182,8 +210,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!restored) return;
     writeBag(lines);
-    writeCoupon(coupon);
-  }, [coupon, lines, restored]);
+    writeCouponCode(couponCode);
+  }, [couponCode, lines, restored]);
 
   /* Signing out still empties the bag, and now clears the stored copy with it
      (the write effect above sees the change). That is a deliberate act on a
@@ -192,7 +220,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     return subscribeToSignOut(() => {
       setLines([]);
-      setCoupon(null);
+      setCouponCode(null);
       setCouponError(null);
       setDrawerOpen(false);
     });
@@ -225,7 +253,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
      were just bought. */
   const clearCart = useCallback(() => {
     setLines([]);
-    setCoupon(null);
+    setCouponCode(null);
     setCouponError(null);
     setDrawerOpen(false);
   }, []);
@@ -264,22 +292,22 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const applyCoupon = useCallback(
     (code: string) => {
-      const result = redeemCoupon(code, subtotal, formatPrice);
+      const result = redeemCoupon(code, subtotal, formatPrice, table);
 
       if (!result.ok) {
         setCouponError(result.reason);
         return false;
       }
 
-      setCoupon(result.coupon);
+      setCouponCode(result.coupon.code);
       setCouponError(null);
       return true;
     },
-    [subtotal],
+    [subtotal, table],
   );
 
   const clearCoupon = useCallback(() => {
-    setCoupon(null);
+    setCouponCode(null);
     setCouponError(null);
   }, []);
 
@@ -287,11 +315,16 @@ export function CartProvider({ children }: { children: ReactNode }) {
     /* A coupon that stops qualifying is HELD, not silently torn off — removing
        a line would otherwise make a discount vanish with nothing to explain it,
        and putting the line back would leave the shopper retyping a code they
-       never removed. It stops discounting and says what it is waiting for. */
+       never removed. It stops discounting and says what it is waiting for.
+
+       A voucher has no minimum to quote, so an empty bag is told the truth
+       about itself rather than being told it needs a subtotal of ₹0. */
     const discount = lines.length === 0 ? 0 : discountFor(coupon, subtotal);
     const couponPending =
       coupon && discount === 0
-        ? `${coupon.code} needs a subtotal of ${formatPrice(coupon.minSubtotal)}.`
+        ? lines.length === 0
+          ? `${coupon.code} comes off as soon as there is something in your bag.`
+          : `${coupon.code} needs a subtotal of ${formatPrice(coupon.minSubtotal)}.`
         : null;
 
     return {

@@ -23,6 +23,7 @@ import {
   reservedOrderSlots,
   trackingTokenForSlot,
 } from "@/features/07-orders/data/order-slots";
+import { recordCheckoutPayment } from "@/features/09-payment/payment-store";
 
 /**
  * Every order the app can show, from both directions.
@@ -268,6 +269,22 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
 
     archive.current = [order, ...kept];
     setPlaced(archive.current);
+
+    /* And into the console's ledger, so the back office sees the money the
+       moment the shopper does. A payment nobody there can see is not a payment
+       that happened: support cannot answer for it and nothing will reconcile
+       it. Cash on delivery records nothing — the writer knows which outcomes
+       are money, so neither caller has to. */
+    recordCheckoutPayment({
+      order: order.number,
+      customer: contact.name,
+      amount: money.total,
+      method: payment.method,
+      reference: payment.reference,
+      outcome: payment.outcome,
+      note: payment.note,
+    });
+
     return order;
   }, []);
 
@@ -280,6 +297,12 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
    */
   const settlePayment = useCallback<OrdersContextValue["settlePayment"]>(
     (orderId, payment) => {
+      /* Read before the write, so the ledger below applies the same rule the
+         map does: a retry landing on an already-captured order changes nothing
+         and records nothing. */
+      const before = archive.current.find((order) => order.id === orderId);
+      const settles = before !== undefined && before.payment.status !== "Captured";
+
       const next = archive.current.map((order) => {
         if (order.id !== orderId) return order;
         if (order.payment.status === "Captured") return order;
@@ -303,6 +326,21 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
 
       archive.current = next;
       setPlaced(next);
+
+      /* A second attempt is a second entry in the ledger, never an edit of the
+         first: what the gateway did on Tuesday is still what it did on Tuesday
+         once Wednesday's attempt succeeds. */
+      if (settles && before.money) {
+        recordCheckoutPayment({
+          order: before.number,
+          customer: before.contact?.name ?? "",
+          amount: before.money.total,
+          method: payment.method,
+          reference: payment.reference,
+          outcome: payment.outcome,
+          note: payment.note,
+        });
+      }
     },
     [],
   );

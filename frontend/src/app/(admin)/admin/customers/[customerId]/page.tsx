@@ -1,5 +1,20 @@
-import { CreditCard, EyeOff, Package, ShieldCheck, Ticket } from "lucide-react";
+import { AdminCustomerDetail } from "@/features/01-users/components/admin-customer-detail";
+import { CUSTOMER_SEED, reservedCustomerSlots } from "@/features/01-users/customers-data";
 
-const ids = ["cus-2048", "cus-2047", "cus-2031"];
-export default async function CustomerDetailPage({ params }: { params: Promise<{ customerId: string }> }) { const { customerId } = await params; return <section className="admin-workspace"><div className="admin-heading"><p>Customer / Permission-masked record</p><h1>{customerId}</h1><span>Owned commerce context without exposing unrestricted personal information.</span></div><div className="customer-detail-hero"><div><span>A</span><p><strong>A•••• K••••</strong><small>aa•••@example.com · +91 ••••• 43210</small></p></div><span><EyeOff size={15} /> PII masked</span></div><div className="admin-record-rail"><article><Package size={18} /><span>Orders</span><strong>04</strong><small>1 currently active</small></article><article><CreditCard size={18} /><span>Lifetime value</span><strong>₹42,600</strong><small>Net paid value</small></article><article><Ticket size={18} /><span>Support</span><strong>00 open</strong><small>2 historical tickets</small></article><article><ShieldCheck size={18} /><span>Account</span><strong>Verified</strong><small>No risk restrictions</small></article></div></section>; }
-export function generateStaticParams() { return ids.map((customerId) => ({ customerId })); }
+export default async function CustomerDetailPage({
+  params,
+}: {
+  params: Promise<{ customerId: string }>;
+}) {
+  const { customerId } = await params;
+  return <AdminCustomerDetail customerId={customerId} />;
+}
+
+/* The seeded register, plus the band of ids a shopper signing in on this
+   device can be given — so a customer who only exists in the browser still has
+   a page on the exported site. */
+export function generateStaticParams() {
+  return [...CUSTOMER_SEED.map((customer) => customer.id), ...reservedCustomerSlots].map(
+    (customerId) => ({ customerId }),
+  );
+}

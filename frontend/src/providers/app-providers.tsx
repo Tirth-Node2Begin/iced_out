@@ -9,6 +9,8 @@ import { CartProvider } from "@/features/04-cart/cart-context";
 import { CheckoutProvider } from "@/features/04-cart/checkout-context";
 import { CheckoutModalProvider } from "@/features/04-cart/checkout-modal-context";
 import { WishlistProvider } from "@/features/05-wishlist/wishlist-context";
+import { ReviewsProvider } from "@/features/11-reviews/reviews-context";
+import { VouchersProvider } from "@/features/10-coupons/vouchers-context";
 import { OrdersProvider } from "@/features/07-orders/orders-context";
 import { AuthProvider } from "@/features/20-auth-security/auth-context";
 import { RouteGuard } from "@/features/20-auth-security/components/route-guard";
@@ -22,29 +24,39 @@ export function AppProviders({ children }: { children: ReactNode }) {
         {/* Beside the profile for the same reason: the Addresses tab picks the
             default and the Profile tab shows it. */}
         <AddressesProvider>
-          <WishlistProvider>
-            <CartProvider>
-              <CheckoutProvider>
-                {/* Above the guard, because the archive outlives a single screen:
-                    checkout writes an order and the profile, the rail count and the
-                    order page all read that same list back. */}
-                <OrdersProvider>
-                  {/* Innermost, because checkout reads every one of the stores
-                      above it — and OUTSIDE the guard's own render, because the
-                      modal is not a route: it opens over whatever is showing,
-                      and its own wall is `openCheckout`. */}
-                  <CheckoutModalProvider>
-                    <RouteGuard>{children}</RouteGuard>
-                    {/* One mount for the whole app, and outside the guard:
-                        `toast()` is called from anywhere, the toasts portal to
-                        `document.body` regardless of where this sits in the
-                        tree, and a second mount would show every toast twice. */}
-                    <Toaster />
-                  </CheckoutModalProvider>
-                </OrdersProvider>
-              </CheckoutProvider>
-            </CartProvider>
-          </WishlistProvider>
+          {/* Wraps both ends of the review loop: the account writes one, the
+              console decides on it, and the home page quotes what was approved
+              — three screens, one register, no second copy to drift. */}
+          <ReviewsProvider>
+            <WishlistProvider>
+              {/* Above the bag, because the bag has to turn a stored voucher code
+                  back into a live balance on the way in — and because the console
+                  issues credit into the same store the storefront spends from. */}
+              <VouchersProvider>
+                <CartProvider>
+                  <CheckoutProvider>
+                    {/* Above the guard, because the archive outlives a single screen:
+                        checkout writes an order and the profile, the rail count and the
+                        order page all read that same list back. */}
+                    <OrdersProvider>
+                      {/* Innermost, because checkout reads every one of the stores
+                          above it — and OUTSIDE the guard's own render, because the
+                          modal is not a route: it opens over whatever is showing,
+                          and its own wall is `openCheckout`. */}
+                      <CheckoutModalProvider>
+                        <RouteGuard>{children}</RouteGuard>
+                        {/* One mount for the whole app, and outside the guard:
+                            `toast()` is called from anywhere, the toasts portal to
+                            `document.body` regardless of where this sits in the
+                            tree, and a second mount would show every toast twice. */}
+                        <Toaster />
+                      </CheckoutModalProvider>
+                    </OrdersProvider>
+                  </CheckoutProvider>
+                </CartProvider>
+              </VouchersProvider>
+            </WishlistProvider>
+          </ReviewsProvider>
         </AddressesProvider>
       </ProfileProvider>
     </AuthProvider>

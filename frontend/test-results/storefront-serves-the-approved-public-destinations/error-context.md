@@ -37,8 +37,6 @@ Call log:
       - /url: /new-woman
     - link "New drop":
       - /url: /new-drop
-    - link "Sale":
-      - /url: /sale
     - link "About":
       - /url: /about
     - link "Contact":
@@ -46,7 +44,7 @@ Call log:
   - link "Bag":
     - /url: /cart
   - link "Profile":
-    - /url: /auth/login?returnTo=%2Faccount
+    - /url: /auth/login?returnTo=%2Faccount%2Fprofile
   - link "Login":
     - /url: /auth/login?returnTo=%2F
   - button "Open menu"
@@ -231,6 +229,7 @@ Call log:
     - link "Careers":
       - /url: /contact
   - text: © 2026 Iced_out Every season · every workout
+- region "Notifications alt+T"
 - alert
 ```
 
@@ -347,92 +346,92 @@ Call log:
   107 | test("provides the complete admin payments workspace", async ({ page }) => {
   108 |   await page.goto("/admin/payments");
   109 |   await page.waitForURL("**/admin/login?returnTo=%2Fadmin%2Fpayments");
-  110 |   await page.getByRole("button", { name: /Open permitted workspace/ }).click();
+  110 |   await page.getByRole("button", { name: /Enter console/ }).click();
   111 |   await page.waitForURL("**/admin/payments");
-  112 |   await expect(page.getByRole("heading", { name: "Payments", exact: true })).toBeVisible();
-  113 |   await page.getByRole("link", { name: "Transactions" }).click();
-  114 |   await expect(page.getByRole("heading", { name: "Transactions" })).toBeVisible();
-  115 |   await page.getByRole("link", { name: "pay_ICE1048" }).click();
-  116 |   await page.waitForURL("**/admin/payments/transactions/pay_ICE1048");
-  117 |   await expect(page.getByRole("heading", { name: "pay_ICE1048" })).toBeVisible();
-  118 |   await page.getByRole("link", { name: "Mismatches", exact: true }).click();
-  119 |   await expect(page.getByRole("heading", { name: "Mismatches" })).toBeVisible();
-  120 |   await page.getByRole("link", { name: "Reconciliation", exact: true }).click();
-  121 |   await expect(page.getByRole("heading", { name: "Reconciliation", exact: true })).toBeVisible();
-  122 |   await page.getByRole("link", { name: "Settlements", exact: true }).click();
-  123 |   await expect(page.getByRole("heading", { name: "Settlements" })).toBeVisible();
-  124 | });
-  125 | 
-  126 | test("supports product evaluation before the customer gate", async ({ page }) => {
-  127 |   await page.goto("/product/afterdark-hoodie");
-  128 |   const product = page.locator(".pdp");
-  129 |   await expect(product.getByRole("heading", { name: "Afterdark Hoodie" })).toBeVisible();
-  130 |   await expect(product.getByRole("button", { name: "XS, sold out" })).toBeDisabled();
-  131 |   await expect(product.getByRole("button", { name: "Select a size" })).toBeDisabled();
-  132 |   await product.getByRole("button", { name: "L", exact: true }).click();
-  133 |   await expect(product.getByText("Only 2 left in this size.")).toBeVisible();
-  134 |   await expect(product.getByRole("button", { name: "Add to bag" })).toBeEnabled();
-  135 | });
-  136 | 
-  137 | test("shows privacy-safe public shipment tracking", async ({ page }) => {
-  138 |   await page.goto("/track/track-1048-demo");
-  139 |   await expect(page.getByRole("heading", { name: "In transit." })).toBeVisible();
-  140 |   await expect(page.getByText("Tokenized shipment tracking")).toBeVisible();
-  141 |   await expect(page.getByText(/no customer name, street address, mobile number, or payment data/i)).toBeVisible();
-  142 | });
+  112 |   await expect(page.getByRole("heading", { name: "Payments ledger" })).toBeVisible();
+  113 |   /* Both screens the area has left — money in, and money on to the bank.
+  114 |      Refunds moved to Returns, which is where a refund is decided. Scoped to
+  115 |      the toolbar pill: the console rail also carries a "Payments" link, and an
+  116 |      unqualified name matches both. */
+  117 |   const tabs = page.getByRole("navigation", { name: "Payments screens" });
+  118 |   await tabs.getByRole("link", { name: "Payouts", exact: true }).click();
+  119 |   await expect(page.getByRole("heading", { name: "Gateway payouts" })).toBeVisible();
+  120 |   await tabs.getByRole("link", { name: "Payments", exact: true }).click();
+  121 |   await expect(page.getByRole("heading", { name: "Payments ledger" })).toBeVisible();
+  122 |   await page.getByRole("link", { name: "Open pay_ICE1048" }).click();
+  123 |   await page.waitForURL("**/admin/payments/pay_ICE1048");
+  124 |   await expect(page.getByRole("heading", { name: "Payment pay_ICE1048" })).toBeVisible();
+  125 | });
+  126 | 
+  127 | /**
+  128 |  * The one thing that makes the payments module a ledger rather than a
+  129 |  * demonstration: money a shopper owes shows up in the back office.
+  130 |  *
+  131 |  * Cash on delivery is the case worth pinning. It is the outcome that used to
+  132 |  * write nothing at all — no gateway was asked, so nothing was recorded — and
+  133 |  * it is the only one that reaches the console still owing money.
+  134 |  */
+  135 | test("records a checkout payment in the admin ledger", async ({ page }) => {
+  136 |   /* Wide enough for the header to show the bag rather than collapse it. */
+  137 |   await page.setViewportSize({ width: 1440, height: 1000 });
+  138 |   await signInCustomer(page, "/product/afterdark-hoodie");
+  139 | 
+  140 |   const product = page.locator(".pdp");
+  141 |   await product.getByRole("button", { name: "M", exact: true }).click();
+  142 |   await product.getByRole("button", { name: "Add to bag" }).click();
   143 | 
-  144 | test("keeps customer account navigation and lifecycle actions usable", async ({ page }) => {
-  145 |   // Signed in, the bar drops its only action, so the auth page's returnTo is
-  146 |   // what carries the shopper to /account.
-  147 |   await signInCustomer(page, "/account");
-  148 |   await page.waitForURL("**/account");
-  149 |   await expect(page.getByRole("heading", { name: "Good evening." })).toBeVisible();
-  150 | 
-  151 |   const accountNavigation = page.getByRole("navigation", { name: "Account navigation" });
-  152 |   await accountNavigation.getByRole("link", { name: "Orders", exact: true }).click();
-  153 |   await expect(page.getByRole("heading", { name: "Orders." })).toBeVisible();
-  154 |   await page.getByRole("link", { name: "IO-2026-1027" }).click();
-  155 |   await expect(page.getByRole("heading", { name: "IO-2026-1027" })).toBeVisible();
-  156 |   await page.getByRole("link", { name: "Start a return" }).click();
-  157 |   await expect(page.getByRole("heading", { name: "Start a return." })).toBeVisible();
-  158 | 
-  159 |   await accountNavigation.getByRole("link", { name: "Support", exact: true }).click();
-  160 |   await expect(page.getByRole("heading", { name: "How can we help?" })).toBeVisible();
-  161 | });
-  162 | 
-  163 | test("preserves staff access across operations workspaces", async ({ page }) => {
-  164 |   await page.goto("/admin/orders");
-  165 |   await page.waitForURL("**/admin/login?returnTo=%2Fadmin%2Forders");
-  166 |   await page.getByRole("button", { name: /Open permitted workspace/ }).click();
-  167 |   await expect(page.getByRole("heading", { name: "Orders", exact: true })).toBeVisible();
-  168 | 
-  169 |   await page.getByRole("link", { name: "Support", exact: true }).click();
-  170 |   await page.waitForURL("**/admin/support/tickets");
-  171 |   await expect(page.getByRole("heading", { name: "Keep the context." })).toBeVisible();
-  172 |   await expect(page.getByText("Permission-masked context")).toBeVisible();
-  173 | });
+  144 |   /* Straight from the drawer that adding opens, which is how a shopper gets
+  145 |      there — and no page load, so the in-memory customer session survives. */
+  146 |   await page.getByRole("button", { name: "Secure checkout" }).click();
+  147 | 
+  148 |   /* Contact and address arrive pre-filled from the profile, so the steps are
+  149 |      answered already — Continue walks them to the one that is not. */
+  150 |   const cod = page.getByText("Pay the courier when the parcel arrives");
+  151 |   for (let step = 0; step < 3 && !(await cod.isVisible()); step += 1) {
+  152 |     await page.getByRole("button", { name: "Continue" }).click();
+  153 |   }
+  154 | 
+  155 |   await cod.click();
+  156 |   await page.getByRole("button", { name: /^Checkout · / }).click();
+  157 | 
+  158 |   await page.waitForURL(/\/orders\/ord-local-\d+/);
+  159 |   const heading = page.getByRole("heading", { level: 1, name: /^Order IO-/ });
+  160 |   await expect(heading).toBeVisible();
+  161 |   const number = (await heading.innerText()).match(/IO-\d{4}-\d+/)?.[0];
+  162 |   expect(number, "the order screen names the order it just placed").toBeTruthy();
+  163 | 
+  164 |   /* The ledger lives in this browser, so the same order is waiting in the
+  165 |      console — under a staff sign-in of its own, which the shopper's session
+  166 |      has nothing to do with. */
+  167 |   await page.goto("/admin/payments");
+  168 |   await page.getByRole("button", { name: /Enter console/ }).click();
+  169 |   await page.waitForURL("**/admin/payments");
+  170 | 
+  171 |   const row = page.getByRole("row").filter({ hasText: number! });
+  172 |   await expect(row).toContainText("Cash on delivery");
+  173 |   await expect(row).toContainText("Due");
   174 | 
-  175 | test("serves versioned policy and staff recovery pages", async ({ page }) => {
-  176 |   await page.goto("/pages/return-policy");
-  177 |   await expect(page.getByRole("heading", { name: "Return policy." })).toBeVisible();
-  178 |   await expect(page.getByRole("heading", { name: "Evidence and quality control" })).toBeVisible();
+  175 |   /* And the one verb it offers settles it. */
+  176 |   await row.getByRole("button", { name: /Mark .* collected/ }).click();
+  177 |   await expect(row).toContainText("Captured");
+  178 | });
   179 | 
-  180 |   await page.goto("/admin/forgot-password");
-  181 |   await expect(page.getByRole("heading", { name: "Recover access." })).toBeVisible();
-  182 |   await expect(page.getByText(/No credential or recovery request leaves this browser/)).toBeVisible();
-  183 | });
-  184 | 
-  185 | test("covers the remaining planned admin module families", async ({ page }) => {
-  186 |   await page.goto("/admin/marketing/coupons");
-  187 |   await page.waitForURL("**/admin/login?returnTo=%2Fadmin%2Fmarketing%2Fcoupons");
-  188 |   await page.getByRole("button", { name: /Open permitted workspace/ }).click();
-  189 |   await expect(page.getByRole("heading", { name: "Build a promise you can keep." })).toBeVisible();
+  180 | test("supports product evaluation before the customer gate", async ({ page }) => {
+  181 |   await page.goto("/product/afterdark-hoodie");
+  182 |   const product = page.locator(".pdp");
+  183 |   await expect(product.getByRole("heading", { name: "Afterdark Hoodie" })).toBeVisible();
+  184 |   await expect(product.getByRole("button", { name: "XS, sold out" })).toBeDisabled();
+  185 |   await expect(product.getByRole("button", { name: "Select a size" })).toBeDisabled();
+  186 |   await product.getByRole("button", { name: "L", exact: true }).click();
+  187 |   await expect(product.getByText("Only 2 left in this size.")).toBeVisible();
+  188 |   await expect(product.getByRole("button", { name: "Add to bag" })).toBeEnabled();
+  189 | });
   190 | 
-  191 |   await page.getByRole("link", { name: "campaigns", exact: true }).click();
-  192 |   await expect(page.getByRole("heading", { name: "Release with intent." })).toBeVisible();
-  193 |   await page.getByRole("link", { name: "Messages", exact: true }).click();
-  194 |   await expect(page.getByRole("heading", { name: "Transactional clarity." })).toBeVisible();
-  195 |   await page.getByRole("link", { name: "Inventory", exact: true }).click();
-  196 |   await expect(page.getByRole("heading", { name: "Stock truth" })).toBeVisible();
-  197 |   await page.getByRole("link", { name: "counts", exact: true }).click();
+  191 | test("shows privacy-safe public shipment tracking", async ({ page }) => {
+  192 |   await page.goto("/track/track-1048-demo");
+  193 |   await expect(page.getByRole("heading", { name: "In transit." })).toBeVisible();
+  194 |   await expect(page.getByText("Tokenized shipment tracking")).toBeVisible();
+  195 |   await expect(page.getByText(/no customer name, street address, mobile number, or payment data/i)).toBeVisible();
+  196 | });
+  197 | 
 ```

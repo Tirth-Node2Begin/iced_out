@@ -1,3 +1,12 @@
 import type { ReactNode } from "react";
-import { AdminModuleNav } from "@/components/admin/admin-module-nav";
-export default function InventoryLayout({ children }: { children: ReactNode }) { return <><AdminModuleNav label="Inventory" links={["overview","movements","counts","transfers","warehouses"].map((page) => ({href:`/admin/inventory/${page}`,label:page}))} />{children}</>; }
+
+/**
+ * No nav band of its own. Inventory's three screens are named inside each
+ * register's toolbar instead — see `InventoryTabs` — so the area reads as one
+ * row of controls rather than a strip of tabs above a strip of filters.
+ *
+ * The segment keeps a layout so its `loading.tsx` still has one to suspend in.
+ */
+export default function InventoryLayout({ children }: { children: ReactNode }) {
+  return children;
+}

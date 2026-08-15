@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+
+import { sectionTitle } from "@/lib/tab-title";
 import type { ReactNode } from "react";
 import { Archivo } from "next/font/google";
 
@@ -22,7 +24,8 @@ const archivo = Archivo({
 });
 
 export const metadata: Metadata = {
-  title: "Iced_out — Men's training wear",
+  /* A section, not a leaf: `[slug]` titles itself with the piece's name. */
+  title: sectionTitle("Men"),
   description:
     "Performance-driven menswear: tees, joggers, thermals, and shells built for summer heat and winter cold.",
 };

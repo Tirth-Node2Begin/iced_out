@@ -19,7 +19,15 @@
 /* The wrapper the shell puts around the whole storefront: the bar, the page,
    and the footer all read their ink from here, so the three screens no longer
    depend on whichever stylesheet a route group happened to import. */
-.io-scope {
+/* The token layer and the page shell used to be one selector, which meant an
+   `.io-*` component could only be styled inside a full-page `.io-scope`: drop
+   one on a route that does not use the frame (the search results, say) and
+   every surface, hairline and button fill resolved to an invalid value and the
+   whole block painted transparent. `.io-tokens` carries the palette alone, so
+   a component can be given the token layer without also being given a
+   100vh-tall page background. */
+.io-scope,
+.io-tokens {
   --io-nav-h: 74px;
   --io-nav-plate: rgba(14, 15, 17, 0.74);
   --io-nav-scrim: rgba(8, 9, 10, 0.6);
@@ -77,7 +85,10 @@
   --ease-emphasized: var(--nh-ease);
   --page-gutter: var(--nh-gutter);
   --ice-black-500: #2a2e31;
+}
 
+/* The page shell: only the frame takes the full-height background. */
+.io-scope {
   display: flow-root;
   min-height: 100vh;
   background: var(--nh-surface);
@@ -86,9 +97,18 @@
   letter-spacing: -0.01em;
 }
 
+.io-tokens {
+  color: var(--nh-ink);
+  font-family: var(--font-archivo), "Archivo", system-ui, sans-serif;
+  letter-spacing: -0.01em;
+}
+
 .io-scope *,
 .io-scope *::before,
-.io-scope *::after {
+.io-scope *::after,
+.io-tokens *,
+.io-tokens *::before,
+.io-tokens *::after {
   box-sizing: border-box;
 }
 
@@ -1195,7 +1215,9 @@
   box-shadow: inset 0 0 0 1px var(--nh-hairline);
 }
 
-.io-empty h2 {
+/* h1 as well as h2 — on a product that no longer resolves, the empty state is
+   the whole page and its heading is the page's only one. */
+.io-empty :is(h1, h2) {
   margin: 0;
   font-size: clamp(1.35rem, 2.4vw, 1.85rem);
   font-weight: 300;
@@ -1232,6 +1254,102 @@
   .io-empty:has(.io-empty__copy) {
     min-height: 0;
     padding: clamp(2.5rem, 9vw, 3.25rem) 1.25rem;
+  }
+}
+
+/* ---- 5.1b listing plate -------------------------------------------------- */
+/* The campaign image on a listing page, after the masthead took the type.
+   It used to be a 0.44fr column beside a left-aligned headline; against a
+   centred masthead it becomes a full-measure band under it, which is also the
+   only shape that lets the signal strip run the width it was drawn for. */
+.listing-plate {
+  position: relative;
+  min-height: clamp(300px, 36vw, 520px);
+  margin-bottom: clamp(2.5rem, 5vw, 4rem);
+  overflow: hidden;
+  border-radius: var(--nh-radius-lg);
+  background: var(--nh-surface-2);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.listing-plate > img {
+  object-fit: cover;
+  transition: transform 900ms var(--nh-ease);
+}
+
+.listing-plate:hover > img {
+  transform: scale(1.02);
+}
+
+/* A floor under the strip, so the labels never sit on whatever the photograph
+   happens to be doing at the bottom edge. */
+.listing-plate::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 55%;
+  pointer-events: none;
+  background: linear-gradient(to top, rgba(5, 5, 6, 0.88), transparent);
+}
+
+.listing-plate .listing-hero__edition {
+  top: 16px;
+  left: 16px;
+  border: 0;
+  border-radius: 999px;
+  padding: 8px 13px;
+  background: var(--nh-panel);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  backdrop-filter: blur(18px);
+}
+
+.listing-plate .listing-signal {
+  position: absolute;
+  z-index: 3;
+  right: 14px;
+  bottom: 14px;
+  left: 14px;
+  border: 0;
+  border-radius: var(--nh-radius-card);
+  grid-template-columns: repeat(3, 1fr);
+  background: var(--nh-panel);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  backdrop-filter: blur(18px);
+}
+
+.listing-plate .listing-signal > span {
+  min-height: 68px;
+  padding: 12px 14px;
+  border-bottom: 0;
+  box-shadow: inset 1px 0 0 0 var(--nh-hairline);
+  color: var(--nh-ink-soft);
+}
+
+.listing-plate .listing-signal > span:first-child {
+  box-shadow: none;
+}
+
+/* These sections carry their own page padding for the routes that still render
+   them standalone. Inside the frame, the frame already spaced them. */
+.io-page__body > .listing-products,
+.io-page__body > .collection-index {
+  padding-block: 0 clamp(1rem, 2vw, 2rem);
+}
+
+@media (max-width: 760px) {
+  .listing-plate .listing-signal {
+    grid-template-columns: 1fr;
+  }
+
+  .listing-plate .listing-signal > span {
+    min-height: 48px;
+    box-shadow: inset 0 1px 0 0 var(--nh-hairline);
+  }
+
+  .listing-plate .listing-signal > span:first-child {
+    box-shadow: none;
   }
 }
 
@@ -2312,11 +2430,37 @@
    orders, sessions, channels — are `<table>`s, not grids pretending to be one.
 
    Card layering: page #101113 → panel #16181a → inner card #1a1c1e. */
+/* The account, top to bottom: the shopper's banner across the full width, then
+   the rail and the tab beside each other under it. The identity card is the
+   answer to "whose account is this", so it is not indented behind the menu —
+   it spans both columns and the tab below starts with its own subject. */
+.io-account {
+  display: grid;
+  width: min(100%, 1320px);
+  margin-inline: auto;
+  gap: clamp(1.25rem, 2.4vw, 2rem);
+}
+
 .io-profile {
   display: grid;
   align-items: start;
   gap: clamp(1.25rem, 2.4vw, 2rem);
   grid-template-columns: 300px minmax(0, 1fr);
+}
+
+/* The panel a tab is served in. Moving between tabs changes everything in this
+   column at once, so it arrives as one object — a short rise, not eight panels
+   each finding their own way in. The rail and the banner do not move: they are
+   the parts of the screen that did not change. */
+.io-tab {
+  animation: io-tab-in 0.36s var(--nh-ease) both;
+}
+
+@keyframes io-tab-in {
+  from {
+    opacity: 0;
+    transform: translateY(9px);
+  }
 }
 
 @media (max-width: 980px) {
@@ -3187,6 +3331,29 @@
   gap: 14px;
 }
 
+/* The banner's edit state. The panel is as wide as the banner it replaces, so
+   the form is laid out to fill it rather than run down its left edge: the photo
+   row across the top, then the three details as three columns of one line each,
+   then the buttons on the right. Capping the form instead left a column of
+   inputs with an empty half-panel beside it. */
+.io-form--profile {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: start;
+  gap: 16px 18px;
+}
+
+.io-form--profile > .io-photo,
+.io-form--profile > .io-actions {
+  grid-column: 1 / -1;
+}
+
+/* Three fields side by side need room to be read; below this they stack. */
+@media (max-width: 900px) {
+  .io-form--profile {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .io-form__row {
   display: grid;
   gap: 14px;
@@ -3517,36 +3684,81 @@
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
 }
 
+/* An address card is read in three beats — which address, what it says, what
+   can be done to it — so it is three rows: label, address, actions. The middle
+   row takes the slack, which is what keeps a two-line address and a four-line
+   one showing their buttons on the same line across a row of cards. */
 .io-card {
   display: grid;
-  align-content: start;
-  padding: 18px;
+  padding: 16px;
   border-radius: var(--nh-radius-card);
   gap: 12px;
+  grid-template-rows: auto 1fr auto;
   background: var(--nh-card-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  transition: box-shadow 0.3s var(--nh-ease);
+}
+
+/* The hairline only — the card is not a link, and lifting the whole surface on
+   hover the way a quick action does would promise a press it does not take. */
+.io-card:hover {
+  box-shadow: inset 0 0 0 1px var(--nh-ink-soft);
+}
+
+/* Saved and removed addresses arrive and leave between renders, so a card
+   fades up on the way in. It plays on mount only: the cards that were already
+   on screen when one was added keep still, which is what makes the new one
+   readable as the new one. */
+.io-card {
+  animation: io-card-in 0.3s var(--nh-ease) both;
+}
+
+@keyframes io-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* Inside a dialog the card is a quotation, not a control — no hover, and no
+   entrance of its own on top of the box's. */
+.io-card--quiet {
+  animation: none;
+}
+
+.io-card--quiet:hover {
   box-shadow: inset 0 0 0 1px var(--nh-hairline);
 }
 
 .io-card--dashed {
   align-content: center;
   justify-items: center;
+  min-height: 148px;
   border: 1px dashed var(--nh-hairline);
+  gap: 8px;
+  grid-template-rows: none;
   background: transparent;
   color: var(--nh-muted);
   font-size: 12.5px;
   text-align: center;
   box-shadow: none;
   cursor: pointer;
-  transition: border-color 0.3s var(--nh-ease);
+  transition:
+    border-color 0.3s var(--nh-ease),
+    color 0.3s var(--nh-ease);
 }
 
 .io-card--dashed:hover {
   border-color: var(--nh-ink-soft);
   color: var(--nh-ink);
+  box-shadow: none;
 }
 
+/* 23px is the badge — held whether or not this card is the default one, so the
+   labels sit on one line across the row instead of stepping down. */
 .io-card__head {
   display: flex;
+  min-height: 23px;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
@@ -3568,10 +3780,39 @@
   line-height: 1.75;
 }
 
+/* The foot of the card, under a rule: what can be done here, kept quiet enough
+   that three of them fit on one line and the address above stays the loudest
+   thing in the card. The pill only appears under the cursor. */
 .io-card__actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  align-items: center;
+  padding-top: 11px;
+  border-top: 1px solid var(--nh-hairline);
+  gap: 4px;
+}
+
+.io-card__actions .io-btn--ghost {
+  height: 30px;
+  padding: 0 9px;
+  background: transparent;
+  color: var(--nh-muted);
+  font-size: 10px;
+  gap: 5px;
+  letter-spacing: 0.06em;
+  box-shadow: none;
+}
+
+.io-card__actions .io-btn--ghost:hover {
+  background: var(--nh-ghost-bg);
+  color: var(--nh-ink);
+  transform: none;
+}
+
+/* Cancels the first button's own padding so the row of actions starts on the
+   same vertical as the address above it. */
+.io-card__actions > .io-btn:first-child {
+  margin-left: -9px;
 }
 
 /* ---- 8.14 small parts ---------------------------------------------------- */
@@ -3776,6 +4017,100 @@
   padding: 16px 22px calc(16px + env(safe-area-inset-bottom, 0px));
   gap: 10px;
   box-shadow: inset 0 1px 0 0 var(--nh-hairline);
+}
+
+/* A box that asks one question — narrower than the form dialogs, because the
+   whole of it is a short sentence and the thing being asked about. */
+.io-modal--ask {
+  width: min(430px, calc(100vw - 32px));
+}
+
+.io-modal--ask .io-modal__body {
+  display: grid;
+  gap: 12px;
+}
+
+/* What happens after the answer — which address inherits the default, or that
+   the book is about to be empty. */
+.io-modal__aside {
+  margin: 0;
+  color: var(--nh-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.io-modal__aside strong {
+  color: var(--nh-ink-soft);
+  font-weight: 500;
+}
+
+/* ---- 8.14b the voucher a shopper redeems -------------------------------- */
+/* The code is the whole point of the dialog, so it is set at a size you can
+   read across a desk and in the mono face the rest of the app uses for things
+   that get typed back in. */
+.io-voucher {
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+  padding: 26px 18px;
+  border: 1px dashed var(--nh-hairline);
+  border-radius: 14px;
+  text-align: center;
+}
+
+.io-voucher__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--nh-muted);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.io-voucher__code {
+  font: 400 30px/1.1 var(--font-mono, monospace);
+  letter-spacing: 0.06em;
+  word-break: break-all;
+}
+
+.io-voucher__worth {
+  color: var(--nh-muted);
+  font-size: 13px;
+}
+
+.io-voucher__state {
+  margin-top: 3px;
+}
+
+.io-voucher__facts {
+  display: grid;
+  margin-top: 18px;
+}
+
+.io-voucher__facts > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 12px 0;
+  border-top: 1px solid var(--nh-hairline);
+  font-size: 12px;
+}
+
+.io-voucher__facts dt {
+  color: var(--nh-muted);
+}
+
+.io-voucher__facts dd {
+  margin: 0;
+  text-align: right;
+}
+
+.io-voucher__rule {
+  margin-top: 16px;
+  color: var(--nh-muted);
+  font-size: 11.5px;
+  line-height: 1.6;
 }
 
 /* ---- 8.15 profile: the read view and the photo -------------------------- */

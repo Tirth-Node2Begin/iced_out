@@ -1,23 +1,151 @@
-import { AlertTriangle, ArrowRight, Check, FileSpreadsheet, FolderKanban, Layers3, Search, Tags, Upload } from "lucide-react";
+"use client";
 
-type CatalogOperationsView = "categories" | "collections" | "imports";
+import { CheckCircle2, Clock3, FileEdit, FolderKanban, Layers3, Tags } from "lucide-react";
 
-const categories = [
-  { name: "Outerwear", slug: "outerwear", products: 14, completion: 96, note: "Size chart linked" },
-  { name: "Essentials", slug: "essentials", products: 22, completion: 88, note: "2 descriptions need review" },
-  { name: "Bottoms", slug: "bottoms", products: 9, completion: 74, note: "SEO copy missing" },
+import { StatGrid, type Stat } from "@/components/admin/admin-stats";
+import { AdminPage } from "@/components/admin/admin-ui";
+import {
+  RecordManager,
+  type Column,
+  type FormField,
+  type RecordRow,
+} from "@/components/admin/record-manager";
+import { useCatalog } from "@/features/02-products/catalog-context";
+import { COLLECTION_STATES, mintSlug } from "@/features/02-products/catalog-seed";
+import { CatalogTabs } from "@/features/02-products/components/catalog-tabs";
+
+export type CatalogOperationsView = "categories" | "collections";
+
+/* ---- categories ---------------------------------------------------------- */
+
+const CATEGORY_COLUMNS: Column[] = [
+  { key: "name", label: "Category", primary: true, sub: "id" },
+  { key: "products", label: "Products", align: "right", numeric: true },
 ];
 
-const collections = [
-  { name: "Drop 001", state: "Live", products: "04 pieces", window: "Live · 320 numbered units", signal: "84% sold" },
-  { name: "After Hours", state: "Scheduled", products: "08 pieces", window: "12 Aug · 20:00 IST", signal: "Preview ready" },
-  { name: "Core Uniform", state: "Draft", products: "06 pieces", window: "No publish window", signal: "3 blockers" },
+const CATEGORY_FIELDS: FormField[] = [
+  { key: "name", label: "Category name", placeholder: "Outerwear", required: true },
+  { key: "products", label: "Products", type: "number", initial: "0" },
 ];
+
+/* ---- collections --------------------------------------------------------- */
+
+const COLLECTION_COLUMNS: Column[] = [
+  { key: "name", label: "Collection", primary: true, sub: "id" },
+  { key: "pieces", label: "Pieces", align: "right", numeric: true },
+  { key: "status", label: "State", status: true },
+];
+
+const COLLECTION_FIELDS: FormField[] = [
+  { key: "name", label: "Collection name", placeholder: "After Hours", required: true },
+  { key: "pieces", label: "Pieces", type: "number", initial: "0" },
+  /* Draft first, for the same reason a product starts as one. */
+  { key: "status", label: "State", type: "select", options: COLLECTION_STATES, initial: "Draft" },
+];
+
+/**
+ * The slug is minted from the name and then held: it is what a product's
+ * category and a collection's page are filed under, so a rename must not
+ * quietly re-file everything pointing at it.
+ */
+function deriveSlug(values: RecordRow, rows: RecordRow[], previous?: RecordRow): RecordRow {
+  if (previous) return values;
+  return { ...values, id: mintSlug(values.name, rows.map((row) => row.id)) };
+}
+
+function tally(rows: RecordRow[], key: string) {
+  const total = rows.reduce((sum, row) => sum + (Number.parseInt(row[key] ?? "", 10) || 0), 0);
+  return String(total);
+}
+
+function count(rows: RecordRow[], status: string) {
+  return String(rows.filter((row) => row.status === status).length).padStart(2, "0");
+}
 
 export function CatalogOperations({ view }: { view: CatalogOperationsView }) {
-  if (view === "categories") return <section className="admin-workspace"><div className="admin-heading admin-heading--actions"><div><p>Catalog / Classification</p><h1>Category system.</h1><span>Internal taxonomy powers filters and merchandising without expanding the approved public navigation.</span></div><button className="admin-primary" type="button"><Tags size={15} /> New category</button></div><div className="admin-toolbar"><label><Search size={16} /><input aria-label="Search categories" placeholder="Name, slug, attribute" /></label><button type="button">Sort · Merchandising order</button></div><div className="admin-domain-cards">{categories.map((item, index) => <article key={item.slug}><div className="domain-card-index">0{index + 1}</div><div><span>/{item.slug}</span><h2>{item.name}</h2><p>{item.products} products · {item.note}</p></div><div className="domain-progress"><span>Completeness</span><i><b style={{width:`${item.completion}%`}} /></i><strong>{item.completion}%</strong></div><button aria-label={`Edit ${item.name}`} type="button"><ArrowRight size={16} /></button></article>)}</div><div className="admin-action-bar"><p><Check size={14} /> Category edits never create new top-level public routes; destinations remain plan-controlled.</p><button type="button">Review attribute vocabulary</button></div></section>;
+  const { categories, collections, commit } = useCatalog();
 
-  if (view === "collections") return <section className="admin-workspace"><div className="admin-heading admin-heading--actions"><div><p>Catalog / Merchandising</p><h1>Collection desk.</h1><span>Curate product order, campaign content, release windows, and customer-facing story in one versioned surface.</span></div><button className="admin-primary" type="button"><FolderKanban size={15} /> Create collection</button></div><div className="collection-ops">{collections.map((item, index) => <article key={item.name}><div className={`collection-ops__visual is-${index + 1}`}><Layers3 size={24} /><span>COL / 00{index + 1}</span></div><div><span className={`admin-status ${item.state === "Live" ? "admin-status--captured" : "admin-status--review"}`}>{item.state}</span><h2>{item.name}</h2><p>{item.products}</p><dl><div><dt>Window</dt><dd>{item.window}</dd></div><div><dt>Signal</dt><dd>{item.signal}</dd></div></dl><button type="button">Open composition <ArrowRight size={15} /></button></div></article>)}</div></section>;
+  if (view === "categories") {
+    const stats: Stat[] = [
+      { label: "Categories", value: String(categories.length).padStart(2, "0"), icon: Tags, tone: "sky", note: "Internal taxonomy only" },
+      { label: "Products classified", value: tally(categories, "products"), icon: Layers3, tone: "violet", note: "Across every category" },
+    ];
 
-  return <section className="admin-workspace"><div className="admin-heading"><p>Catalog / Controlled ingestion</p><h1>Import without surprises.</h1><span>Validate every row in quarantine, explain every rejection, and publish nothing until the complete batch passes.</span></div><div className="import-workbench"><label><Upload size={30} /><strong>Drop a catalog CSV</strong><span>UTF-8 CSV · 5 MB maximum · images remain separate</span><input type="file" accept=".csv,text/csv" /></label><aside><FileSpreadsheet size={24} /><h2>Schema v4</h2><p>Product, variant, SKU, price, inventory, shipping, SEO, and size-chart columns.</p><button type="button">Download template</button></aside></div><div className="admin-section-title"><div><h2>Recent validation runs</h2><p>No browser upload changes catalog state in this preview.</p></div></div><div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>Batch</th><th>File</th><th>Rows</th><th>Valid</th><th>Rejected</th><th>State</th></tr></thead><tbody><tr><td><strong>IMP-084</strong></td><td>drop-002-variants.csv</td><td>128</td><td>124</td><td>04</td><td><span className="admin-status admin-status--review"><AlertTriangle size={12} /> Needs correction</span></td></tr><tr><td><strong>IMP-083</strong></td><td>core-restock.csv</td><td>42</td><td>42</td><td>00</td><td><span className="admin-status admin-status--captured"><Check size={12} /> Validated</span></td></tr></tbody></table></div></section>;
+    return (
+      <AdminPage
+        eyebrow="Catalog · Classification"
+        icon={Tags}
+        lede="Internal taxonomy that powers filters and merchandising. Categories never create public routes — the storefront's navigation stays plan-controlled."
+        spec={[
+          { label: "Categories", value: String(categories.length).padStart(2, "0") },
+          { label: "Products", value: tally(categories, "products") },
+        ]}
+        title={
+          <>
+            Category <em>system</em>
+          </>
+        }
+      >
+        <StatGrid stats={stats} />
+        <RecordManager
+          columns={CATEGORY_COLUMNS}
+          derive={deriveSlug}
+          fields={CATEGORY_FIELDS}
+          /* No state to be in, so the one chip is the whole register — kept
+             rather than dropped so the row of controls does not change shape
+             between the three catalogue screens. */
+          filterValues={[]}
+          icon={Tags}
+          onCommit={(next) => commit("categories", next)}
+          plural="categories"
+          rows={categories}
+          searchKeys={["name", "id", "products"]}
+          singular="category"
+          toolbarLead={<CatalogTabs />}
+          tone="sky"
+        />
+      </AdminPage>
+    );
+  }
+
+  const stats: Stat[] = [
+    { label: "Published", value: count(collections, "Published"), icon: CheckCircle2, tone: "mint", note: "Live on the storefront" },
+    { label: "Scheduled", value: count(collections, "Scheduled"), icon: Clock3, tone: "amber", note: "Waiting on a release" },
+    { label: "Draft", value: count(collections, "Draft"), icon: FileEdit, tone: "violet", note: "Not visible to shoppers" },
+    { label: "Pieces", value: tally(collections, "pieces"), icon: Layers3, tone: "sky", note: "Across every collection" },
+  ];
+
+  return (
+    <AdminPage
+      eyebrow="Catalog · Merchandising"
+      icon={FolderKanban}
+      lede="Product order, campaign content and the customer-facing story, in one versioned surface per collection."
+      spec={[
+        { label: "Collections", value: String(collections.length).padStart(2, "0") },
+        { label: "Published", value: count(collections, "Published") },
+        { label: "Pieces", value: tally(collections, "pieces") },
+      ]}
+      title={
+        <>
+          Collection <em>desk</em>
+        </>
+      }
+    >
+      <StatGrid stats={stats} />
+      <RecordManager
+        columns={COLLECTION_COLUMNS}
+        derive={deriveSlug}
+        fields={COLLECTION_FIELDS}
+        filterKey="status"
+        filterValues={COLLECTION_STATES}
+        icon={FolderKanban}
+        onCommit={(next) => commit("collections", next)}
+        rows={collections}
+        searchKeys={["name", "id", "pieces", "status"]}
+        singular="collection"
+        toolbarLead={<CatalogTabs />}
+        tone="violet"
+      />
+    </AdminPage>
+  );
 }

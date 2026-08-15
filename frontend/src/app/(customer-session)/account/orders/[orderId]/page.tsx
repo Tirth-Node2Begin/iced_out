@@ -1,8 +1,13 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 
 import { CustomerOrderDetail } from "@/features/07-orders/components/customer-order-detail";
 import { orderFixtures } from "@/features/07-orders/data/order-fixtures";
 import { reservedOrderSlots } from "@/features/07-orders/data/order-slots";
+
+/* No order number in the tab: it is a customer record, and tabs end up in
+   screenshots and shared screens. */
+export const metadata: Metadata = { title: "Order" };
 
 export default async function OrderDetailPage({
   params,

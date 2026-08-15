@@ -25,7 +25,7 @@ const archivo = Archivo({
 });
 
 export const metadata: Metadata = {
-  title: "Iced_out — Uniforms for after dark",
+  title: "Home",
   description:
     "Heavyweight streetwear engineered for after dark. Limited by design.",
 };

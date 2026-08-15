@@ -65,6 +65,7 @@ import {
   withCurrent,
 } from "@/features/04-cart/india-regions";
 import { useOrders, type PaymentOutcome } from "@/features/07-orders/orders-context";
+import { useVouchers } from "@/features/10-coupons/vouchers-context";
 import { cardLabel, type CardDraft } from "@/features/09-payment/card";
 import { CardPaymentSheet } from "@/features/09-payment/card-payment-sheet";
 import { IS_TEST_KEY, loadRazorpay, openRazorpayCheckout } from "@/features/09-payment/razorpay";
@@ -211,6 +212,7 @@ export function CheckoutFlow({
   const { lines, itemCount, subtotal, coupon, discount, total, clearCart } = useCart();
   const { draft, restored, updateDraft, resetDraft } = useCheckout();
   const { placeOrder } = useOrders();
+  const { claim: claimVoucher } = useVouchers();
   const { profile, ready: profileReady } = useProfile();
   const { add: addAddress, addresses, defaultAddress, ready: addressesReady } = useAddresses();
 
@@ -501,6 +503,19 @@ export function CheckoutFlow({
         money: { subtotal, discount, total: payable, couponCode: coupon?.code ?? null },
       });
 
+      /* The voucher is CLAIMED here and nowhere else — not by copying the code,
+         not by putting it on the bag. From this moment it leaves the redeemable
+         table, so it cannot be applied to a second order from any surface.
+
+         Only against money that actually settled, though: a failed payment
+         still writes an order — see above — and claiming the voucher for it
+         would burn the customer's credit on something they have not bought,
+         leaving them nothing to pay the retry with. It is a no-op for a
+         promotional code; only a voucher can be claimed. */
+      if (coupon && discount > 0 && payment.outcome !== "failed") {
+        claimVoucher(coupon.code, order.number);
+      }
+
       /* `status` is latched first, or emptying the bag repaints this screen as
          "your bag is empty" in the frame before the route changes. */
       setStatus("done");
@@ -523,6 +538,7 @@ export function CheckoutFlow({
       onClose();
     },
     [
+      claimVoucher,
       clearCart,
       coupon,
       delivery,
@@ -560,6 +576,21 @@ export function CheckoutFlow({
     /* Everything passed, so whatever was typed into the address step is a real
        destination and belongs in the book if it was asked to be. */
     commitNewAddress();
+
+    /* A voucher can cover the whole bag, which no promotional code could — the
+       best of those is a percentage, and a flat one has a minimum above its own
+       value. So there is now a real path where nothing is left to pay, and
+       neither the gateway nor a courier should be handed a bill for ₹0. The
+       order is placed settled, against the credit that settled it. */
+    if (payable <= 0) {
+      complete({
+        method: "Store credit",
+        reference: coupon?.code ?? "Voucher",
+        outcome: "captured",
+        note: "Paid in full with store credit",
+      });
+      return;
+    }
 
     if (draft.paymentMethod === "cod") {
       // No gateway reference to quote — the money has not moved. Inventing one
@@ -639,6 +670,7 @@ export function CheckoutFlow({
   }, [
     commitNewAddress,
     complete,
+    coupon,
     draft,
     empty,
     focusFirstError,

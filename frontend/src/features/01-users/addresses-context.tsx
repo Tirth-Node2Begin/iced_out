@@ -65,6 +65,8 @@ type AddressesContextValue = {
   defaultAddress: Address | null;
   ready: boolean;
   add: (address: Omit<Address, "id">, options?: { makeDefault?: boolean }) => void;
+  /** Replace a saved address in place — the id, and so the default, survives. */
+  update: (id: string, address: Omit<Address, "id">, options?: { makeDefault?: boolean }) => void;
   remove: (id: string) => void;
   setDefault: (id: string) => void;
 };
@@ -96,6 +98,28 @@ export function AddressesProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const update = useCallback(
+    (id: string, address: Omit<Address, "id">, options?: { makeDefault?: boolean }) => {
+      const current = store.getSnapshot();
+      /* Edited in place rather than removed-and-re-added: the id is what the
+         default points at, and what a checkout draft remembers picking. A new
+         id for a corrected pincode would silently move the default elsewhere. */
+      const addresses = current.addresses.map((entry) =>
+        entry.id === id ? { ...address, id } : entry,
+      );
+
+      store.write({
+        addresses,
+        /* Un-ticking the box on the address that IS the default cannot clear
+           it — something has to be the destination — so only the ticking is
+           acted on. Moving the default off this one is done by making another
+           one default. */
+        defaultId: options?.makeDefault ? id : current.defaultId,
+      });
+    },
+    [],
+  );
+
   const remove = useCallback((id: string) => {
     const current = store.getSnapshot();
     const addresses = current.addresses.filter((address) => address.id !== id);
@@ -123,10 +147,11 @@ export function AddressesProvider({ children }: { children: ReactNode }) {
       defaultAddress,
       ready,
       add,
+      update,
       remove,
       setDefault,
     };
-  }, [add, book, ready, remove, setDefault]);
+  }, [add, book, ready, remove, setDefault, update]);
 
   return <AddressesContext.Provider value={value}>{children}</AddressesContext.Provider>;
 }

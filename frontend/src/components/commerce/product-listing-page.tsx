@@ -1,11 +1,12 @@
 "use client";
 
-import { ArrowDown, SlidersHorizontal } from "lucide-react";
+import { ArrowRight, PackageSearch, SlidersHorizontal } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { ProductCard } from "@/components/commerce/product-card";
+import { PageFrame } from "@/components/layout/page-frame";
 import { Container } from "@/components/ui/container";
 import { useProducts, type ProductDestination } from "@/features/02-products";
 
@@ -26,17 +27,25 @@ export function ProductListingPage({
   const destinationMeta = destination === "sale" ? ["Final editions", "Computed reductions", "No restock promise"] : destination === "new-drop" ? ["Drop 001", "320 units", "Numbered release"] : ["Heavyweight forms", "Limited production", "India / worldwide"];
 
   return (
-    <>
-      <section className="listing-hero">
-        <Container className="listing-hero__layout">
-          <div className="listing-hero__copy"><p className="eyebrow">{eyebrow}</p><h1>{title}</h1><p>{copy}</p><Link href="#listing-products">View the edit <ArrowDown size={16} /></Link></div>
-          <div className="listing-hero__media">
-            <Image src="/images/drop-001-products.avif" alt="Heavyweight black and bone pieces from the current collection" fill priority sizes="(max-width: 900px) 100vw, 44vw" />
-            <span className="listing-hero__edition">Edition 001 / Material study</span>
-            <div className="listing-signal" aria-label="Collection notes">{destinationMeta.map((item, index) => <span key={item}><b>0{index + 1}</b>{item}</span>)}</div>
-          </div>
-        </Container>
+    <PageFrame
+      eyebrow={eyebrow}
+      lede={copy}
+      spec={[
+        { label: "Pieces", value: products.length.toString().padStart(2, "0") },
+        { label: "Edition", value: "001" },
+      ]}
+      title={title}
+    >
+      {/* The campaign frame stays — it is the one image on the page that is not
+          a product, and the hero above it is now type only. It sits under the
+          masthead rather than beside it: a centred headline and a 44vw image on
+          the same row have no axis in common. */}
+      <section className="listing-plate">
+        <Image src="/images/drop-001-products.avif" alt="Heavyweight black and bone pieces from the current collection" fill priority sizes="100vw" />
+        <span className="listing-hero__edition">Edition 001 / Material study</span>
+        <div className="listing-signal" aria-label="Collection notes">{destinationMeta.map((item, index) => <span key={item}><b>0{index + 1}</b>{item}</span>)}</div>
       </section>
+
       <section className="listing-products" id="listing-products" aria-label={`${title} products`}>
         <Container>
           <div className="listing-toolbar">
@@ -50,13 +59,22 @@ export function ProductListingPage({
               ))}
             </div>
           ) : (
-            <div className="listing-empty">
-              <h2>No pieces live right now.</h2>
-              <p>The next signal will appear here first.</p>
+            <div className="io-empty">
+              <div className="io-empty__copy">
+                <span className="io-empty__glyph">
+                  <PackageSearch aria-hidden size={20} strokeWidth={1.4} />
+                </span>
+                <h2>No pieces live right now.</h2>
+                <p>The next signal will appear here first.</p>
+              </div>
+              <Link className="io-btn io-btn--solid" href="/new-drop">
+                See the current drop
+                <ArrowRight aria-hidden size={15} />
+              </Link>
             </div>
           )}
         </Container>
       </section>
-    </>
+    </PageFrame>
   );
 }

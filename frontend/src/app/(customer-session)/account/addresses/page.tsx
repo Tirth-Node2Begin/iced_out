@@ -4,7 +4,9 @@ import { Home, MapPin, Plus, Trash2 } from "lucide-react";
 import { useState, type FormEvent } from "react";
 
 import { AccountSection } from "@/components/account/account-section";
-import { useAddresses } from "@/features/01-users/addresses-context";
+import { AddressRemoveDialog } from "@/components/account/address-remove-dialog";
+import { fieldsToAddress, formDataToFields } from "@/features/01-users/address-fields";
+import { useAddresses, type Address } from "@/features/01-users/addresses-context";
 
 /**
  * Addresses.
@@ -18,22 +20,21 @@ import { useAddresses } from "@/features/01-users/addresses-context";
  * whichever one is default, so the choice has to outlive this screen.
  */
 export default function AddressesPage() {
-  const { addresses, defaultId, add: addAddress, remove, setDefault } = useAddresses();
+  const { addresses, defaultId, add: addAddress, setDefault } = useAddresses();
   const [adding, setAdding] = useState(false);
+  /* Removal is asked in a box over the page, the same one the profile card
+     opens — this screen used to delete on the first press, which is a years-old
+     address gone to a mis-aimed tap with nothing between. */
+  const [removing, setRemoving] = useState<Address | null>(null);
 
   function add(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
 
-    addAddress({
-      label: String(form.get("label") ?? "New address"),
-      name: String(form.get("name") ?? ""),
-      lines: [
-        String(form.get("street") ?? ""),
-        `${form.get("city")}, ${form.get("state")} ${form.get("pincode")}`,
-      ],
-      phone: String(form.get("phone") ?? ""),
-    });
+    /* Composed by the same helper the profile's dialog uses — the region line
+       was written out by hand in both places, which is one format and two
+       chances to change it. */
+    addAddress(fieldsToAddress(formDataToFields(form)));
     setAdding(false);
   }
 
@@ -186,7 +187,7 @@ export default function AddressesPage() {
                   )}
                   <button
                     className="io-btn io-btn--ghost io-btn--sm"
-                    onClick={() => remove(address.id)}
+                    onClick={() => setRemoving(address)}
                     type="button"
                   >
                     <Trash2 aria-hidden size={13} strokeWidth={1.7} />
@@ -205,6 +206,13 @@ export default function AddressesPage() {
           </div>
         )}
       </section>
+
+      <AddressRemoveDialog
+        address={removing}
+        onOpenChange={(open) => {
+          if (!open) setRemoving(null);
+        }}
+      />
     </AccountSection>
   );
 }

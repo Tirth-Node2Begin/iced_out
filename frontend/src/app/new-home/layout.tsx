@@ -18,7 +18,7 @@ const archivo = Archivo({
 });
 
 export const metadata: Metadata = {
-  title: "Iced_out — Gear up every season, every workout",
+  title: "Home",
   description:
     "Performance-driven training wear built for summer heat and winter cold.",
 };

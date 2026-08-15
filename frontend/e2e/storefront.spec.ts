@@ -107,20 +107,74 @@ test("blocks direct guest checkout", async ({ page }) => {
 test("provides the complete admin payments workspace", async ({ page }) => {
   await page.goto("/admin/payments");
   await page.waitForURL("**/admin/login?returnTo=%2Fadmin%2Fpayments");
-  await page.getByRole("button", { name: /Open permitted workspace/ }).click();
+  await page.getByRole("button", { name: /Enter console/ }).click();
   await page.waitForURL("**/admin/payments");
-  await expect(page.getByRole("heading", { name: "Payments", exact: true })).toBeVisible();
-  await page.getByRole("link", { name: "Transactions" }).click();
-  await expect(page.getByRole("heading", { name: "Transactions" })).toBeVisible();
-  await page.getByRole("link", { name: "pay_ICE1048" }).click();
-  await page.waitForURL("**/admin/payments/transactions/pay_ICE1048");
-  await expect(page.getByRole("heading", { name: "pay_ICE1048" })).toBeVisible();
-  await page.getByRole("link", { name: "Mismatches", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Mismatches" })).toBeVisible();
-  await page.getByRole("link", { name: "Reconciliation", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Reconciliation", exact: true })).toBeVisible();
-  await page.getByRole("link", { name: "Settlements", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Settlements" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Payments ledger" })).toBeVisible();
+  /* Both screens the area has left — money in, and money on to the bank.
+     Refunds moved to Returns, which is where a refund is decided. Scoped to
+     the toolbar pill: the console rail also carries a "Payments" link, and an
+     unqualified name matches both. */
+  const tabs = page.getByRole("navigation", { name: "Payments screens" });
+  await tabs.getByRole("link", { name: "Payouts", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Gateway payouts" })).toBeVisible();
+  await tabs.getByRole("link", { name: "Payments", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Payments ledger" })).toBeVisible();
+  await page.getByRole("link", { name: "Open pay_ICE1048" }).click();
+  await page.waitForURL("**/admin/payments/pay_ICE1048");
+  await expect(page.getByRole("heading", { name: "Payment pay_ICE1048" })).toBeVisible();
+});
+
+/**
+ * The one thing that makes the payments module a ledger rather than a
+ * demonstration: money a shopper owes shows up in the back office.
+ *
+ * Cash on delivery is the case worth pinning. It is the outcome that used to
+ * write nothing at all — no gateway was asked, so nothing was recorded — and
+ * it is the only one that reaches the console still owing money.
+ */
+test("records a checkout payment in the admin ledger", async ({ page }) => {
+  /* Wide enough for the header to show the bag rather than collapse it. */
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await signInCustomer(page, "/product/afterdark-hoodie");
+
+  const product = page.locator(".pdp");
+  await product.getByRole("button", { name: "M", exact: true }).click();
+  await product.getByRole("button", { name: "Add to bag" }).click();
+
+  /* Straight from the drawer that adding opens, which is how a shopper gets
+     there — and no page load, so the in-memory customer session survives. */
+  await page.getByRole("button", { name: "Secure checkout" }).click();
+
+  /* Contact and address arrive pre-filled from the profile, so the steps are
+     answered already — Continue walks them to the one that is not. */
+  const cod = page.getByText("Pay the courier when the parcel arrives");
+  for (let step = 0; step < 3 && !(await cod.isVisible()); step += 1) {
+    await page.getByRole("button", { name: "Continue" }).click();
+  }
+
+  await cod.click();
+  await page.getByRole("button", { name: /^Checkout · / }).click();
+
+  await page.waitForURL(/\/orders\/ord-local-\d+/);
+  const heading = page.getByRole("heading", { level: 1, name: /^Order IO-/ });
+  await expect(heading).toBeVisible();
+  const number = (await heading.innerText()).match(/IO-\d{4}-\d+/)?.[0];
+  expect(number, "the order screen names the order it just placed").toBeTruthy();
+
+  /* The ledger lives in this browser, so the same order is waiting in the
+     console — under a staff sign-in of its own, which the shopper's session
+     has nothing to do with. */
+  await page.goto("/admin/payments");
+  await page.getByRole("button", { name: /Enter console/ }).click();
+  await page.waitForURL("**/admin/payments");
+
+  const row = page.getByRole("row").filter({ hasText: number! });
+  await expect(row).toContainText("Cash on delivery");
+  await expect(row).toContainText("Due");
+
+  /* And the one verb it offers settles it. */
+  await row.getByRole("button", { name: /Mark .* collected/ }).click();
+  await expect(row).toContainText("Captured");
 });
 
 test("supports product evaluation before the customer gate", async ({ page }) => {
@@ -167,9 +221,9 @@ test("preserves staff access across operations workspaces", async ({ page }) => 
   await expect(page.getByRole("heading", { name: "Orders", exact: true })).toBeVisible();
 
   await page.getByRole("link", { name: "Support", exact: true }).click();
-  await page.waitForURL("**/admin/support/tickets");
-  await expect(page.getByRole("heading", { name: "Keep the context." })).toBeVisible();
-  await expect(page.getByText("Permission-masked context")).toBeVisible();
+  await page.waitForURL("**/admin/support");
+  await expect(page.getByRole("heading", { name: "Customer queries" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Queries from customers" })).toBeVisible();
 });
 
 test("serves versioned policy and staff recovery pages", async ({ page }) => {
@@ -183,25 +237,42 @@ test("serves versioned policy and staff recovery pages", async ({ page }) => {
 });
 
 test("covers the remaining planned admin module families", async ({ page }) => {
-  await page.goto("/admin/marketing/coupons");
-  await page.waitForURL("**/admin/login?returnTo=%2Fadmin%2Fmarketing%2Fcoupons");
-  await page.getByRole("button", { name: /Open permitted workspace/ }).click();
-  await expect(page.getByRole("heading", { name: "Build a promise you can keep." })).toBeVisible();
+  await page.goto("/admin/inventory/overview");
+  await page.waitForURL("**/admin/login?returnTo=%2Fadmin%2Finventory%2Foverview");
+  await page.getByRole("button", { name: /Enter console/ }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Stock truth" })).toBeVisible();
 
-  await page.getByRole("link", { name: "campaigns", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Release with intent." })).toBeVisible();
-  await page.getByRole("link", { name: "Messages", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Transactional clarity." })).toBeVisible();
-  await page.getByRole("link", { name: "Inventory", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Stock truth" })).toBeVisible();
-  await page.getByRole("link", { name: "counts", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Count what is there." })).toBeVisible();
-  await page.getByRole("link", { name: "Access", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "People and permission." })).toBeVisible();
-  await page.getByRole("link", { name: "roles", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Bundle, never assume." })).toBeVisible();
+  await page.getByRole("link", { name: "Transfers", exact: true }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Move with custody" })).toBeVisible();
   await page.getByRole("link", { name: "Settings", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Business controls." })).toBeVisible();
-  await page.getByRole("link", { name: "tax", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Tax configuration." })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Business controls" })).toBeVisible();
+  await page.getByRole("link", { name: "Tax", exact: true }).click();
+  /* Pinned to the page heading: the tax screen also carries a section called
+     "Tax configuration", and an unqualified name would match both. */
+  await expect(page.getByRole("heading", { level: 1, name: "Tax configuration" })).toBeVisible();
+});
+
+test("opens the profile from the account menu and pages its activity log", async ({ page }) => {
+  await page.goto("/admin/orders");
+  await page.waitForURL("**/admin/login?returnTo=%2Fadmin%2Forders");
+  await page.getByRole("button", { name: /Enter console/ }).click();
+
+  /* Reached the way an operator reaches it, through the account chip. Not
+     `page.goto`: a staff session is deliberately never persisted, so a full
+     page load would land back on the login screen. */
+  await page.getByRole("button", { name: /Aarav D\./ }).click();
+  await page.getByRole("menuitem", { name: "Your profile" }).click();
+  await expect(page.getByRole("heading", { name: /Your profile/ })).toBeVisible();
+
+  /* Five rows on the page and the rest behind the modal — that split is the
+     point of the screen, so the counts are asserted rather than assumed. */
+  await expect(page.locator("table.aui-table tbody tr")).toHaveCount(5);
+  await page.getByRole("button", { name: /See more/ }).click();
+
+  const log = page.getByRole("dialog");
+  await expect(log.getByRole("heading", { name: "Full activity log" })).toBeVisible();
+  await expect(log.locator("tbody tr")).toHaveCount(12);
+
+  await page.keyboard.press("Escape");
+  await expect(log).toBeHidden();
 });

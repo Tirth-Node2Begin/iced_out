@@ -1,6 +1,7 @@
 import { AdminOrderDetail } from "@/features/07-orders/components/admin-order-detail";
-
-const orderIds = ["IO-2026-1048", "IO-2026-1047", "IO-2026-1046"];
+import { adminOrderIds } from "@/features/07-orders/data/admin-order-fixtures";
 
 export default async function AdminOrderDetailPage({ params }: { params: Promise<{ orderId: string }> }) { const { orderId } = await params; return <AdminOrderDetail orderId={orderId} />; }
-export function generateStaticParams() { return orderIds.map((orderId) => ({ orderId })); }
+/* Every id the register can link to — this is a static export, so an order
+   missing from here is a 404 rather than a page. */
+export function generateStaticParams() { return adminOrderIds.map((orderId) => ({ orderId })); }

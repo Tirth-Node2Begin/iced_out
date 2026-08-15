@@ -5,69 +5,324 @@
    Toaster is mounted in `AppProviders`, so it exists on every route and cannot
    wait for a route group's stylesheet.
 
-   A toast is portalled to `document.body`, which is OUTSIDE `.io-scope` — so
-   every `--nh-…` token is undeclared in here. The values are written out
-   instead, matching the palette that class declares. Sonner's own colours come
-   from the vars set on the Toaster in `components/ui/sonner.tsx`; what is left
-   for this sheet is type, spacing and the two pieces of chrome.
+   THE SHAPE
+   Three things: a solid glyph, a title, a line of detail — on a plain card one
+   step lighter than the page. The surface stays neutral for every state; the
+   only colour in the whole object is the badge, filled in the state's tone with
+   its mark knocked out in the surface colour. That is the console's standing
+   rule (colour lands on the glyph, never on a fill) at its most literal, and it
+   is what lets an error and a saved draft sit in the same corner without one of
+   them shouting.
+
+   The badge centres against the text block rather than the whole toast, so it
+   stays level with the title on a one-line toast and between the two lines on a
+   two-line one — which is the only reason it reads as part of the sentence
+   instead of as an ornament parked beside it.
+
+   A pill, when there is one to show, goes on its own row under the text; and
+   the close square only exists while the pointer is on the toast. Everything
+   here auto-dismisses, so that affordance is for the one time in twenty you
+   want it gone now, and it should not be occupying the corner the other
+   nineteen.
+
+   THE TOKENS
+   A toast is portalled to `document.body`, which is OUTSIDE both `.io-scope`
+   and `.aui-app` — so every `--nh-…` is undeclared out here. The layer is
+   declared on the toaster below, exactly as admin.css declares it again on
+   `.aui-overlay` and `.aui-modal` for the same reason. The values are the ones
+   in new_style §2; if they move in chrome.css or admin.css, they move here.
+
+   THE SELECTORS
+   Sonner injects its own stylesheet at runtime, so source order between it and
+   this file is not something we get to decide, and its own selectors run as
+   deep as (0,5,0) — e.g.
+   `[data-sonner-toaster][data-sonner-theme='dark'] [data-sonner-toast][data-styled='true'] [data-cancel]`.
+   Every rule here therefore starts from `.io-toaster[data-sonner-toaster]`,
+   which lands each one above its sonner counterpart on specificity alone. That
+   is the only reason the selectors are heavier than this markup deserves — and
+   it is what the previous sheet got wrong: `.io-toast [data-close-button]` lost
+   to sonner's own rule, which is how the close button ended up painting itself
+   near-black on a near-black surface.
    ------------------------------------------------------------------------- */
 
-.io-toast {
+.io-toaster[data-sonner-toaster] {
+  /* ---- palette (new_style §2) ---- */
+  --nh-card-bg: #1a1c1e;
+  --nh-ink: #f1f3f3;
+  --nh-muted: #8f9598;
+  --nh-muted-2: #6e7477;
+  --nh-ghost-bg: rgba(255, 255, 255, 0.06);
+  --nh-ghost-bg-hover: rgba(255, 255, 255, 0.12);
+  --nh-hairline: rgba(255, 255, 255, 0.08);
+  --nh-hairline-soft: rgba(255, 255, 255, 0.06);
+
+  /* ---- semantic glyph tones (admin.css §1) ---- */
+  --aui-ink-rgb: 213, 217, 218;
+  --aui-mint-rgb: 111, 219, 164;
+  --aui-amber-rgb: 232, 183, 101;
+  --aui-rose-rgb: 239, 122, 128;
+  --aui-sky-rgb: 121, 184, 232;
+
+  /* ---- shape + motion (new_style §4) ---- */
+  --nh-ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* The house family, written out rather than inherited: `<body>` carries
+     `--font-archivo` but not the declaration, so a toast that inherits its
+     font-family lands in `--font-body` (Manrope) while every surface behind it
+     — storefront and console alike — is in Archivo. */
+  font-family: var(--font-archivo), "Archivo", system-ui, sans-serif;
+  letter-spacing: -0.01em;
+}
+
+/* ---- the surface ---- */
+.io-toaster[data-sonner-toaster] [data-sonner-toast].io-toast {
+  /* One tone per toast, read by the badge alone. Neutral until a type says
+     otherwise. */
+  --io-tone: var(--aui-ink-rgb);
+
+  display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
-  padding: 14px 15px;
+  padding: 15px 16px;
+  border: 0;
+  border-radius: 18px;
+  gap: 10px 12px;
+  background: var(--nh-card-bg);
+  color: var(--nh-ink);
+  /* The console's edge treatment: an inset hairline, never a border — a border
+     eats a pixel of the content box and shifts the row it sits in (§5.2). */
   box-shadow:
-    0 18px 40px -18px rgba(0, 0, 0, 0.75),
-    0 2px 8px -4px rgba(0, 0, 0, 0.5);
-  gap: 11px;
+    inset 0 0 0 1px var(--nh-hairline),
+    0 22px 46px -26px rgba(0, 0, 0, 0.95);
+  /* Sonner ships `anywhere`, which breaks an order id mid-token. */
+  overflow-wrap: break-word;
 }
 
-/* The glyph sits on the first line of the title rather than centred against the
-   whole toast, which is a line lower once a description is present. */
-.io-toast [data-icon] {
-  margin: 1px 0 0;
+.io-toaster[data-sonner-toaster] [data-sonner-toast].io-toast[data-type="success"] {
+  --io-tone: var(--aui-mint-rgb);
 }
 
-.io-toast [data-title] {
+.io-toaster[data-sonner-toaster] [data-sonner-toast].io-toast[data-type="info"] {
+  --io-tone: var(--aui-sky-rgb);
+}
+
+.io-toaster[data-sonner-toaster] [data-sonner-toast].io-toast[data-type="warning"] {
+  --io-tone: var(--aui-amber-rgb);
+}
+
+.io-toaster[data-sonner-toaster] [data-sonner-toast].io-toast[data-type="error"] {
+  --io-tone: var(--aui-rose-rgb);
+}
+
+.io-toaster[data-sonner-toaster] [data-sonner-toast].io-toast:focus-visible {
+  box-shadow:
+    inset 0 0 0 1px var(--nh-hairline),
+    0 0 0 2px rgba(var(--aui-sky-rgb), 0.5),
+    0 22px 46px -26px rgba(0, 0, 0, 0.95);
+}
+
+/* ---- the badge ----
+   Lucide draws every one of these as an outline: an outer shape first, then the
+   mark inside it. Filling the first child in the tone and stroking the rest in
+   the surface colour turns that outline into a solid badge with the mark
+   knocked out of it — no second icon set, no hand-drawn SVG, and it holds for
+   whichever glyph `sonner.tsx` passes, as long as the outer shape is drawn
+   first (it is: circle, then tick; triangle, then bar and dot).
+
+   `align-self` rather than the toast's `align-items`: this centres the badge
+   against the text block, not against the toast, so a pill wrapping onto the
+   row below does not drag it downward. */
+.io-toaster[data-sonner-toaster] [data-sonner-toast].io-toast [data-icon] {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  align-self: center;
+  margin: 0;
+  color: rgb(var(--io-tone));
+}
+
+.io-toaster[data-sonner-toaster] [data-sonner-toast].io-toast [data-icon] svg {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+}
+
+.io-toaster[data-sonner-toaster] [data-sonner-toast].io-toast [data-icon] svg > :first-child {
+  fill: currentColor;
+  stroke: currentColor;
+}
+
+.io-toaster[data-sonner-toaster]
+  [data-sonner-toast].io-toast
+  [data-icon]
+  svg
+  > :not(:first-child) {
+  stroke: var(--nh-card-bg);
+}
+
+/* The spinner is one continuous arc — there is no mark to knock out of it, and
+   filling it would produce a wedge. Keyed off the type rather than the spin
+   class so it outranks the fill rule above: that one ends in an element
+   selector (`svg > :first-child`), which a pure class chain cannot beat however
+   many classes it carries. */
+.io-toaster[data-sonner-toaster] [data-sonner-toast].io-toast[data-type="loading"] [data-icon] svg,
+.io-toaster[data-sonner-toaster]
+  [data-sonner-toast].io-toast[data-type="loading"]
+  [data-icon]
+  svg
+  > * {
+  fill: none;
+  stroke: var(--nh-muted);
+}
+
+/* ---- the copy ---- */
+.io-toaster[data-sonner-toaster] [data-sonner-toast].io-toast [data-content] {
+  /* Exactly the rest of the row — 100% less the badge (18px) and the column
+     gap (12px) — and neither growing nor shrinking. That is what pushes the
+     pill onto its own line: given any slack, flex would sooner squeeze the
+     description than wrap, which is how "Undo" ends up beside the title and
+     under the close square. */
+  flex: 0 0 calc(100% - 30px);
+  box-sizing: border-box;
+  min-width: 0;
+  /* The corner the close square uses while the pointer is here. */
+  padding-right: 16px;
+  gap: 3px;
+}
+
+/* No badge, so the text starts at the padding and takes the whole row. */
+.io-toaster[data-sonner-toaster]
+  [data-sonner-toast].io-toast:not(:has([data-icon]))
+  [data-content] {
+  flex-basis: 100%;
+}
+
+.io-toaster[data-sonner-toaster] [data-sonner-toast].io-toast [data-title] {
+  color: var(--nh-ink);
   font-size: 13.5px;
   font-weight: 500;
+  line-height: 1.35;
+  letter-spacing: -0.015em;
+}
+
+.io-toaster[data-sonner-toaster] [data-sonner-toast].io-toast [data-description] {
+  color: var(--nh-muted);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
   letter-spacing: -0.005em;
 }
 
-.io-toast [data-description] {
-  margin-top: 3px;
-  color: #8f9598;
-  font-size: 12.5px;
-  line-height: 1.45;
+/* ---- the pill ----
+   Sonner lays the toast out as one row and pushes the buttons to the far right
+   with `margin-left: auto`, which puts an "Undo" level with the title and
+   underneath the close square. It goes on its own row instead, indented to the
+   text column, where the eye already is. Ghost rather than solid: the toast is
+   telling you something, and the button is a second thought, not the point. */
+.io-toaster[data-sonner-toaster] [data-sonner-toast].io-toast [data-button] {
+  display: inline-flex;
+  height: 26px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  margin: 0;
+  background: var(--nh-ghost-bg);
+  color: var(--nh-ink);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline-soft);
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.25s var(--nh-ease-soft);
 }
 
-.io-toast [data-icon] > svg {
-  color: #8f9598;
+.io-toaster[data-sonner-toaster] [data-sonner-toast].io-toast [data-button]:hover {
+  background: var(--nh-ghost-bg-hover);
 }
 
-/* Only the icon carries the state's colour. The surface stays the house's, so
-   a confirmation reads as a note from the site rather than as an alarm. */
-.io-toast[data-type="success"] [data-icon] > svg {
-  color: #4ade80;
+/* Only the cancel steps down, since it sits beside something. */
+.io-toaster[data-sonner-toaster] [data-sonner-toast].io-toast [data-button][data-cancel] {
+  background: transparent;
+  color: var(--nh-muted);
+  box-shadow: none;
 }
 
-.io-toast[data-type="error"] [data-icon] > svg {
-  color: #f87171;
+.io-toaster[data-sonner-toaster] [data-sonner-toast].io-toast [data-button][data-cancel]:hover {
+  background: var(--nh-ghost-bg);
+  color: var(--nh-ink);
 }
 
-.io-toast[data-type="warning"] [data-icon] > svg {
-  color: #fbbf24;
+.io-toaster[data-sonner-toaster] [data-sonner-toast].io-toast [data-button]:focus-visible {
+  box-shadow: 0 0 0 2px rgba(var(--aui-sky-rgb), 0.5);
 }
 
-.io-toast [data-close-button] {
-  border-color: rgba(255, 255, 255, 0.13);
-  color: #8f9598;
-  background: #1a1c1e;
-  transition: color 0.16s ease, background 0.16s ease;
+/* The first pill of the row carries the indent to the text column. Keyed off
+   the block it follows rather than `:first-of-type`, which counts every
+   <button> sibling — including the close square, so it names the wrong element
+   the moment a toast is dismissible. */
+.io-toaster[data-sonner-toaster] [data-sonner-toast].io-toast [data-content] + [data-button] {
+  margin-left: 30px;
 }
 
-.io-toast [data-close-button]:hover {
-  color: #f1f3f3;
-  background: #26292b;
+.io-toaster[data-sonner-toaster]
+  [data-sonner-toast].io-toast:not(:has([data-icon]))
+  [data-content]
+  + [data-button] {
+  margin-left: 0;
+}
+
+/* ---- the close ----
+   Sonner hangs a 20px circle off the toast's top-LEFT corner, which in this
+   palette reads as a bullet hole beside the badge. It becomes the console's own
+   dismiss square (`.aui-modal__close`), inside the toast, top-right — and it
+   waits there until the pointer arrives. */
+.io-toaster[data-sonner-toaster] [data-sonner-toast].io-toast [data-close-button] {
+  top: 8px;
+  right: 8px;
+  left: auto;
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--nh-muted-2);
+  box-shadow: none;
+  transform: none;
+  transition:
+    opacity 0.2s var(--nh-ease-soft),
+    background-color 0.2s var(--nh-ease-soft),
+    color 0.2s var(--nh-ease-soft);
+}
+
+.io-toaster[data-sonner-toaster] [data-sonner-toast].io-toast [data-close-button]:hover {
+  background: var(--nh-ghost-bg);
+  color: var(--nh-ink);
+  box-shadow: none;
+}
+
+.io-toaster[data-sonner-toaster] [data-sonner-toast].io-toast [data-close-button]:focus-visible {
+  color: var(--nh-ink);
+  box-shadow: 0 0 0 2px rgba(var(--aui-sky-rgb), 0.5);
+}
+
+/* Only where there is a pointer to arrive: on touch there is no hover state to
+   wait for, and a control that never appears is a control that is not there. */
+@media (hover: hover) and (pointer: fine) {
+  .io-toaster[data-sonner-toaster] [data-sonner-toast].io-toast [data-close-button] {
+    opacity: 0;
+  }
+
+  .io-toaster[data-sonner-toaster] [data-sonner-toast].io-toast:hover [data-close-button],
+  .io-toaster[data-sonner-toaster] [data-sonner-toast].io-toast:focus-within [data-close-button] {
+    opacity: 1;
+  }
 }
 
 /* The loading glyph is a lucide icon here, not sonner's own spinner, so it has

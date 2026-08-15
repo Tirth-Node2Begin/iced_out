@@ -390,10 +390,16 @@
   font-weight: 500;
 }
 
-.iox-btn--primary:hover {
+.iox-btn--primary:hover:not(:disabled) {
   background: var(--ia-solid-hover);
   box-shadow: 0 10px 26px rgba(0, 0, 0, 0.42);
   transform: translateY(-1px);
+}
+
+/* The window before the script attaches — see the note on `ready`. */
+.iox-btn--primary:disabled {
+  cursor: progress;
+  opacity: 0.62;
 }
 
 .iox-btn--primary svg { transition: transform 400ms var(--ia-ease); }

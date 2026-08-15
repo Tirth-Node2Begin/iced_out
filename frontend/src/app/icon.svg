@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Iced Out">
+  <defs>
+    <linearGradient id="tile" x1="32" y1="0" x2="32" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1c1c20" />
+      <stop offset="1" stop-color="#050506" />
+    </linearGradient>
+    <linearGradient id="ice" x1="12" y1="12" x2="52" y2="54" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" />
+      <stop offset=".45" stop-color="#e3ebf5" />
+      <stop offset="1" stop-color="#9daec4" />
+    </linearGradient>
+  </defs>
+
+  <!-- Black tile. The hairline keeps the mark from dissolving into a dark tab strip. -->
+  <rect width="64" height="64" rx="14" fill="url(#tile)" />
+  <rect x=".75" y=".75" width="62.5" height="62.5" rx="13.25" fill="none" stroke="#ffffff" stroke-opacity=".16" stroke-width="1.5" />
+
+  <!-- Brilliant cut: table, girdle, pavilion. Sized to fill the tile, because a
+       favicon is read at 16px; facet lines are cut in the tile's own black so
+       the gem still holds together as one shape at that size. -->
+  <path d="M22 15h20l15 12-25 28L7 27z" fill="url(#ice)" />
+  <g fill="none" stroke="#08080a" stroke-opacity=".45" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M7 27h50" />
+    <path d="M26.5 15 20 27l12 28 12-28-6.5-12" />
+  </g>
+</svg>

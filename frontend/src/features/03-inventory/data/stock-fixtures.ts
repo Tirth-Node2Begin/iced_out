@@ -1,0 +1,79 @@
+/**
+ * Stock, one row per item — what it is, which sizes it comes in, which
+ * warehouse holds it, how many pieces are there, and how many of those an
+ * order has already claimed.
+ *
+ * `available` is deliberately not a field. It is always
+ * `totalUnits - reservedUnits`, so storing it would be storing a number that
+ * can disagree with the two it comes from. Read it with `availableUnits`.
+ */
+export type StockItem = {
+  id: string;
+  itemName: string;
+  /** "Top" or "Bottom" — the half of the body it goes on, and nothing more. */
+  category: string;
+  /** The garment within that category: a hoodie, a pair of cargos. */
+  itemType: string;
+  /** Comma separated — every record in this console is a flat map of strings. */
+  sizes: string;
+  warehouse: string;
+  totalUnits: string;
+  reservedUnits: string;
+};
+
+export const CATEGORIES = ["Top", "Bottom"];
+
+/**
+ * What a garment can be, per category.
+ *
+ * Split rather than pooled because "Cargo" is not a thing a top can be, and a
+ * list that offers it anyway is a list that invites a wrong record.
+ */
+export const TYPES_BY_CATEGORY: Record<string, string[]> = {
+  Top: ["T-shirt", "Shirt", "Hoodie", "Overshirt", "Jacket"],
+  Bottom: ["Jeans", "Cargo", "Casual", "Joggers", "Shorts"],
+};
+
+/**
+ * How a garment is sized, per category.
+ *
+ * A top is sized by letter and a bottom by waist inches. They are genuinely
+ * different vocabularies, so the form asks the category first and then offers
+ * only the sizes that category actually has — an "XL waist" is not a size
+ * anyone can pick or stock.
+ */
+export const SIZES_BY_CATEGORY: Record<string, string[]> = {
+  Top: ["S", "M", "L", "XL", "XXL"],
+  Bottom: ["30", "32", "34", "36", "38", "40", "42"],
+};
+
+export const WAREHOUSE_CODES = ["BLR-01", "DEL-01", "MUM-01"];
+
+/** At or under this many sellable pieces, an item is worth replenishing. */
+export const LOW_STOCK_AT = 4;
+
+export const stockItemFixtures: StockItem[] = [
+  { id: "ITM-001", itemName: "Afterdark Hoodie", category: "Top", itemType: "Hoodie", sizes: "S, M, L, XL", warehouse: "BLR-01", totalUnits: "48", reservedUnits: "12" },
+  { id: "ITM-002", itemName: "Bone Utility Overshirt", category: "Top", itemType: "Overshirt", sizes: "S, M, L", warehouse: "BLR-01", totalUnits: "6", reservedUnits: "6" },
+  { id: "ITM-003", itemName: "Core Heavy Tee", category: "Top", itemType: "T-shirt", sizes: "S, M, L, XL, XXL", warehouse: "BLR-01", totalUnits: "120", reservedUnits: "18" },
+  { id: "ITM-004", itemName: "Shadow Cargo 02", category: "Bottom", itemType: "Cargo", sizes: "30, 32, 34", warehouse: "DEL-01", totalUnits: "34", reservedUnits: "8" },
+  { id: "ITM-005", itemName: "Midnight Denim", category: "Bottom", itemType: "Jeans", sizes: "32, 34, 36", warehouse: "MUM-01", totalUnits: "9", reservedUnits: "6" },
+];
+
+/** Pieces a shopper can still buy: everything not already spoken for. */
+export function availableUnits(item: { totalUnits: string; reservedUnits: string }) {
+  return Math.max(0, Number(item.totalUnits || 0) - Number(item.reservedUnits || 0));
+}
+
+/**
+ * How urgent an item is, read off `available` rather than stored.
+ *
+ * The stock register itself does not show this — an operator there wants the
+ * three counts, not a verdict on them. It exists for the dashboard, whose whole
+ * job is to say which registers need someone today.
+ */
+export function stockLevel(item: { totalUnits: string; reservedUnits: string }) {
+  const available = availableUnits(item);
+  if (available === 0) return "Out";
+  return available <= LOW_STOCK_AT ? "Low" : "Healthy";
+}

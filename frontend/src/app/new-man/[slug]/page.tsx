@@ -62,7 +62,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const price = pricingFor(piece);
 
   return {
-    title: `${piece.name} — Men's`,
+    title: piece.name,
     description: `${piece.name}. ${CATEGORY_LABELS[piece.category]} from Drop 001, ${formatPrice(price.price)}. Cut and finished in Bengaluru, in a single run.`,
   };
 }

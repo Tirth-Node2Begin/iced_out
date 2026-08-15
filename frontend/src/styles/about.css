@@ -11,6 +11,24 @@
 
 .nh-about-root main {
   overflow-x: clip;
+
+  /* Arriving on this route has to leave the page at the very top, because the
+     hero's headline *is* the wordmark and the flight that carries it up into
+     the bar is a function of scroll — land 92px in and the visitor's first
+     frame is already mid-trip: the type drawn small and adrift somewhere above
+     the hero, with a hole where the headline should be.
+
+     92px in is exactly where the router puts them. On a client-side navigation
+     it scrolls the incoming route's first laid-out element into view, and here
+     that element is this <main> — which starts below the bar, the one thing on
+     the page that is sticky and therefore skipped. The margin is what
+     scrollIntoView measures the landing off, so declaring the bar's own height
+     hands back the offset and the hero opens at rest.
+
+     Literal 92px, as everywhere else on this route: the bar is
+     `.nh-nav__inner { height: var(--nh-nav-h, 92px) }` and nothing on /about
+     defines that token, so its height is the same at every width. */
+  scroll-margin-top: 92px;
 }
 
 .nh-about-char {

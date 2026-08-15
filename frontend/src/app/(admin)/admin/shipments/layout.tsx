@@ -1,3 +1,18 @@
 import type { ReactNode } from "react";
+
 import { AdminModuleNav } from "@/components/admin/admin-module-nav";
-export default function ShipmentsLayout({ children }: { children: ReactNode }) { return <><AdminModuleNav label="Shipment" links={["active","ndr","manifests"].map((page) => ({href:`/admin/shipments/${page}`,label:page}))} />{children}</>; }
+
+const LINKS = [
+  { href: "/admin/shipments/active", label: "Active" },
+  { href: "/admin/shipments/failed", label: "Failed deliveries" },
+  { href: "/admin/shipments/pickups", label: "Courier pickups" },
+];
+
+export default function ShipmentsLayout({ children }: { children: ReactNode }) {
+  return (
+    <>
+      <AdminModuleNav label="Shipments" links={LINKS} />
+      {children}
+    </>
+  );
+}

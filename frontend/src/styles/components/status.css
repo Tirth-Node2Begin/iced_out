@@ -151,22 +151,11 @@
   background: rgba(255, 255, 255, 0.08);
 }
 
-/* ------------------------------------------------------- the clearance gate */
+/* -------------------------------------------------------- the auth fallback */
 
-/* The gate has no figure to dissolve — it is a wait, not a verdict, and a
-   giant numeral would announce a failure that has not happened. It gets the
-   mark instead, breathing rather than spinning: a rotating glyph asserts
-   progress it cannot measure. */
-.route-guard__mark {
-  width: 30px;
-  height: 30px;
-  color: var(--st-ink);
-  animation: st-pulse 1.9s var(--st-ease) infinite;
-}
-
-/* The bare `<span class="skeleton" />` in the five auth Suspense fallbacks.
-   Same pulse, so a route that is still resolving looks the same whether it is
-   the gate or a lazy auth page behind it. */
+/* The bare `<span class="skeleton" />` in the five auth Suspense fallbacks —
+   the only thing `.route-guard` dresses now that the clearance gate paints
+   nothing at all. */
 .route-guard > .skeleton {
   width: 30px;
   height: 30px;
@@ -214,12 +203,10 @@
   .st__figure,
   .st__label,
   .st__actions,
-  .route-guard__mark,
   .route-guard > .skeleton {
     animation: none;
   }
 
-  .route-guard__mark,
   .route-guard > .skeleton {
     opacity: 0.7;
   }

@@ -4,7 +4,14 @@ import { Check, LifeBuoy, MessageSquareText, Search, Send } from "lucide-react";
 import { useState, type FormEvent } from "react";
 
 import { AccountSection } from "@/components/account/account-section";
+import { useProfile } from "@/features/01-users/profile-context";
 import { orderFixtures } from "@/features/07-orders/data/order-fixtures";
+import {
+  NO_ORDER,
+  SUPPORT_TOPICS,
+  type SupportQuery,
+} from "@/features/14-support/data/support-queries";
+import { sendSupportQuery, useSupportQueries } from "@/features/14-support/support-store";
 
 /**
  * Support.
@@ -15,7 +22,9 @@ import { orderFixtures } from "@/features/07-orders/data/order-fixtures";
  * asking, so it does not make the shopper retype their name and email.
  *
  * A sent query lands in the table below it rather than vanishing behind a
- * notice: what was asked, about which order, and what state it is in.
+ * notice: what was asked, about which order, and what state it is in. It also
+ * lands in the console's support inbox, and the reply written there comes back
+ * to that same table — one list, read from both ends.
  */
 const FAQS = [
   {
@@ -40,17 +49,14 @@ const FAQS = [
   },
 ];
 
-type Query = {
-  reference: string;
-  topic: string;
-  order: string;
-  message: string;
-};
-
 export function CustomerSupport() {
+  const { profile } = useProfile();
   const [search, setSearch] = useState("");
-  const [queries, setQueries] = useState<Query[]>([]);
-  const [sent, setSent] = useState<Query | null>(null);
+  const [sent, setSent] = useState<SupportQuery | null>(null);
+
+  /* The store holds every query the demo knows about; this page is only ever
+     about the one shopper signed in on this device. */
+  const queries = useSupportQueries().filter((query) => query.email === profile.email);
 
   const term = search.trim().toLowerCase();
   const visibleFaqs = FAQS.filter(
@@ -61,15 +67,18 @@ export function CustomerSupport() {
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    const query: Query = {
-      reference: `IO-Q-${String(2026 + queries.length)}-${String(queries.length + 1).padStart(2, "0")}`,
-      topic: String(form.get("topic") ?? "Delivery"),
-      order: String(form.get("order") ?? "No order"),
-      message: String(form.get("message") ?? ""),
-    };
 
-    setQueries((current) => [query, ...current]);
-    setSent(query);
+    setSent(
+      sendSupportQuery({
+        customer: profile.name,
+        /* The profile's address, not a typed one — it is what both this list
+           and the console read a query back by. */
+        email: profile.email,
+        topic: String(form.get("topic") ?? SUPPORT_TOPICS[0]),
+        order: String(form.get("order") ?? NO_ORDER),
+        message: String(form.get("message") ?? ""),
+      }),
+    );
     event.currentTarget.reset();
   }
 
@@ -145,8 +154,8 @@ export function CustomerSupport() {
               <Check aria-hidden size={16} strokeWidth={2} />
               <p>
                 <strong>Query sent · {sent.reference}</strong>
-                A reply goes to shopper@example.com within two working days. The
-                reference above tracks it.
+                A reply goes to {sent.email} within two working days, and shows
+                up against this reference below.
               </p>
             </div>
             <div className="io-actions io-actions--end" style={{ marginTop: 14 }}>
@@ -164,23 +173,21 @@ export function CustomerSupport() {
             <div className="io-form__row">
               <label className="io-field">
                 <span>Topic</span>
-                <select defaultValue="Delivery" name="topic">
-                  <option>Delivery</option>
-                  <option>Return or exchange</option>
-                  <option>Payment or refund</option>
-                  <option>Product and fit</option>
-                  <option>Something else</option>
+                <select defaultValue={SUPPORT_TOPICS[0]} name="topic">
+                  {SUPPORT_TOPICS.map((topic) => (
+                    <option key={topic}>{topic}</option>
+                  ))}
                 </select>
               </label>
               <label className="io-field">
                 <span>
                   Related order <em>optional</em>
                 </span>
-                <select defaultValue={orderFixtures[0]?.number ?? "No order"} name="order">
+                <select defaultValue={orderFixtures[0]?.number ?? NO_ORDER} name="order">
                   {orderFixtures.map((order) => (
                     <option key={order.id}>{order.number}</option>
                   ))}
-                  <option>No order</option>
+                  <option>{NO_ORDER}</option>
                 </select>
               </label>
             </div>
@@ -189,7 +196,7 @@ export function CustomerSupport() {
               <span>
                 Reply to <em>from your profile</em>
               </span>
-              <input defaultValue="shopper@example.com" name="email" type="email" required />
+              <input name="email" readOnly type="email" value={profile.email} />
             </label>
 
             <label className="io-field">
@@ -228,7 +235,7 @@ export function CustomerSupport() {
             <p className="io-panel__note">
               {queries.length === 0
                 ? "Nothing open. Sent queries appear here with their reference."
-                : `${queries.length} sent from this device.`}
+                : `${queries.length} sent from this device. An answer appears under the query it replies to.`}
             </p>
           </div>
         </header>
@@ -254,12 +261,18 @@ export function CustomerSupport() {
                   <tr key={query.reference}>
                     <th scope="row">
                       <span className="io-table__primary">{query.reference}</span>
-                      <span className="io-table__sub">{query.message.slice(0, 60)}…</span>
+                      <span className="io-table__sub">
+                        {query.reply === ""
+                          ? `${query.message.slice(0, 60)}…`
+                          : `Answered: ${query.reply}`}
+                      </span>
                     </th>
                     <td>{query.topic}</td>
                     <td className="io-table__num">{query.order}</td>
                     <td>
-                      <span className="io-badge io-badge--live">Awaiting reply</span>
+                      <span className="io-badge io-badge--live">
+                        {query.status === "Resolved" ? "Answered" : "Awaiting reply"}
+                      </span>
                     </td>
                   </tr>
                 ))}

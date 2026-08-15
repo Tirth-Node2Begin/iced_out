@@ -76,16 +76,22 @@ export type RedeemResult =
  * The minimum is checked HERE rather than after the fact, so a code that cannot
  * do anything yet is refused with the number it is waiting for instead of being
  * accepted and then quietly discounting nothing.
+ *
+ * `table` is what the bag will accept, which is the promotions above PLUS
+ * whatever store credit the shopper is holding — see `vouchers.ts`. It is a
+ * parameter rather than an import so this file stays a fixture with no idea
+ * that vouchers exist, and so one function owns redemption for both.
  */
 export function redeemCoupon(
   input: string,
   subtotal: number,
   formatPrice: (value: number) => string,
+  table: Coupon[] = COUPONS,
 ): RedeemResult {
   const code = input.trim().toUpperCase();
   if (!code) return { ok: false, reason: "Enter a code." };
 
-  const coupon = COUPONS.find((entry) => entry.code === code);
+  const coupon = table.find((entry) => entry.code === code);
   if (!coupon) return { ok: false, reason: `${code} is not a code we know.` };
 
   if (subtotal < coupon.minSubtotal) {

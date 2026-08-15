@@ -18,7 +18,7 @@ const archivo = Archivo({
 });
 
 export const metadata: Metadata = {
-  title: "Iced_out — Women's training wear",
+  title: "Women",
   description:
     "Performance-driven womenswear: bras, tights, crops, and shells built for summer heat and winter cold.",
 };

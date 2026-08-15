@@ -7,7 +7,7 @@
 # Test info
 
 - Name: storefront.spec.ts >> keeps customer account navigation and lifecycle actions usable
-- Location: e2e\storefront.spec.ts:144:5
+- Location: e2e\storefront.spec.ts:198:5
 
 # Error details
 
@@ -26,7 +26,6 @@ Call log:
 ```
 
 ```yaml
-- alert
 - link "Skip to content":
   - /url: "#main-content"
 - banner:
@@ -40,8 +39,6 @@ Call log:
       - /url: /new-woman
     - link "New drop":
       - /url: /new-drop
-    - link "Sale":
-      - /url: /sale
     - link "About":
       - /url: /about
     - link "Contact":
@@ -52,13 +49,13 @@ Call log:
   - link "Bag":
     - /url: /cart
   - link "Profile":
-    - /url: /account
+    - /url: /account/profile
   - button "Logout"
 - main:
   - paragraph: Profile
-  - heading "Your account" [level=1]:
+  - heading "Your profile" [level=1]:
     - text: Your
-    - emphasis: account
+    - emphasis: profile
   - term: Orders
   - definition: "02"
   - term: In bag
@@ -66,22 +63,23 @@ Call log:
   - term: Saved
   - definition: "00"
   - complementary:
-    - paragraph: Iced_out Shopper
-    - paragraph: Verified customer
-    - term: Member
-    - definition: Since 2026
-    - term: Sessions
-    - definition: This device
+    - paragraph: ICED_OUT
+    - term: House
+    - definition: Iced_out
+    - term: Studio
+    - definition: Bengaluru, IN
+    - term: Market
+    - definition: India · INR
+    - term: Care
+    - definition: support@iced-out.example
     - navigation "Account":
       - paragraph: Menu
-      - link "Overview":
-        - /url: /account
-      - link "Orders 02":
-        - /url: /account/orders
-      - link "Saved":
-        - /url: /account/wishlist
       - link "Profile":
         - /url: /account/profile
+      - link "Orders 02":
+        - /url: /account/orders
+      - link "Vouchers 01":
+        - /url: /account/vouchers
       - link "Addresses":
         - /url: /account/addresses
       - link "Feedback":
@@ -97,59 +95,44 @@ Call log:
       - text: Support answers order, delivery and return questions within two working days.
     - link "Contact support":
       - /url: /account/support
-  - heading "Latest order" [level=2]
-  - paragraph: IO-2026-1048 · Afterdark Hoodie · Core Heavy Tee
-  - text: Processing Placed 04 Aug 04 Aug 2026 Total paid ₹17,800 UPI ending 42 Delivery 08–09 Aug Standard delivery
-  - paragraph: AWB ••••1048 · Bengaluru, Karnataka
-  - link "Track shipment":
-    - /url: /track/track-1048-demo
-  - link "Open order":
-    - /url: /account/orders/ord-1048
-  - heading "Order history" [level=2]
-  - paragraph: Archived snapshots keep their original prices, taxes and variants.
-  - link "All orders":
-    - /url: /account/orders
-  - table:
-    - rowgroup:
-      - row "Order Pieces Total Status Open":
-        - columnheader "Order"
-        - columnheader "Pieces"
-        - columnheader "Total"
-        - columnheader "Status"
-        - columnheader "Open"
-    - rowgroup:
-      - row "IO-2026-1048 04 Aug 2026 2 items Afterdark Hoodie · Core Heavy Tee ₹17,800 Processing View":
-        - rowheader "IO-2026-1048 04 Aug 2026"
-        - cell "2 items Afterdark Hoodie · Core Heavy Tee"
-        - cell "₹17,800"
-        - cell "Processing"
-        - cell "View":
-          - link "View":
-            - /url: /account/orders/ord-1048
-      - row "IO-2026-1027 18 Jul 2026 1 item Bone Utility Overshirt ₹11,400 Delivered View":
-        - rowheader "IO-2026-1027 18 Jul 2026"
-        - cell "1 item Bone Utility Overshirt"
-        - cell "₹11,400"
-        - cell "Delivered"
-        - cell "View":
-          - link "View":
-            - /url: /account/orders/ord-1027
-  - heading "Manage your account" [level=2]
-  - paragraph: Everything the session can change from here.
-  - link "Bag Nothing reserved 00 pieces":
-    - /url: /cart
-  - link "Saved Kept on this device, no session needed 00 pieces":
-    - /url: /wishlist
-  - link "Addresses Delivery and billing destinations Manage":
+  - heading "Iced_out Shopper" [level=2]
+  - paragraph: Verified customer
+  - term: Email
+  - definition: shopper@example.com
+  - term: Mobile
+  - definition: +91 98765 43210
+  - button "Edit profile"
+  - heading "Delivery addresses" [level=3]
+  - paragraph: The default is pre-selected at checkout. Edit, remove, or hand the default to another one right here.
+  - button "Add address"
+  - link "All 2":
     - /url: /account/addresses
-  - link "Security Password, two-factor and active sessions Manage":
-    - /url: /account/security
-  - link "Feedback Rate delivered pieces and read your replies Open":
+  - article:
+    - heading "Home" [level=4]
+    - text: Default Iced_out Shopper 12 Preview Street Bengaluru, Karnataka 560001 +91 ••••• 43210
+    - button "Edit"
+    - button "Remove"
+  - article:
+    - heading "Studio" [level=4]
+    - text: Iced_out Shopper 4th Floor, Block C New Delhi, Delhi 110001 +91 ••••• 43210
+    - button "Edit"
+    - button "Make default"
+    - button "Remove"
+  - button "Add another address"
+  - heading "Quick actions" [level=3]
+  - paragraph: Everywhere else this account can go.
+  - link "Orders Track and re-order":
+    - /url: /account/orders
+  - link "Addresses Where orders go":
+    - /url: /account/addresses
+  - link "Feedback Rate what arrived":
     - /url: /account/feedback
-  - link "Support Order help, returns and delivery questions Open":
+  - link "Notifications Your inbox":
+    - /url: /account/notifications
+  - link "Support Ask a person":
     - /url: /account/support
-  - paragraph: Signing out clears the bag on this device. Saved pieces are kept — they never needed a session.
-  - button "Log out"
+  - link "Security Password and sessions":
+    - /url: /account/security
 - contentinfo:
   - paragraph: Gear up · every season
   - paragraph: Built for the cold starts and the long finishes. Limited runs, restocked when the season turns.
@@ -182,65 +165,13 @@ Call log:
     - link "Careers":
       - /url: /contact
   - text: © 2026 Iced_out Every season · every workout
+- region "Notifications alt+T"
+- alert: Iced Out • Profile
 ```
 
 # Test source
 
 ```ts
-  49  |   await expect(page).toHaveURL("/");
-  50  | 
-  51  |   await page.getByRole("button", { name: "Bottoms" }).click();
-  52  |   const productGrid = page.locator(".product-grid");
-  53  |   await expect(productGrid.getByText("Shadow Cargo 02")).toBeVisible();
-  54  |   await expect(productGrid.getByText("Afterdark Hoodie")).toHaveCount(0);
-  55  | });
-  56  | 
-  57  | test("falls back to the footer for navigation on mobile", async ({ page }) => {
-  58  |   await page.setViewportSize({ width: 390, height: 844 });
-  59  |   await page.goto("/new-drop");
-  60  | 
-  61  |   // The shared bar drops both rails below 860px — the same behaviour it has on
-  62  |   // the new home — so the footer is what carries the destinations there.
-  63  |   await expect(page.getByRole("navigation", { name: "Primary navigation" })).toBeHidden();
-  64  |   await expect(page.locator(".nh-nav__wordmark")).toBeVisible();
-  65  | 
-  66  |   // One footer serves the whole site now (`components/layout/site-footer`), so
-  67  |   // these are its labels rather than the listing pages' old private set.
-  68  |   const footer = page.getByRole("contentinfo");
-  69  |   for (const label of [
-  70  |     "Men",
-  71  |     "Women",
-  72  |     "Accessories",
-  73  |     "Seasonal",
-  74  |     "Shipping",
-  75  |     "Returns",
-  76  |     "Contact",
-  77  |     "About",
-  78  |   ]) {
-  79  |     await expect(footer.getByRole("link", { name: label, exact: true })).toBeVisible();
-  80  |   }
-  81  | });
-  82  | 
-  83  | test("serves the approved public destinations", async ({ page }) => {
-  84  |   test.setTimeout(240_000);
-  85  |   for (const [path, heading] of [
-  86  |     // /new-drop now serves the men's listing; /men is gone.
-  87  |     ["/new-drop", "Built for the Men Who Move After Dark"],
-  88  |     ["/women", "Structured Volume for the Women Who Set the Pace"],
-  89  |     ["/new-man", "Gear up every season"],
-  90  |     ["/new-woman", "Gear up every season"],
-  91  |     ["/collections", "Collections."],
-  92  |     ["/sale", "Sale."],
-  93  |     ["/about", "Cold by nature. Built with intent."],
-  94  |     ["/contact", "Start with context. Not a queue."],
-  95  |   ]) {
-  96  |     await page.goto(path, { waitUntil: "domcontentloaded" });
-  97  |     await expect(page.getByRole("heading", { name: heading })).toBeVisible();
-  98  |   }
-  99  | });
-  100 | 
-  101 | test("blocks direct guest checkout", async ({ page }) => {
-  102 |   await page.goto("/checkout");
   103 |   await page.waitForURL("**/auth/login?returnTo=%2Fcheckout");
   104 |   await expect(page.getByRole("heading", { name: "Sign in." })).toBeVisible();
   105 | });
@@ -248,104 +179,177 @@ Call log:
   107 | test("provides the complete admin payments workspace", async ({ page }) => {
   108 |   await page.goto("/admin/payments");
   109 |   await page.waitForURL("**/admin/login?returnTo=%2Fadmin%2Fpayments");
-  110 |   await page.getByRole("button", { name: /Open permitted workspace/ }).click();
+  110 |   await page.getByRole("button", { name: /Enter console/ }).click();
   111 |   await page.waitForURL("**/admin/payments");
-  112 |   await expect(page.getByRole("heading", { name: "Payments", exact: true })).toBeVisible();
-  113 |   await page.getByRole("link", { name: "Transactions" }).click();
-  114 |   await expect(page.getByRole("heading", { name: "Transactions" })).toBeVisible();
-  115 |   await page.getByRole("link", { name: "pay_ICE1048" }).click();
-  116 |   await page.waitForURL("**/admin/payments/transactions/pay_ICE1048");
-  117 |   await expect(page.getByRole("heading", { name: "pay_ICE1048" })).toBeVisible();
-  118 |   await page.getByRole("link", { name: "Mismatches", exact: true }).click();
-  119 |   await expect(page.getByRole("heading", { name: "Mismatches" })).toBeVisible();
-  120 |   await page.getByRole("link", { name: "Reconciliation", exact: true }).click();
-  121 |   await expect(page.getByRole("heading", { name: "Reconciliation", exact: true })).toBeVisible();
-  122 |   await page.getByRole("link", { name: "Settlements", exact: true }).click();
-  123 |   await expect(page.getByRole("heading", { name: "Settlements" })).toBeVisible();
-  124 | });
-  125 | 
-  126 | test("supports product evaluation before the customer gate", async ({ page }) => {
-  127 |   await page.goto("/product/afterdark-hoodie");
-  128 |   const product = page.locator(".pdp");
-  129 |   await expect(product.getByRole("heading", { name: "Afterdark Hoodie" })).toBeVisible();
-  130 |   await expect(product.getByRole("button", { name: "XS, sold out" })).toBeDisabled();
-  131 |   await expect(product.getByRole("button", { name: "Select a size" })).toBeDisabled();
-  132 |   await product.getByRole("button", { name: "L", exact: true }).click();
-  133 |   await expect(product.getByText("Only 2 left in this size.")).toBeVisible();
-  134 |   await expect(product.getByRole("button", { name: "Add to bag" })).toBeEnabled();
-  135 | });
-  136 | 
-  137 | test("shows privacy-safe public shipment tracking", async ({ page }) => {
-  138 |   await page.goto("/track/track-1048-demo");
-  139 |   await expect(page.getByRole("heading", { name: "In transit." })).toBeVisible();
-  140 |   await expect(page.getByText("Tokenized shipment tracking")).toBeVisible();
-  141 |   await expect(page.getByText(/no customer name, street address, mobile number, or payment data/i)).toBeVisible();
-  142 | });
+  112 |   await expect(page.getByRole("heading", { name: "Payments ledger" })).toBeVisible();
+  113 |   /* Both screens the area has left — money in, and money on to the bank.
+  114 |      Refunds moved to Returns, which is where a refund is decided. Scoped to
+  115 |      the toolbar pill: the console rail also carries a "Payments" link, and an
+  116 |      unqualified name matches both. */
+  117 |   const tabs = page.getByRole("navigation", { name: "Payments screens" });
+  118 |   await tabs.getByRole("link", { name: "Payouts", exact: true }).click();
+  119 |   await expect(page.getByRole("heading", { name: "Gateway payouts" })).toBeVisible();
+  120 |   await tabs.getByRole("link", { name: "Payments", exact: true }).click();
+  121 |   await expect(page.getByRole("heading", { name: "Payments ledger" })).toBeVisible();
+  122 |   await page.getByRole("link", { name: "Open pay_ICE1048" }).click();
+  123 |   await page.waitForURL("**/admin/payments/pay_ICE1048");
+  124 |   await expect(page.getByRole("heading", { name: "Payment pay_ICE1048" })).toBeVisible();
+  125 | });
+  126 | 
+  127 | /**
+  128 |  * The one thing that makes the payments module a ledger rather than a
+  129 |  * demonstration: money a shopper owes shows up in the back office.
+  130 |  *
+  131 |  * Cash on delivery is the case worth pinning. It is the outcome that used to
+  132 |  * write nothing at all — no gateway was asked, so nothing was recorded — and
+  133 |  * it is the only one that reaches the console still owing money.
+  134 |  */
+  135 | test("records a checkout payment in the admin ledger", async ({ page }) => {
+  136 |   /* Wide enough for the header to show the bag rather than collapse it. */
+  137 |   await page.setViewportSize({ width: 1440, height: 1000 });
+  138 |   await signInCustomer(page, "/product/afterdark-hoodie");
+  139 | 
+  140 |   const product = page.locator(".pdp");
+  141 |   await product.getByRole("button", { name: "M", exact: true }).click();
+  142 |   await product.getByRole("button", { name: "Add to bag" }).click();
   143 | 
-  144 | test("keeps customer account navigation and lifecycle actions usable", async ({ page }) => {
-  145 |   // Signed in, the bar drops its only action, so the auth page's returnTo is
-  146 |   // what carries the shopper to /account.
-  147 |   await signInCustomer(page, "/account");
-  148 |   await page.waitForURL("**/account");
-> 149 |   await expect(page.getByRole("heading", { name: "Good evening." })).toBeVisible();
-      |                                                                      ^ Error: expect(locator).toBeVisible() failed
-  150 | 
-  151 |   const accountNavigation = page.getByRole("navigation", { name: "Account navigation" });
-  152 |   await accountNavigation.getByRole("link", { name: "Orders", exact: true }).click();
-  153 |   await expect(page.getByRole("heading", { name: "Orders." })).toBeVisible();
-  154 |   await page.getByRole("link", { name: "IO-2026-1027" }).click();
-  155 |   await expect(page.getByRole("heading", { name: "IO-2026-1027" })).toBeVisible();
-  156 |   await page.getByRole("link", { name: "Start a return" }).click();
-  157 |   await expect(page.getByRole("heading", { name: "Start a return." })).toBeVisible();
-  158 | 
-  159 |   await accountNavigation.getByRole("link", { name: "Support", exact: true }).click();
-  160 |   await expect(page.getByRole("heading", { name: "How can we help?" })).toBeVisible();
-  161 | });
-  162 | 
-  163 | test("preserves staff access across operations workspaces", async ({ page }) => {
-  164 |   await page.goto("/admin/orders");
-  165 |   await page.waitForURL("**/admin/login?returnTo=%2Fadmin%2Forders");
-  166 |   await page.getByRole("button", { name: /Open permitted workspace/ }).click();
-  167 |   await expect(page.getByRole("heading", { name: "Orders", exact: true })).toBeVisible();
-  168 | 
-  169 |   await page.getByRole("link", { name: "Support", exact: true }).click();
-  170 |   await page.waitForURL("**/admin/support/tickets");
-  171 |   await expect(page.getByRole("heading", { name: "Keep the context." })).toBeVisible();
-  172 |   await expect(page.getByText("Permission-masked context")).toBeVisible();
-  173 | });
+  144 |   /* Straight from the drawer that adding opens, which is how a shopper gets
+  145 |      there — and no page load, so the in-memory customer session survives. */
+  146 |   await page.getByRole("button", { name: "Secure checkout" }).click();
+  147 | 
+  148 |   /* Contact and address arrive pre-filled from the profile, so the steps are
+  149 |      answered already — Continue walks them to the one that is not. */
+  150 |   const cod = page.getByText("Pay the courier when the parcel arrives");
+  151 |   for (let step = 0; step < 3 && !(await cod.isVisible()); step += 1) {
+  152 |     await page.getByRole("button", { name: "Continue" }).click();
+  153 |   }
+  154 | 
+  155 |   await cod.click();
+  156 |   await page.getByRole("button", { name: /^Checkout · / }).click();
+  157 | 
+  158 |   await page.waitForURL(/\/orders\/ord-local-\d+/);
+  159 |   const heading = page.getByRole("heading", { level: 1, name: /^Order IO-/ });
+  160 |   await expect(heading).toBeVisible();
+  161 |   const number = (await heading.innerText()).match(/IO-\d{4}-\d+/)?.[0];
+  162 |   expect(number, "the order screen names the order it just placed").toBeTruthy();
+  163 | 
+  164 |   /* The ledger lives in this browser, so the same order is waiting in the
+  165 |      console — under a staff sign-in of its own, which the shopper's session
+  166 |      has nothing to do with. */
+  167 |   await page.goto("/admin/payments");
+  168 |   await page.getByRole("button", { name: /Enter console/ }).click();
+  169 |   await page.waitForURL("**/admin/payments");
+  170 | 
+  171 |   const row = page.getByRole("row").filter({ hasText: number! });
+  172 |   await expect(row).toContainText("Cash on delivery");
+  173 |   await expect(row).toContainText("Due");
   174 | 
-  175 | test("serves versioned policy and staff recovery pages", async ({ page }) => {
-  176 |   await page.goto("/pages/return-policy");
-  177 |   await expect(page.getByRole("heading", { name: "Return policy." })).toBeVisible();
-  178 |   await expect(page.getByRole("heading", { name: "Evidence and quality control" })).toBeVisible();
+  175 |   /* And the one verb it offers settles it. */
+  176 |   await row.getByRole("button", { name: /Mark .* collected/ }).click();
+  177 |   await expect(row).toContainText("Captured");
+  178 | });
   179 | 
-  180 |   await page.goto("/admin/forgot-password");
-  181 |   await expect(page.getByRole("heading", { name: "Recover access." })).toBeVisible();
-  182 |   await expect(page.getByText(/No credential or recovery request leaves this browser/)).toBeVisible();
-  183 | });
-  184 | 
-  185 | test("covers the remaining planned admin module families", async ({ page }) => {
-  186 |   await page.goto("/admin/marketing/coupons");
-  187 |   await page.waitForURL("**/admin/login?returnTo=%2Fadmin%2Fmarketing%2Fcoupons");
-  188 |   await page.getByRole("button", { name: /Open permitted workspace/ }).click();
-  189 |   await expect(page.getByRole("heading", { name: "Build a promise you can keep." })).toBeVisible();
+  180 | test("supports product evaluation before the customer gate", async ({ page }) => {
+  181 |   await page.goto("/product/afterdark-hoodie");
+  182 |   const product = page.locator(".pdp");
+  183 |   await expect(product.getByRole("heading", { name: "Afterdark Hoodie" })).toBeVisible();
+  184 |   await expect(product.getByRole("button", { name: "XS, sold out" })).toBeDisabled();
+  185 |   await expect(product.getByRole("button", { name: "Select a size" })).toBeDisabled();
+  186 |   await product.getByRole("button", { name: "L", exact: true }).click();
+  187 |   await expect(product.getByText("Only 2 left in this size.")).toBeVisible();
+  188 |   await expect(product.getByRole("button", { name: "Add to bag" })).toBeEnabled();
+  189 | });
   190 | 
-  191 |   await page.getByRole("link", { name: "campaigns", exact: true }).click();
-  192 |   await expect(page.getByRole("heading", { name: "Release with intent." })).toBeVisible();
-  193 |   await page.getByRole("link", { name: "Messages", exact: true }).click();
-  194 |   await expect(page.getByRole("heading", { name: "Transactional clarity." })).toBeVisible();
-  195 |   await page.getByRole("link", { name: "Inventory", exact: true }).click();
-  196 |   await expect(page.getByRole("heading", { name: "Stock truth" })).toBeVisible();
-  197 |   await page.getByRole("link", { name: "counts", exact: true }).click();
-  198 |   await expect(page.getByRole("heading", { name: "Count what is there." })).toBeVisible();
-  199 |   await page.getByRole("link", { name: "Access", exact: true }).click();
-  200 |   await expect(page.getByRole("heading", { name: "People and permission." })).toBeVisible();
-  201 |   await page.getByRole("link", { name: "roles", exact: true }).click();
-  202 |   await expect(page.getByRole("heading", { name: "Bundle, never assume." })).toBeVisible();
-  203 |   await page.getByRole("link", { name: "Settings", exact: true }).click();
-  204 |   await expect(page.getByRole("heading", { name: "Business controls." })).toBeVisible();
-  205 |   await page.getByRole("link", { name: "tax", exact: true }).click();
-  206 |   await expect(page.getByRole("heading", { name: "Tax configuration." })).toBeVisible();
-  207 | });
-  208 | 
+  191 | test("shows privacy-safe public shipment tracking", async ({ page }) => {
+  192 |   await page.goto("/track/track-1048-demo");
+  193 |   await expect(page.getByRole("heading", { name: "In transit." })).toBeVisible();
+  194 |   await expect(page.getByText("Tokenized shipment tracking")).toBeVisible();
+  195 |   await expect(page.getByText(/no customer name, street address, mobile number, or payment data/i)).toBeVisible();
+  196 | });
+  197 | 
+  198 | test("keeps customer account navigation and lifecycle actions usable", async ({ page }) => {
+  199 |   // Signed in, the bar drops its only action, so the auth page's returnTo is
+  200 |   // what carries the shopper to /account.
+  201 |   await signInCustomer(page, "/account");
+  202 |   await page.waitForURL("**/account");
+> 203 |   await expect(page.getByRole("heading", { name: "Good evening." })).toBeVisible();
+      |                                                                      ^ Error: expect(locator).toBeVisible() failed
+  204 | 
+  205 |   const accountNavigation = page.getByRole("navigation", { name: "Account navigation" });
+  206 |   await accountNavigation.getByRole("link", { name: "Orders", exact: true }).click();
+  207 |   await expect(page.getByRole("heading", { name: "Orders." })).toBeVisible();
+  208 |   await page.getByRole("link", { name: "IO-2026-1027" }).click();
+  209 |   await expect(page.getByRole("heading", { name: "IO-2026-1027" })).toBeVisible();
+  210 |   await page.getByRole("link", { name: "Start a return" }).click();
+  211 |   await expect(page.getByRole("heading", { name: "Start a return." })).toBeVisible();
+  212 | 
+  213 |   await accountNavigation.getByRole("link", { name: "Support", exact: true }).click();
+  214 |   await expect(page.getByRole("heading", { name: "How can we help?" })).toBeVisible();
+  215 | });
+  216 | 
+  217 | test("preserves staff access across operations workspaces", async ({ page }) => {
+  218 |   await page.goto("/admin/orders");
+  219 |   await page.waitForURL("**/admin/login?returnTo=%2Fadmin%2Forders");
+  220 |   await page.getByRole("button", { name: /Open permitted workspace/ }).click();
+  221 |   await expect(page.getByRole("heading", { name: "Orders", exact: true })).toBeVisible();
+  222 | 
+  223 |   await page.getByRole("link", { name: "Support", exact: true }).click();
+  224 |   await page.waitForURL("**/admin/support/tickets");
+  225 |   await expect(page.getByRole("heading", { name: "Keep the context." })).toBeVisible();
+  226 |   await expect(page.getByText("Permission-masked context")).toBeVisible();
+  227 | });
+  228 | 
+  229 | test("serves versioned policy and staff recovery pages", async ({ page }) => {
+  230 |   await page.goto("/pages/return-policy");
+  231 |   await expect(page.getByRole("heading", { name: "Return policy." })).toBeVisible();
+  232 |   await expect(page.getByRole("heading", { name: "Evidence and quality control" })).toBeVisible();
+  233 | 
+  234 |   await page.goto("/admin/forgot-password");
+  235 |   await expect(page.getByRole("heading", { name: "Recover access." })).toBeVisible();
+  236 |   await expect(page.getByText(/No credential or recovery request leaves this browser/)).toBeVisible();
+  237 | });
+  238 | 
+  239 | test("covers the remaining planned admin module families", async ({ page }) => {
+  240 |   await page.goto("/admin/notifications/templates");
+  241 |   await page.waitForURL("**/admin/login?returnTo=%2Fadmin%2Fnotifications%2Ftemplates");
+  242 |   await page.getByRole("button", { name: /Enter console/ }).click();
+  243 |   await expect(page.getByRole("heading", { level: 1, name: "Transactional clarity" })).toBeVisible();
+  244 | 
+  245 |   await page.getByRole("link", { name: "Inventory", exact: true }).click();
+  246 |   await expect(page.getByRole("heading", { level: 1, name: "Stock truth" })).toBeVisible();
+  247 |   await page.getByRole("link", { name: "Transfers", exact: true }).click();
+  248 |   await expect(page.getByRole("heading", { level: 1, name: "Move with custody" })).toBeVisible();
+  249 |   await page.getByRole("link", { name: "Settings", exact: true }).click();
+  250 |   await expect(page.getByRole("heading", { level: 1, name: "Business controls" })).toBeVisible();
+  251 |   await page.getByRole("link", { name: "Tax", exact: true }).click();
+  252 |   /* Pinned to the page heading: the tax screen also carries a section called
+  253 |      "Tax configuration", and an unqualified name would match both. */
+  254 |   await expect(page.getByRole("heading", { level: 1, name: "Tax configuration" })).toBeVisible();
+  255 | });
+  256 | 
+  257 | test("opens the profile from the account menu and pages its activity log", async ({ page }) => {
+  258 |   await page.goto("/admin/orders");
+  259 |   await page.waitForURL("**/admin/login?returnTo=%2Fadmin%2Forders");
+  260 |   await page.getByRole("button", { name: /Enter console/ }).click();
+  261 | 
+  262 |   /* Reached the way an operator reaches it, through the account chip. Not
+  263 |      `page.goto`: a staff session is deliberately never persisted, so a full
+  264 |      page load would land back on the login screen. */
+  265 |   await page.getByRole("button", { name: /Aarav D\./ }).click();
+  266 |   await page.getByRole("menuitem", { name: "Your profile" }).click();
+  267 |   await expect(page.getByRole("heading", { name: /Your profile/ })).toBeVisible();
+  268 | 
+  269 |   /* Five rows on the page and the rest behind the modal — that split is the
+  270 |      point of the screen, so the counts are asserted rather than assumed. */
+  271 |   await expect(page.locator("table.aui-table tbody tr")).toHaveCount(5);
+  272 |   await page.getByRole("button", { name: /See more/ }).click();
+  273 | 
+  274 |   const log = page.getByRole("dialog");
+  275 |   await expect(log.getByRole("heading", { name: "Full activity log" })).toBeVisible();
+  276 |   await expect(log.locator("tbody tr")).toHaveCount(12);
+  277 | 
+  278 |   await page.keyboard.press("Escape");
+  279 |   await expect(log).toBeHidden();
+  280 | });
+  281 | 
 ```

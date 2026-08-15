@@ -39,10 +39,18 @@ export function SearchResults() {
             {products.map((product, index) => <ProductCard product={product} index={index} key={product.id} />)}
           </div>
         ) : (
-          <div className="listing-empty">
-            <h2>No exact signal found.</h2>
-            <p>Try “hoodie”, “black”, or a collection name—or return to the current drop.</p>
-            <Link className="button button--glass" href="/new-drop">Browse New Drop <ArrowRight size={15} /></Link>
+          <div className="io-empty io-tokens">
+            <div className="io-empty__copy">
+              <span className="io-empty__glyph">
+                <Search aria-hidden size={20} strokeWidth={1.4} />
+              </span>
+              <h2>No exact signal found.</h2>
+              <p>Try “hoodie”, “black”, or a collection name—or return to the current drop.</p>
+            </div>
+            <Link className="io-btn io-btn--solid" href="/new-drop">
+              Browse New Drop
+              <ArrowRight aria-hidden size={15} />
+            </Link>
           </div>
         )}
       </Container>

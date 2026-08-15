@@ -1,36 +1,213 @@
-import { Activity, AlertTriangle, ArrowRight, Banknote, Boxes, Clock3, PackageCheck, RotateCcw, ShoppingBag, Zap } from "lucide-react";
-import Link from "next/link";
+"use client";
 
-const queueCards = [
-  { label: "Orders to confirm", value: "12", note: "3 older than 20 min", href: "/admin/orders", icon: ShoppingBag },
-  { label: "Ready to pack", value: "08", note: "Next pickup at 18:00", href: "/admin/fulfilment/pack", icon: PackageCheck },
-  { label: "Returns for QC", value: "05", note: "2 arriving today", href: "/admin/returns/qc", icon: RotateCcw },
-  { label: "Payment exceptions", value: "02", note: "Both inside SLA", href: "/admin/payments/mismatches", icon: Banknote },
-  { label: "Low stock variants", value: "17", note: "6 in current drop", href: "/admin/inventory/overview", icon: Boxes },
-];
+import {
+  Banknote,
+  Boxes,
+  CircleDollarSign,
+  Headphones,
+  PackageCheck,
+  RotateCcw,
+  ShoppingBag,
+  Users,
+} from "lucide-react";
+import { useMemo, useState } from "react";
+import type { DateRange } from "react-day-picker";
+
+import { StatGrid, type Stat } from "@/components/admin/admin-stats";
+import { Section } from "@/components/admin/admin-ui";
+import { DateRangePicker } from "@/components/admin/date-range-picker";
+import { formatPrice } from "@/features/02-products";
+import { ActivityFeed } from "@/features/15-dashboard/components/activity-feed";
+import {
+  change,
+  earliestDay,
+  openWork,
+  pad,
+  periodFor,
+  pointChange,
+  queues,
+  RANGE_PRESETS,
+  rangeFromWindow,
+  today,
+  windowFromRange,
+  type RangeKey,
+  type Window,
+} from "@/features/15-dashboard/data/dashboard-metrics";
+import { useHydrated } from "@/lib/use-hydrated";
+
+/**
+ * The landing screen.
+ *
+ * Three blocks: what the store traded over a period you choose, what is
+ * waiting on a person right now, and what the console has just been doing. No
+ * page head — the first section carries the title and the date filter, so the
+ * work starts at the top of the viewport instead of below a banner.
+ *
+ * The split between the first two rows is deliberate. Trading is a PERIOD and
+ * moves with the filter; a queue is a MOMENT and does not — "orders to
+ * confirm, last 30 days" is not a thing anyone can act on. Both halves are
+ * counted from the same fixtures the registers render, so no card can
+ * disagree with the screen it opens.
+ */
+
+/* ================================================================= period */
+
+function periodLabel(window: Window, key: RangeKey): string {
+  if (key === "custom") return `the ${window.length} selected days`;
+  return window.length === 1 ? "today" : `the last ${window.length} days`;
+}
+
+/* ================================================================= queues */
+
+/** Icon, tone and destination per queue. The counts come from the fixtures. */
+const QUEUE_CARDS = [
+  { key: "ordersToConfirm", label: "Orders to confirm", icon: ShoppingBag, tone: "amber", href: "/admin/orders" },
+  { key: "paymentExceptions", label: "Payment exceptions", icon: Banknote, tone: "rose", href: "/admin/payments" },
+  { key: "readyToDispatch", label: "Ready to dispatch", icon: PackageCheck, tone: "sky", href: "/admin/shipments/active" },
+  { key: "returnsToReview", label: "Returns to review", icon: RotateCcw, tone: "violet", href: "/admin/returns/requests" },
+  { key: "stockAtRisk", label: "Stock at risk", icon: Boxes, tone: "amber", href: "/admin/inventory/overview" },
+  { key: "openTickets", label: "Open queries", icon: Headphones, tone: "sky", href: "/admin/support" },
+] as const;
+
+const QUEUE_STATS: Stat[] = QUEUE_CARDS.map((card) => ({
+  label: card.label,
+  value: pad(queues[card.key].count),
+  note: queues[card.key].note,
+  icon: card.icon,
+  tone: card.tone,
+  href: card.href,
+}));
+
+/* ================================================================== screen */
 
 export function AdminDashboard() {
+  const [range, setRange] = useState<RangeKey>("today");
+  /* Only set once the calendar has been used. A preset fills the picker from
+     the window instead, so the control always shows the dates being counted. */
+  const [picked, setPicked] = useState<DateRange | undefined>();
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const hydrated = useHydrated();
+
+  const selected = useMemo<Window>(() => {
+    if (range === "custom") {
+      const custom = windowFromRange(picked?.from, picked?.to);
+      if (custom) return custom;
+    }
+    const preset = RANGE_PRESETS.find((entry) => entry.key === range) ?? RANGE_PRESETS[0];
+    return { start: 0, length: preset.days };
+  }, [range, picked]);
+
+  const { current, previous } = useMemo(() => periodFor(selected), [selected]);
+  const per = periodLabel(selected, range);
+  const activeLabel = RANGE_PRESETS.find((entry) => entry.key === range)?.label ?? "Custom range";
+
+  /* Real dates only once the browser is driving — see the picker's note. */
+  const shownRange = hydrated
+    ? (range === "custom" && picked ? picked : rangeFromWindow(selected))
+    : undefined;
+
+  /** A completed pick becomes the range; a half-finished one only redraws. */
+  function pick(next: DateRange | undefined) {
+    setPicked(next);
+    if (next?.from && next?.to) setRange("custom");
+  }
+
+  const trading: Stat[] = [
+    {
+      label: "Net revenue",
+      value: formatPrice(current.revenue),
+      icon: CircleDollarSign,
+      tone: "mint",
+      delta: change(current.revenue, previous.revenue),
+      note: `${formatPrice(current.basket)} average`,
+    },
+    {
+      label: "Orders placed",
+      value: current.orders.toLocaleString("en-IN"),
+      icon: ShoppingBag,
+      tone: "sky",
+      delta: change(current.orders, previous.orders),
+      note: `${current.sessions.toLocaleString("en-IN")} sessions`,
+    },
+    {
+      label: "Conversion",
+      value: `${current.conversion.toFixed(2)}%`,
+      icon: Users,
+      tone: "violet",
+      delta: pointChange(current.conversion, previous.conversion),
+      note: "Orders per session",
+    },
+    {
+      label: "Return rate",
+      value: `${current.returnRate.toFixed(1)}%`,
+      icon: RotateCcw,
+      tone: "rose",
+      delta: pointChange(current.returnRate, previous.returnRate),
+      note: `${current.returns} of ${current.orders} orders`,
+    },
+  ];
+
   return (
-    <section className="admin-workspace">
-      <div className="admin-heading"><p>Operations / Today</p><h1>Clear the queues.</h1><span>Every metric leads to the work behind it. Net revenue is the default financial view.</span></div>
-      <div className="admin-command-center">
-        <div><p><span className="status-dot" /> Live operations</p><strong>48</strong><small>orders moved through the system today</small><div className="admin-throughput-bars" aria-label="Hourly throughput"><i style={{ height: "32%" }} /><i style={{ height: "48%" }} /><i style={{ height: "38%" }} /><i style={{ height: "72%" }} /><i style={{ height: "58%" }} /><i style={{ height: "86%" }} /><i style={{ height: "68%" }} /><i style={{ height: "94%" }} /><i style={{ height: "76%" }} /><i style={{ height: "88%" }} /></div></div>
-        <div className="admin-shift-signal"><Zap size={20} /><p><span>Current shift</span><strong>All critical lanes staffed</strong><small><Clock3 size={12} /> Pickup cut-off in 03h 20m</small></p></div>
-        <div className="admin-health-ring"><Activity size={18} /><strong>94</strong><span>Ops health</span><small>4 systems nominal</small></div>
+    <div className="aui-page">
+      <div className="aui-page__wrap">
+        <div className="aui-page__body">
+          <Section
+            actions={
+              <div className="aui-chips">
+                {RANGE_PRESETS.map((preset) => (
+                  <button
+                    aria-pressed={range === preset.key ? "true" : "false"}
+                    className="aui-chip"
+                    key={preset.key}
+                    onClick={() => {
+                      setRange(preset.key);
+                      setPicked(undefined);
+                    }}
+                    type="button"
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+
+                <button
+                  aria-pressed={range === "custom" ? "true" : "false"}
+                  className="aui-chip"
+                  onClick={() => setCalendarOpen(true)}
+                  type="button"
+                >
+                  Custom
+                </button>
+
+                <DateRangePicker
+                  earliest={hydrated ? earliestDay() : undefined}
+                  fallback={activeLabel}
+                  latest={hydrated ? today() : undefined}
+                  onChange={pick}
+                  onOpenChange={setCalendarOpen}
+                  open={calendarOpen}
+                  value={shownRange}
+                />
+              </div>
+            }
+            copy={`Trading over ${per}, each figure against the period immediately before it.`}
+            eyebrow="Operations"
+            level={1}
+            title="Dashboard"
+          >
+            <StatGrid stats={trading} />
+          </Section>
+
+          <Section
+            copy={`${openWork} items are waiting on a person right now. Counts are live and do not follow the date filter — open a card to work the queue behind it.`}
+            eyebrow="Action required"
+            title="Queues"
+          >
+            <StatGrid stats={QUEUE_STATS} />
+          </Section>
+
+          <ActivityFeed />
+        </div>
       </div>
-      <div className="admin-stat-grid">
-        <article><span>Net revenue today</span><strong>₹4,28,420</strong><p>+12.4% against last Tuesday</p></article>
-        <article><span>Orders placed</span><strong>48</strong><p>₹8,925 average order value</p></article>
-        <article><span>Conversion</span><strong>3.84%</strong><p>1,249 qualified sessions</p></article>
-        <article><span>Return rate · 30d</span><strong>11.2%</strong><p>Fit is the leading reason</p></article>
-      </div>
-      <div className="admin-section-title"><div><h2>Action queues</h2><p>Oldest and highest-risk work appears first.</p></div><span className="admin-freshness"><span className="status-dot" /> Fresh · 14:40 IST</span></div>
-      <div className="admin-dashboard-queues">
-        {queueCards.map(({ label, value, note, href, icon: Icon }) => (
-          <Link href={href} key={label}><Icon size={20} /><span>{label}</span><strong>{value}</strong><small>{note}</small><ArrowRight size={16} /></Link>
-        ))}
-      </div>
-      <div className="admin-alert"><AlertTriangle size={20} /><div><strong>Razorpay webhooks delayed by 42 seconds</strong><p>Reconciliation polling is active. No customer action is required.</p></div></div>
-    </section>
+    </div>
   );
 }

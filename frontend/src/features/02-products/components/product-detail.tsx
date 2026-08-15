@@ -1,6 +1,7 @@
 "use client";
 
-import { ArrowRight, Bell, Check, Minus, Plus, Ruler, ShieldCheck, Truck } from "lucide-react";
+import { ArrowRight, Bell, Check, Minus, PackageX, Plus, Ruler, ShieldCheck, Truck } from "lucide-react";
+import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { ProductCard } from "@/components/commerce/product-card";
@@ -28,9 +29,21 @@ export function ProductDetail({ slug }: { slug: string }) {
 
   if (!product) {
     return (
-      <Container className="listing-empty" as="section">
-        <h1>This edition is no longer live.</h1>
-        <p>Explore the current drop for available alternatives.</p>
+      <Container as="section">
+        {/* Keeps an <h1>: this is the whole page, not a block inside one. */}
+        <div className="io-empty io-tokens">
+          <div className="io-empty__copy">
+            <span className="io-empty__glyph">
+              <PackageX aria-hidden size={20} strokeWidth={1.4} />
+            </span>
+            <h1>This edition is no longer live.</h1>
+            <p>Explore the current drop for available alternatives.</p>
+          </div>
+          <Link className="io-btn io-btn--solid" href="/new-drop">
+            See the current drop
+            <ArrowRight aria-hidden size={15} />
+          </Link>
+        </div>
       </Container>
     );
   }

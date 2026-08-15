@@ -3,7 +3,6 @@ export type RouteAudience = "customer" | "staff";
 export type RouteRule = {
   pattern: RegExp;
   audience: RouteAudience;
-  permission?: string;
 };
 
 export const protectedRouteRules: RouteRule[] = [
@@ -20,25 +19,19 @@ export const protectedRouteRules: RouteRule[] = [
      which is a shareable link precisely because it names none of that. */
   { pattern: /^\/orders(?:\/|$)/, audience: "customer" },
   { pattern: /^\/account(?:\/|$)/, audience: "customer" },
-  { pattern: /^\/admin\/payments(?:\/|$)/, audience: "staff", permission: "payments.view" },
-  { pattern: /^\/admin\/orders(?:\/|$)/, audience: "staff", permission: "orders.view" },
-  { pattern: /^\/admin\/shipments(?:\/|$)/, audience: "staff", permission: "shipping.view" },
-  { pattern: /^\/admin\/catalog(?:\/|$)/, audience: "staff", permission: "catalog.view" },
-  { pattern: /^\/admin\/inventory(?:\/|$)/, audience: "staff", permission: "inventory.view" },
-  { pattern: /^\/admin\/fulfilment(?:\/|$)/, audience: "staff", permission: "fulfilment.view" },
-  { pattern: /^\/admin\/returns(?:\/|$)/, audience: "staff", permission: "returns.view" },
-  { pattern: /^\/admin\/customers(?:\/|$)/, audience: "staff", permission: "customers.view_masked" },
-  { pattern: /^\/admin\/reviews(?:\/|$)/, audience: "staff", permission: "reviews.view" },
-  { pattern: /^\/admin\/support(?:\/|$)/, audience: "staff", permission: "support.tickets.view" },
-  { pattern: /^\/admin\/marketing(?:\/|$)/, audience: "staff", permission: "marketing.view" },
-  { pattern: /^\/admin\/notifications(?:\/|$)/, audience: "staff", permission: "notifications.view" },
-  { pattern: /^\/admin\/cms(?:\/|$)/, audience: "staff", permission: "cms.view" },
-  { pattern: /^\/admin\/analytics(?:\/|$)/, audience: "staff", permission: "reports.operational.view" },
-  { pattern: /^\/admin\/access\/(?:roles|permissions)(?:\/|$)/, audience: "staff", permission: "roles.manage" },
-  { pattern: /^\/admin\/access\/audit-log(?:\/|$)/, audience: "staff", permission: "audit.view" },
-  { pattern: /^\/admin\/access(?:\/|$)/, audience: "staff", permission: "staff.manage" },
-  { pattern: /^\/admin\/settings(?:\/|$)/, audience: "staff", permission: "settings.manage" },
-  { pattern: /^\/admin(?:\/|$)/, audience: "staff", permission: "dashboard.view" },
+  { pattern: /^\/admin\/payments(?:\/|$)/, audience: "staff" },
+  { pattern: /^\/admin\/orders(?:\/|$)/, audience: "staff" },
+  { pattern: /^\/admin\/shipments(?:\/|$)/, audience: "staff" },
+  { pattern: /^\/admin\/catalog(?:\/|$)/, audience: "staff" },
+  { pattern: /^\/admin\/inventory(?:\/|$)/, audience: "staff" },
+  { pattern: /^\/admin\/returns(?:\/|$)/, audience: "staff" },
+  { pattern: /^\/admin\/vouchers(?:\/|$)/, audience: "staff" },
+  { pattern: /^\/admin\/customers(?:\/|$)/, audience: "staff" },
+  { pattern: /^\/admin\/reviews(?:\/|$)/, audience: "staff" },
+  { pattern: /^\/admin\/support(?:\/|$)/, audience: "staff" },
+  { pattern: /^\/admin\/analytics(?:\/|$)/, audience: "staff" },
+  { pattern: /^\/admin\/settings(?:\/|$)/, audience: "staff" },
+  { pattern: /^\/admin(?:\/|$)/, audience: "staff" },
 ];
 
 export function getRouteRule(pathname: string) {

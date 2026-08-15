@@ -5,14 +5,17 @@ import { useState, type FormEvent } from "react";
 
 import { AccountSection } from "@/components/account/account-section";
 import { orderFixtures } from "@/features/07-orders/data/order-fixtures";
+import { useReviews } from "@/features/11-reviews/reviews-context";
+import type { ReviewState } from "@/features/11-reviews/reviews";
 
 /**
  * Feedback — what the tab used to call "Reviews".
  *
  * Only a delivered line can be written about, so the eligible list is derived
  * from the order archive rather than hard-coded: the same fixtures the orders
- * tab reads. Writing one adds it to the table below with the state it would
- * really be in — moderation — instead of claiming it was published.
+ * tab reads. Sending one writes it to the SAME register the moderation desk
+ * reads, so what this table calls a state is the decision an operator actually
+ * made — not a label this screen invented and then never revisited.
  */
 type Entry = {
   id: string;
@@ -23,24 +26,12 @@ type Entry = {
   note: string;
 };
 
-const SEEDED: Entry[] = [
-  {
-    id: "fb-hoodie",
-    piece: "Afterdark Hoodie",
-    rating: 5,
-    state: "Published",
-    date: "22 Jul 2026",
-    note: "Dense fabric and a clean oversized fit.",
-  },
-  {
-    id: "fb-tee",
-    piece: "Core Heavy Tee",
-    rating: 4,
-    state: "Needs an edit",
-    date: "19 Jul 2026",
-    note: "The uploaded image showed personal contact details.",
-  },
-];
+/** The desk's decisions, said the way a shopper would say them. */
+const STATE_WORDS: Record<ReviewState, Entry["state"]> = {
+  Pending: "In moderation",
+  Approved: "Published",
+  Rejected: "Needs an edit",
+};
 
 const STATE_BADGE: Record<Entry["state"], string> = {
   Published: "io-badge--ok",
@@ -49,9 +40,21 @@ const STATE_BADGE: Record<Entry["state"], string> = {
 };
 
 export function FeedbackWorkspace() {
-  const [entries, setEntries] = useState(SEEDED);
+  const { mine, submit: sendReview } = useReviews();
   const [writingAbout, setWritingAbout] = useState<string | null>(null);
   const [justSent, setJustSent] = useState<string | null>(null);
+
+  /* Read off the register rather than kept here, so an approval made on the
+     moderation desk turns this row from "In moderation" into "Published"
+     without this screen having to be told about it. */
+  const entries: Entry[] = mine.map((review) => ({
+    id: review.id,
+    piece: review.product,
+    rating: Number(review.rating) || 0,
+    state: STATE_WORDS[review.status],
+    date: review.submitted,
+    note: review.headline || review.body,
+  }));
 
   /* Delivered lines only — an order still in transit has nothing to say yet. */
   const eligible = orderFixtures
@@ -74,17 +77,14 @@ export function FeedbackWorkspace() {
     if (!target) return;
 
     const form = new FormData(event.currentTarget);
-    setEntries((current) => [
-      {
-        id: target.id,
-        piece: target.name,
-        rating: Number(form.get("rating") ?? 5),
-        state: "In moderation",
-        date: "Today",
-        note: String(form.get("message") ?? ""),
-      },
-      ...current,
-    ]);
+    /* Straight onto the moderation desk, waiting on a decision. Nothing this
+       form can say puts it on the storefront — only an approval does. */
+    sendReview({
+      product: target.name,
+      rating: Number(form.get("rating") ?? 5),
+      headline: String(form.get("title") ?? "").trim(),
+      body: String(form.get("message") ?? "").trim(),
+    });
     setJustSent(target.name);
     setWritingAbout(null);
   }

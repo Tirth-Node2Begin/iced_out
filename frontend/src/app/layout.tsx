@@ -8,6 +8,7 @@ import "@fontsource/roboto-mono/latin-400.css";
 import "@/styles/index.css";
 
 import { AppProviders } from "@/providers/app-providers";
+import { SITE_NAME, TAB_TEMPLATE } from "@/lib/tab-title";
 
 /**
  * The site's family (new_style §3.1), declared on `<body>` so `--font-archivo`
@@ -28,9 +29,10 @@ const archivo = Archivo({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://iced-out.example"),
+  /** `Iced Out • <page>` — see `@/lib/tab-title` for the rule and its exception. */
   title: {
-    default: "Iced_out — Uniforms for after dark",
-    template: "%s — Iced_out",
+    default: SITE_NAME,
+    template: TAB_TEMPLATE,
   },
   description:
     "Limited-run heavyweight streetwear engineered for after dark. Discover Drop 001 by Iced_out.",

@@ -3,12 +3,15 @@
 import { ArrowLeft, ArrowRight, Eye, EyeOff, Lock, Mail, MailCheck, User } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useRef, useState, type FormEvent, type ReactNode } from "react";
 import "./nh-auth.css";
 
 import { safeReturnPath } from "@/config/route-rules";
 import { AuthSplitVisual } from "@/components/auth/auth-split-visual";
+import { recordCustomerSignIn } from "@/features/01-users/customers-store";
+import { DEFAULT_PROFILE } from "@/features/01-users/profile-context";
 import { useAuth } from "@/features/20-auth-security/auth-context";
+import { useHydrated } from "@/lib/use-hydrated";
 
 export type CustomerAuthMode = "login" | "register" | "forgot" | "reset";
 
@@ -54,11 +57,38 @@ export function CustomerAuthPage({ mode }: { mode: CustomerAuthMode }) {
   const { signIn } = useAuth();
   const [submitted, setSubmitted] = useState(false);
   const [revealed, setRevealed] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  /* The session is opened in the browser, so nothing here works before the
+     script attaches — and a form with no action, submitted early, is not a
+     no-op: it GETs this same page back with what was typed into it, password
+     included, hanging off the URL. Closed until the handler exists. */
+  const ready = useHydrated();
   const page = content[mode];
   const isCredentialMode = mode === "login" || mode === "register";
   const hasPassword = mode === "login" || mode === "register" || mode === "reset";
 
+  /**
+   * Who is signing in, read off the form at the moment they do.
+   *
+   * "Continue with Google" is a button beside the fields rather than a real
+   * provider, so it has nothing typed to read; in that path the identity is the
+   * one this browser already stands for on the account screens.
+   */
+  function identity() {
+    const data = new FormData(formRef.current ?? undefined);
+    const email = String(data.get("email") ?? "").trim();
+    const name = String(data.get("name") ?? "").trim();
+    return email
+      ? { email, name: name || undefined }
+      : { email: DEFAULT_PROFILE.email, name: DEFAULT_PROFILE.name };
+  }
+
   function enterSession() {
+    /* The console reads the same register, so signing in here is what puts a
+       shopper in `/admin/customers` — and moves their last-seen on every
+       return visit. */
+    recordCustomerSignIn(identity());
     signIn();
     router.replace(safeReturnPath(searchParams.get("returnTo"), "/account/profile"));
   }
@@ -101,7 +131,7 @@ export function CustomerAuthPage({ mode }: { mode: CustomerAuthMode }) {
               {aside}
             </>
           ) : (
-            <form className="iox-auth__form" onSubmit={submit}>
+            <form className="iox-auth__form" onSubmit={submit} ref={formRef}>
               {mode === "register" && (
                 <div className="iox-field">
                   <div className="iox-field__top">
@@ -160,7 +190,8 @@ export function CustomerAuthPage({ mode }: { mode: CustomerAuthMode }) {
 
               {aside}
 
-              <button className="iox-btn iox-btn--primary" type="submit">
+              {/* Held closed until the handler exists — see the note on `ready`. */}
+              <button className="iox-btn iox-btn--primary" disabled={!ready} type="submit">
                 <span>{page.action}</span>
                 <ArrowRight size={16} aria-hidden="true" />
               </button>

@@ -3,8 +3,6 @@
 import {
   ArrowRight,
   Bell,
-  Camera,
-  Check,
   LifeBuoy,
   LockKeyhole,
   MapPin,
@@ -15,36 +13,24 @@ import {
   Trash2,
 } from "lucide-react";
 import Link from "next/link";
-import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
-import { AddAddressDialog } from "@/components/account/add-address-dialog";
-import { useAddresses } from "@/features/01-users/addresses-context";
-import {
-  initialsOf,
-  readPhotoFile,
-  useProfile,
-  type CustomerProfile,
-} from "@/features/01-users/profile-context";
+import { AddressDialog } from "@/components/account/address-dialog";
+import { AddressRemoveDialog } from "@/components/account/address-remove-dialog";
+import { useAddresses, type Address } from "@/features/01-users/addresses-context";
 
 /**
  * Profile.
  *
- * Three cards, in the order the questions get asked: who this is, where their
- * orders go, and where else they can get to.
+ * Two cards, in the order the questions get asked: where this account's orders
+ * go, and where else it can get to.
  *
- * The identity card is the read state — the details are not repeated as a list
- * underneath it, because a screen that prints the same email twice is a screen
- * that will one day print two different ones. Pressing edit swaps the card for
- * the form, which is also the only place the photo can be changed: a picture
- * swappable by a stray tap on the read screen is one that gets swapped by
- * accident.
+ * Who the account belongs to is asked first and answered above the page — the
+ * identity card is the frame's banner now, printed across the full width by
+ * `AccountShell` rather than stacked in this column beside the rail. See
+ * `components/account/profile-identity.tsx`.
  */
-const FIELDS = [
-  { key: "name", label: "Full name", hint: undefined, type: "text", autoComplete: "name" },
-  { key: "email", label: "Email", hint: "used to sign in", type: "email", autoComplete: "email" },
-  { key: "mobile", label: "Mobile", hint: "delivery updates", type: "tel", autoComplete: "tel" },
-] as const;
 
 /** Every other tab in the rail, as one press each. Profile is the page. */
 const QUICK_ACTIONS = [
@@ -57,228 +43,74 @@ const QUICK_ACTIONS = [
 ];
 
 export default function ProfilePage() {
-  const { profile, initials, save } = useProfile();
-  const { defaultAddress, addresses } = useAddresses();
+  const { addresses, defaultId, setDefault } = useAddresses();
 
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState<CustomerProfile>(profile);
-  const [photoError, setPhotoError] = useState<string | null>(null);
-  const [addingAddress, setAddingAddress] = useState(false);
-  const fileInput = useRef<HTMLInputElement>(null);
+  /* `null` is closed, `{ address: null }` is the blank form — an open flag plus
+     a separate "which one" would let the two disagree about what is on screen. */
+  const [addressEditor, setAddressEditor] = useState<{ address: Address | null } | null>(null);
+  /* The book asks before it deletes, and it asks in a box over the page rather
+     than inside the card: a saved address is typed once and used for years, and
+     a stray tap on a 32px button is not consent to lose it. */
+  const [removing, setRemoving] = useState<Address | null>(null);
 
-  const dirty =
-    draft.photo !== profile.photo ||
-    FIELDS.some((field) => draft[field.key].trim() !== profile[field.key]);
+  /* Default first: the card the eye wants is the one the parcel goes to. */
+  const ordered = [...addresses].sort((a, b) =>
+    a.id === defaultId ? -1 : b.id === defaultId ? 1 : 0,
+  );
 
-  function startEditing() {
-    /* Open from the stored record, not from whatever a previous abandoned edit
-       left in the draft. */
-    setDraft(profile);
-    setPhotoError(null);
-    setEditing(true);
-  }
-
-  function cancel() {
-    setDraft(profile);
-    setPhotoError(null);
-    setEditing(false);
-  }
-
-  function set(key: (typeof FIELDS)[number]["key"], value: string) {
-    setDraft((current) => ({ ...current, [key]: value }));
-  }
-
-  async function pickPhoto(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    /* Clear the input either way: picking the same file twice has to fire
-       `change` again, and it will not if the value is still sitting there. */
-    event.target.value = "";
-    if (!file) return;
-
-    try {
-      const photo = await readPhotoFile(file);
-      setDraft((current) => ({ ...current, photo }));
-      setPhotoError(null);
-    } catch (error) {
-      setPhotoError(error instanceof Error ? error.message : "That image could not be read.");
-    }
-  }
-
-  function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    save({
-      name: draft.name.trim(),
-      email: draft.email.trim(),
-      mobile: draft.mobile.trim(),
-      photo: draft.photo,
+  function makeDefault(address: Address) {
+    setDefault(address.id);
+    toast.success(`${address.label} is now your default.`, {
+      id: "address-default",
+      description: "Checkout will pre-select it.",
     });
-    setEditing(false);
-    setPhotoError(null);
-    /* An id, so a second save replaces the first toast instead of stacking an
-       identical one under it. */
-    toast.success("Profile saved.", {
-      id: "profile-saved",
-      description: "Orders placed from now on carry the updated details.",
+  }
+
+  /* The dialog has already removed it by the time this runs — all that is left
+     is to say so, and to say what the book does about the default. */
+  function announceRemoval(address: Address) {
+    const wasDefault = address.id === defaultId;
+    const remaining = addresses.length - 1;
+
+    toast.success(`${address.label} removed.`, {
+      id: "address-removed",
+      description:
+        wasDefault && remaining > 0
+          ? "The next saved address takes over as default."
+          : remaining === 0
+            ? "Your book is empty — checkout will ask for an address."
+            : undefined,
     });
   }
 
   /* No section header on this tab. The frame above already says "Your profile",
-     and the identity card underneath says who that is with the name and the
-     face — a headline asking "who this account belongs to" in between was a
-     third telling of the same thing. The cards carry the page. */
+     and the banner across the top says who that is with the name and the face —
+     a headline asking "who this account belongs to" in between was a third
+     telling of the same thing. The cards carry the page. */
   return (
     <div className="io-sec__body">
-      {editing ? (
-        <section className="io-panel">
-          <header className="io-panel__head">
-            <div>
-              <h2 className="io-panel__title">Edit details</h2>
-              <p className="io-panel__note">
-                Your photo stays on this device. Changing the email or mobile changes how
-                the account is recovered.
-              </p>
-            </div>
-          </header>
-
-          <form className="io-form" onSubmit={submit}>
-            <div className="io-photo">
-              {draft.photo ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img alt="" className="io-photo__preview" src={draft.photo} />
-              ) : (
-                <span aria-hidden className="io-photo__preview io-photo__preview--empty">
-                  {initialsOf(draft.name)}
-                </span>
-              )}
-
-              <div className="io-photo__body">
-                <p className="io-photo__label">Profile photo</p>
-                <p className="io-photo__note">
-                  Square works best. JPG or PNG, up to 5 MB — larger images are resized.
-                </p>
-
-                <div className="io-actions">
-                  <button
-                    className="io-btn io-btn--ghost io-btn--sm"
-                    onClick={() => fileInput.current?.click()}
-                    type="button"
-                  >
-                    <Camera aria-hidden size={14} strokeWidth={1.7} />
-                    {draft.photo ? "Replace photo" : "Upload photo"}
-                  </button>
-                  {draft.photo && (
-                    <button
-                      className="io-btn io-btn--ghost io-btn--sm"
-                      onClick={() => {
-                        setDraft((current) => ({ ...current, photo: null }));
-                        setPhotoError(null);
-                      }}
-                      type="button"
-                    >
-                      <Trash2 aria-hidden size={14} strokeWidth={1.7} />
-                      Remove
-                    </button>
-                  )}
-                </div>
-
-                {photoError && <p className="io-photo__error">{photoError}</p>}
-              </div>
-
-              <input
-                accept="image/*"
-                className="sr-only"
-                onChange={pickPhoto}
-                ref={fileInput}
-                type="file"
-              />
-            </div>
-
-            {FIELDS.map((field) => (
-              <label className="io-field" key={field.key}>
-                <span>
-                  {field.label}
-                  {field.hint && <em>{field.hint}</em>}
-                </span>
-                <input
-                  autoComplete={field.autoComplete}
-                  onChange={(event) => set(field.key, event.target.value)}
-                  required
-                  type={field.type}
-                  value={draft[field.key]}
-                />
-              </label>
-            ))}
-
-            <div className="io-actions io-actions--end">
-              <button className="io-btn io-btn--ghost" onClick={cancel} type="button">
-                Cancel
-              </button>
-              <button className="io-btn io-btn--solid" disabled={!dirty} type="submit">
-                Save profile
-              </button>
-            </div>
-          </form>
-        </section>
-      ) : (
-        <>
-          {/* The "Profile saved" banner used to live here. It pushed the whole
-              page down on save, so the card the eye was already on moved, and
-              it had no way out but editing again. The same sentence is a toast
-              now — see `submit`. */}
-          <section className="io-panel io-idcard">
-            {profile.photo ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img alt="" className="io-idcard__photo" src={profile.photo} />
-            ) : (
-              <span aria-hidden className="io-idcard__photo io-idcard__photo--empty">
-                {initials}
-              </span>
-            )}
-
-            <div className="io-idcard__body">
-              <h2 className="io-idcard__name">{profile.name}</h2>
-              <p className="io-idcard__state">
-                <Check aria-hidden size={12} strokeWidth={2.2} />
-                Verified customer
-              </p>
-
-              <dl className="io-idcard__meta">
-                <div>
-                  <dt>Email</dt>
-                  <dd>{profile.email}</dd>
-                </div>
-                <div>
-                  <dt>Mobile</dt>
-                  <dd>{profile.mobile}</dd>
-                </div>
-              </dl>
-            </div>
-
-            <button className="io-btn io-btn--ghost" onClick={startEditing} type="button">
-              <Pencil aria-hidden size={14} strokeWidth={1.7} />
-              Edit profile
-            </button>
-          </section>
-        </>
-      )}
-
-      {/* Kept as its own card, and read-only here: this is a reminder of where
-          orders land, not a second place to manage the book. */}
+      {/* This card used to be a read-only reminder of where orders land, on the
+          reasoning that the book belongs to the Addresses tab. In practice the
+          thing people came here to fix — a wrong pincode, an old flat number —
+          was two navigations away and could only be retyped from scratch. The
+          actions live where the address is shown; the tab is still the place
+          that lists the whole book. */}
       <section className="io-panel">
         <header className="io-panel__head">
           <div>
             <h3 className="io-panel__title">
               <MapPin aria-hidden size={16} strokeWidth={1.6} />
-              Default address
+              Delivery addresses
             </h3>
             <p className="io-panel__note">
-              Pre-selected at checkout. Change which one is default in Addresses.
+              The default is pre-selected at checkout. Edit, remove, or hand the default
+              to another one right here.
             </p>
           </div>
           <div className="io-actions">
             <button
               className="io-btn io-btn--ghost io-btn--sm"
-              onClick={() => setAddingAddress(true)}
+              onClick={() => setAddressEditor({ address: null })}
               type="button"
             >
               <Plus aria-hidden size={14} strokeWidth={1.8} />
@@ -291,37 +123,114 @@ export default function ProfilePage() {
           </div>
         </header>
 
-        {defaultAddress ? (
-          <article className="io-card">
-            <div className="io-card__head">
-              <h4 className="io-card__title">
-                <MapPin aria-hidden size={14} strokeWidth={1.7} />
-                {defaultAddress.label}
-              </h4>
-              <span className="io-badge io-badge--ok">Default</span>
-            </div>
-
-            <address>
-              {defaultAddress.name}
-              <br />
-              {defaultAddress.lines.map((line) => (
-                <span key={line}>
-                  {line}
-                  <br />
-                </span>
-              ))}
-              {defaultAddress.phone}
-            </address>
-          </article>
-        ) : (
-          <button className="io-card io-card--dashed" onClick={() => setAddingAddress(true)} type="button">
+        {ordered.length === 0 ? (
+          <button
+            className="io-card io-card--dashed"
+            onClick={() => setAddressEditor({ address: null })}
+            type="button"
+          >
             <Plus aria-hidden size={22} strokeWidth={1.5} />
             Add your first address
           </button>
+        ) : (
+          <div className="io-cards">
+            {ordered.map((address) => (
+              <article className="io-card" key={address.id}>
+                <div className="io-card__head">
+                  <h4 className="io-card__title">
+                    <MapPin aria-hidden size={14} strokeWidth={1.7} />
+                    {address.label}
+                  </h4>
+                  {address.id === defaultId && (
+                    <span className="io-badge io-badge--ok">Default</span>
+                  )}
+                </div>
+
+                <address>
+                  {address.name}
+                  <br />
+                  {address.lines.map((line) => (
+                    <span key={line}>
+                      {line}
+                      <br />
+                    </span>
+                  ))}
+                  {address.phone}
+                </address>
+
+                <div className="io-card__actions">
+                  <button
+                    className="io-btn io-btn--ghost io-btn--sm"
+                    onClick={() => setAddressEditor({ address })}
+                    type="button"
+                  >
+                    <Pencil aria-hidden size={13} strokeWidth={1.7} />
+                    Edit
+                  </button>
+                  {/* No glyph on this one, unlike its neighbours: it is the
+                      longest label of the three, and dropping the tick is what
+                      keeps all three actions on one line in a narrow card. The
+                      addresses tab spells it the same way. */}
+                  {address.id !== defaultId && (
+                    <button
+                      className="io-btn io-btn--ghost io-btn--sm"
+                      onClick={() => makeDefault(address)}
+                      type="button"
+                    >
+                      Make default
+                    </button>
+                  )}
+                  <button
+                    className="io-btn io-btn--ghost io-btn--sm"
+                    onClick={() => setRemoving(address)}
+                    type="button"
+                  >
+                    <Trash2 aria-hidden size={13} strokeWidth={1.7} />
+                    Remove
+                  </button>
+                </div>
+              </article>
+            ))}
+
+            <button
+              className="io-card io-card--dashed"
+              onClick={() => setAddressEditor({ address: null })}
+              type="button"
+            >
+              <Plus aria-hidden size={22} strokeWidth={1.5} />
+              Add another address
+            </button>
+          </div>
         )}
       </section>
 
-      <AddAddressDialog onOpenChange={setAddingAddress} open={addingAddress} />
+      <AddressDialog
+        address={addressEditor?.address ?? null}
+        onOpenChange={(open) => {
+          if (!open) setAddressEditor(null);
+        }}
+        onSaved={(saved, mode) =>
+          toast.success(
+            mode === "updated" ? `${saved.label} updated.` : `${saved.label} saved.`,
+            {
+              id: "address-saved",
+              description:
+                mode === "updated"
+                  ? "Checkout will use the corrected details."
+                  : "It is in your address book now.",
+            },
+          )
+        }
+        open={addressEditor !== null}
+      />
+
+      <AddressRemoveDialog
+        address={removing}
+        onOpenChange={(open) => {
+          if (!open) setRemoving(null);
+        }}
+        onRemoved={announceRemoval}
+      />
 
       <section className="io-panel">
         <header className="io-panel__head">

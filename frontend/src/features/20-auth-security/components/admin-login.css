@@ -1,0 +1,490 @@
+/* ============================================================================
+   ICED_OUT — the operations console door
+
+   One wide card, split: identity on the left, the two fields and the way in on
+   the right. That split is the point. A 340px column centred on a dark page is
+   the shape of a consumer sign-in and reads like one; a wide plate with the
+   house on one side and the work on the other reads as a console.
+
+   Minimal on purpose. The left bay carries a lockup, one headline, one line of
+   copy and the environment chip — nothing an operator would have to read
+   before they can type.
+
+   Every value is the console's own, copied by number rather than by eye: the
+   rail's brand plate, the page head's 112° wash and badge pill, the topbar's
+   environment chip, the mint presence dot, `--nh-*` for surfaces and ink.
+   Self-contained — nothing above this route opens `.aui-app`, so the token
+   layer is declared here instead of inherited.
+   ========================================================================= */
+
+.adl {
+  /* ---- the console's palette, value for value ---- */
+  --adl-surface: #101113;
+  --adl-surface-2: #16181a;
+  --adl-surface-3: #0a0b0c;
+  --adl-hairline: rgba(255, 255, 255, 0.13);
+  --adl-hairline-soft: rgba(255, 255, 255, 0.07);
+  --adl-ink: #f1f3f3;
+  --adl-ink-soft: #d5d9da;
+  --adl-muted: #8f9598;
+  --adl-muted-2: #6e7477;
+  --adl-solid: #f2f4f4;
+  --adl-solid-fg: #0d0e10;
+  --adl-indigo: #a9b3f5;
+  --adl-mint: #6fdba4;
+  --adl-lift: 0 1px 2px rgba(0, 0, 0, 0.4), 0 40px 90px -40px rgba(0, 0, 0, 1);
+  --adl-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 100dvh;
+  padding: clamp(16px, 3vw, 40px);
+  background:
+    radial-gradient(70% 55% at 18% 20%, rgba(140, 152, 240, 0.07), transparent 66%),
+    linear-gradient(
+      100deg,
+      var(--adl-surface-2) 0%,
+      #131517 38%,
+      var(--adl-surface) 62%,
+      var(--adl-surface-3) 100%
+    );
+  color: var(--adl-ink);
+  font-family: var(--font-manrope), system-ui, sans-serif;
+  isolation: isolate;
+  place-items: center;
+}
+
+.adl *,
+.adl *::before,
+.adl *::after {
+  box-sizing: border-box;
+}
+
+/* The grain, same as the console's plate. */
+.adl::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.5;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.045'/%3E%3C/svg%3E");
+}
+
+/* ---- the card ------------------------------------------------------------ */
+/* 1040px, split 1fr / 428px. The form bay is a fixed measure because a login
+   field has an ideal width and gains nothing from a wide screen; the identity
+   bay takes the rest, because that is the part that benefits from air. */
+.adl__card {
+  position: relative;
+  display: grid;
+  width: min(100%, 1040px);
+  min-height: min(600px, calc(100dvh - clamp(32px, 6vw, 80px)));
+  overflow: hidden;
+  border-radius: 28px;
+  grid-template-columns: minmax(0, 1fr) 428px;
+  background: linear-gradient(112deg, #1a1d22 0%, #16181b 46%, #181a21 100%);
+  box-shadow:
+    inset 0 0 0 1px var(--adl-hairline),
+    var(--adl-lift);
+}
+
+/* ---- left bay: identity -------------------------------------------------- */
+
+.adl__aside {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: clamp(30px, 3.4vw, 44px);
+  isolation: isolate;
+}
+
+/* The glow. Two radial stops anchored to the left edge, dissolving before they
+   reach the divider — so the identity bay is lit and the form bay stays a flat
+   dark ground with full contrast under the fields.
+
+   Pure CSS, and deliberately so: this replaced a WebGL aurora that carried a
+   dependency, a canvas, an animation loop and a no-context fallback path, to
+   render something a gradient says in four lines. Nothing here can fail to
+   initialise, and there is no frame loop on a screen nobody stays on. */
+.adl__aside::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(112% 84% at -6% 30%, rgba(140, 152, 240, 0.19), transparent 66%),
+    radial-gradient(70% 56% at 12% 92%, rgba(168, 146, 232, 0.09), transparent 70%),
+    linear-gradient(90deg, rgba(140, 152, 240, 0.05), transparent 72%);
+}
+
+/* The rail's lockup, exactly: a white plate with the console glyph, then the
+   house over its department. It is the first thing an operator sees in the
+   sidebar every day, so it is the first thing they see here.
+   Not a link — every route off this screen was removed deliberately. */
+.adl__brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.adl__brandmark {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border-radius: 12px;
+  background: var(--adl-solid);
+  color: var(--adl-solid-fg);
+  place-items: center;
+}
+
+.adl__brand b {
+  display: block;
+  font-size: 14.5px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+
+.adl__brand small {
+  display: block;
+  color: var(--adl-muted);
+  font-size: 9.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+/* Pushed down rather than centred in a box of its own: the lockup holds the
+   top of the bay, the chip holds the bottom, and the headline takes the space
+   between them. */
+.adl__pitch {
+  margin-top: auto;
+  padding-top: 44px;
+}
+
+/* The house two-cut headline the whole console uses: a solid first clause, a
+   light extended second one. */
+.adl__title {
+  max-width: 13ch;
+  margin: 0;
+  color: #ffffff;
+  font-size: clamp(30px, 3.4vw, 44px);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1.02;
+}
+
+.adl__title em {
+  color: var(--adl-ink-soft);
+  font-style: normal;
+  font-weight: 300;
+  letter-spacing: -0.025em;
+}
+
+.adl__lede {
+  max-width: 38ch;
+  margin: 18px 0 0;
+  color: var(--adl-muted);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+/* The console's presence dot: this reading is live. */
+.adl__dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 999px;
+  background: var(--adl-mint);
+  box-shadow: 0 0 0 3px rgba(111, 219, 164, 0.14);
+}
+
+/* The topbar's environment chip, unchanged. It is the only status the door
+   carries: which estate you are about to act in. Everything else an operator
+   needs is one screen away, and a sign-in that lists it is a dashboard nobody
+   asked for. */
+.adl__env {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  padding: 6px 12px;
+  margin-top: 34px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--adl-muted);
+  font-size: 10px;
+  gap: 7px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  box-shadow: inset 0 0 0 1px var(--adl-hairline-soft);
+}
+
+/* ---- right bay: the form ------------------------------------------------- */
+/* A step darker than the identity bay and ruled off it, so the two halves read
+   as two jobs rather than as one long panel. */
+.adl__main {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: clamp(30px, 3.4vw, 44px);
+  background: rgba(9, 10, 11, 0.55);
+  box-shadow: inset 1px 0 0 0 var(--adl-hairline-soft);
+}
+
+/* The head's badge, unchanged: tracked, tinted, ringed. */
+.adl__badge {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  padding: 6px 12px;
+  margin: 0;
+  border-radius: 999px;
+  background: rgba(140, 152, 240, 0.14);
+  color: var(--adl-indigo);
+  font-size: 9.5px;
+  font-weight: 600;
+  gap: 7px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  box-shadow: inset 0 0 0 1px rgba(140, 152, 240, 0.26);
+}
+
+.adl__heading {
+  margin: 16px 0 0;
+  color: #ffffff;
+  font-size: 23px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+
+/* ---- fields -------------------------------------------------------------- */
+/* Sunk into the bay rather than raised off it — a well is what an input looks
+   like everywhere else in this console. */
+.adl__fields {
+  display: flex;
+  margin-top: 26px;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.adl__field {
+  position: relative;
+  display: block;
+  padding: 10px 16px 11px;
+  border-radius: 15px;
+  background: rgba(0, 0, 0, 0.34);
+  cursor: text;
+  box-shadow: inset 0 0 0 1px var(--adl-hairline-soft);
+  transition:
+    background-color 0.3s var(--adl-ease),
+    box-shadow 0.3s var(--adl-ease);
+}
+
+.adl__field:hover {
+  background: rgba(0, 0, 0, 0.46);
+}
+
+.adl__field:focus-within {
+  background: rgba(0, 0, 0, 0.52);
+  box-shadow: inset 0 0 0 1px rgba(140, 152, 240, 0.45);
+}
+
+.adl__field span {
+  display: block;
+  color: var(--adl-muted-2);
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  line-height: 1.4;
+  pointer-events: none;
+  text-transform: uppercase;
+  user-select: none;
+}
+
+.adl__field input {
+  display: block;
+  width: 100%;
+  padding: 3px 0 0;
+  border: 0;
+  margin: 0;
+  background: none;
+  color: var(--adl-ink);
+  font: inherit;
+  font-size: 13.5px;
+  letter-spacing: 0.01em;
+  outline: none;
+}
+
+.adl__field input::placeholder {
+  color: rgba(241, 243, 243, 0.2);
+}
+
+/* Chrome paints its own tint over an autofilled control and there is no
+   property to turn it off — a very long inset shadow is the one way to cover
+   it, and the text colour has to be set on the fill rather than on `color`. */
+.adl__field input:-webkit-autofill,
+.adl__field input:-webkit-autofill:hover,
+.adl__field input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--adl-ink);
+  box-shadow: inset 0 0 0 1000px #0b0c0d;
+  transition: background-color 9999s ease-out;
+}
+
+.adl__field--reveal input {
+  padding-right: 30px;
+}
+
+.adl__reveal {
+  position: absolute;
+  right: 12px;
+  bottom: 10px;
+  display: grid;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--adl-muted-2);
+  cursor: pointer;
+  place-items: center;
+  transition: color 0.25s var(--adl-ease);
+}
+
+.adl__reveal:hover {
+  color: var(--adl-ink);
+}
+
+.adl__reveal:focus-visible {
+  color: var(--adl-ink);
+  outline: 1px solid rgba(140, 152, 240, 0.55);
+  outline-offset: 1px;
+}
+
+/* ---- submit -------------------------------------------------------------- */
+
+.adl__submit {
+  display: flex;
+  height: 48px;
+  margin-top: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  align-items: center;
+  background: var(--adl-solid);
+  color: var(--adl-solid-fg);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  gap: 8px;
+  justify-content: center;
+  letter-spacing: 0.01em;
+  transition:
+    background-color 0.25s var(--adl-ease),
+    transform 0.25s var(--adl-ease);
+}
+
+.adl__submit:hover:not(:disabled) {
+  background: #ffffff;
+}
+
+/* The window before the script attaches. Held closed rather than dimmed to
+   nothing: the door is a moment away, not shut. */
+.adl__submit:disabled {
+  cursor: progress;
+  opacity: 0.62;
+}
+
+.adl__submit:active {
+  transform: scale(0.99);
+}
+
+.adl__submit:focus-visible {
+  outline: 2px solid rgba(140, 152, 240, 0.7);
+  outline-offset: 3px;
+}
+
+.adl__submit svg {
+  transition: transform 0.35s var(--adl-ease);
+}
+
+.adl__submit:hover svg {
+  transform: translateX(2px);
+}
+
+/* The one line that changes how someone behaves on the other side of the
+   door: whatever they do next has their name on it. */
+.adl__audit {
+  display: flex;
+  align-items: center;
+  padding-top: 16px;
+  margin-top: 20px;
+  color: var(--adl-muted-2);
+  font-size: 10.5px;
+  gap: 7px;
+  letter-spacing: 0.01em;
+  box-shadow: inset 0 1px 0 0 var(--adl-hairline-soft);
+}
+
+/* ---- narrow -------------------------------------------------------------- */
+/* Below the split, the card stacks: identity on top as a compact band, form
+   underneath. The state list goes rather than being squeezed — it is context,
+   and context is the first thing to yield when there is no room for it. */
+@media (max-width: 940px) {
+  .adl__card {
+    width: min(100%, 460px);
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .adl__aside {
+    padding-bottom: clamp(26px, 4vw, 34px);
+  }
+
+  .adl__pitch {
+    margin-top: 26px;
+    padding-top: 0;
+  }
+
+  .adl__title {
+    max-width: none;
+    font-size: 30px;
+  }
+
+  .adl__env {
+    margin-top: 24px;
+  }
+
+  .adl__main {
+    box-shadow: inset 0 1px 0 0 var(--adl-hairline-soft);
+  }
+
+  /* Stacked, the bays sit above/below rather than side by side, so the glow
+     reads down the card instead of across it. */
+  .adl__aside::before {
+    background:
+      radial-gradient(90% 120% at 6% 0%, rgba(140, 152, 240, 0.19), transparent 68%),
+      linear-gradient(180deg, rgba(168, 146, 232, 0.07), transparent 76%);
+  }
+}
+
+@media (max-width: 420px) {
+  .adl__card {
+    border-radius: 22px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .adl *,
+  .adl *::before,
+  .adl *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

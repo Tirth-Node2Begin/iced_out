@@ -20,7 +20,7 @@ const archivo = Archivo({
 });
 
 export const metadata: Metadata = {
-  title: "About — Built with intent",
+  title: "About",
   description:
     "Inside Iced_out: limited-run streetwear shaped by weight, movement, and life after dark.",
 };

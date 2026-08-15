@@ -26,7 +26,6 @@ Call log:
 ```
 
 ```yaml
-- alert
 - link "Skip to content":
   - /url: "#main-content"
 - banner:
@@ -40,8 +39,6 @@ Call log:
       - /url: /new-woman
     - link "New drop":
       - /url: /new-drop
-    - link "Sale":
-      - /url: /sale
     - link "About":
       - /url: /about
     - link "Contact":
@@ -49,7 +46,7 @@ Call log:
   - link "Bag":
     - /url: /cart
   - link "Profile":
-    - /url: /auth/login?returnTo=%2Faccount
+    - /url: /auth/login?returnTo=%2Faccount%2Fprofile
   - link "Login":
     - /url: /auth/login?returnTo=%2F
 - main:
@@ -129,6 +126,8 @@ Call log:
     - link "Careers":
       - /url: /contact
   - text: © 2026 Iced_out Every season · every workout
+- region "Notifications alt+T"
+- alert
 ```
 
 # Test source
@@ -244,21 +243,21 @@ Call log:
   107 | test("provides the complete admin payments workspace", async ({ page }) => {
   108 |   await page.goto("/admin/payments");
   109 |   await page.waitForURL("**/admin/login?returnTo=%2Fadmin%2Fpayments");
-  110 |   await page.getByRole("button", { name: /Open permitted workspace/ }).click();
+  110 |   await page.getByRole("button", { name: /Enter console/ }).click();
   111 |   await page.waitForURL("**/admin/payments");
-  112 |   await expect(page.getByRole("heading", { name: "Payments", exact: true })).toBeVisible();
-  113 |   await page.getByRole("link", { name: "Transactions" }).click();
-  114 |   await expect(page.getByRole("heading", { name: "Transactions" })).toBeVisible();
-  115 |   await page.getByRole("link", { name: "pay_ICE1048" }).click();
-  116 |   await page.waitForURL("**/admin/payments/transactions/pay_ICE1048");
-  117 |   await expect(page.getByRole("heading", { name: "pay_ICE1048" })).toBeVisible();
-  118 |   await page.getByRole("link", { name: "Mismatches", exact: true }).click();
-  119 |   await expect(page.getByRole("heading", { name: "Mismatches" })).toBeVisible();
-  120 |   await page.getByRole("link", { name: "Reconciliation", exact: true }).click();
-  121 |   await expect(page.getByRole("heading", { name: "Reconciliation", exact: true })).toBeVisible();
-  122 |   await page.getByRole("link", { name: "Settlements", exact: true }).click();
-  123 |   await expect(page.getByRole("heading", { name: "Settlements" })).toBeVisible();
-  124 | });
-  125 | 
-  126 | test("supports product evaluation before the customer gate", async ({ page }) => {
+  112 |   await expect(page.getByRole("heading", { name: "Payments ledger" })).toBeVisible();
+  113 |   /* Both screens the area has left — money in, and money on to the bank.
+  114 |      Refunds moved to Returns, which is where a refund is decided. Scoped to
+  115 |      the toolbar pill: the console rail also carries a "Payments" link, and an
+  116 |      unqualified name matches both. */
+  117 |   const tabs = page.getByRole("navigation", { name: "Payments screens" });
+  118 |   await tabs.getByRole("link", { name: "Payouts", exact: true }).click();
+  119 |   await expect(page.getByRole("heading", { name: "Gateway payouts" })).toBeVisible();
+  120 |   await tabs.getByRole("link", { name: "Payments", exact: true }).click();
+  121 |   await expect(page.getByRole("heading", { name: "Payments ledger" })).toBeVisible();
+  122 |   await page.getByRole("link", { name: "Open pay_ICE1048" }).click();
+  123 |   await page.waitForURL("**/admin/payments/pay_ICE1048");
+  124 |   await expect(page.getByRole("heading", { name: "Payment pay_ICE1048" })).toBeVisible();
+  125 | });
+  126 | 
 ```

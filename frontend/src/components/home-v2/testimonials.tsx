@@ -1,12 +1,18 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+
+import { reviewByline } from "@/features/11-reviews/reviews";
+import { useReviews } from "@/features/11-reviews/reviews-context";
 
 import { TESTIMONIALS } from "./data";
 import { EASE, RevealImage, ScrollWords } from "./motion";
 
 const ITEMS = TESTIMONIALS.items;
+
+/** The card always has a portrait, so an approved review borrows one in turn. */
+const PORTRAITS = ITEMS.map((item) => item.src);
 
 function Arrow({ dir }: { dir: "prev" | "next" }) {
   return (
@@ -27,10 +33,40 @@ function Arrow({ dir }: { dir: "prev" | "next" }) {
  */
 export function Testimonials() {
   const [[index, dir], setState] = useState<[number, number]>([0, 1]);
-  const item = ITEMS[index];
+  const { approved } = useReviews();
+
+  /**
+   * The studio's own quotes, then whatever moderation has approved.
+   *
+   * Approved reviews are APPENDED rather than substituted, so the section is
+   * never empty and the first card a visitor lands on is the same one it has
+   * always been. A review that is still pending — or that was rejected, or
+   * whose approval was taken back — simply is not in this list.
+   *
+   * The register's server snapshot is its seed, so the exported markup already
+   * carries the reviews a browser that has never been here would see, and the
+   * first client render agrees with it.
+   */
+  const items = useMemo(
+    () => [
+      ...ITEMS,
+      ...approved.map((review, position) => ({
+        index: String(ITEMS.length + position + 1).padStart(2, "0"),
+        quote: review.body || review.headline,
+        name: reviewByline(review),
+        role: `${review.rating}★ · ${review.product}`,
+        src: PORTRAITS[(ITEMS.length + position) % PORTRAITS.length],
+      })),
+    ],
+    [approved],
+  );
+
+  /* An approval taken back shortens the list under the reader. Clamping here
+     rather than resetting keeps the card they were on if it survived. */
+  const item = items[Math.min(index, items.length - 1)];
 
   const go = (step: number) =>
-    setState(([i]) => [(i + step + ITEMS.length) % ITEMS.length, step]);
+    setState(([i]) => [(i + step + items.length) % items.length, step]);
 
   return (
     <section className="hv2-testimonials hv2-shell" id="testimonials">
