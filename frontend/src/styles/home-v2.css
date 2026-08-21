@@ -93,27 +93,56 @@ body:has(.hv2) {
   --hv2-nav-h: 74px;
 }
 
+/**
+ * The bar's own token, because this route is the one page shell that does not
+ * carry the palette.
+ *
+ * Every other route wraps the header in `.io-scope` / `.io-tokens` / `.nh-root`,
+ * all of which declare `--nh-hairline`. This one wraps it in `.hv2`, which does
+ * not — so `chrome.css`'s `box-shadow: inset 0 -1px 0 0 var(--nh-hairline)` on
+ * the plate resolved to the guaranteed-invalid value and the whole declaration
+ * was dropped. That is the quiet way the home page lost the hairline under its
+ * scrolled bar while every other page kept it: not a rule that turned it off,
+ * a token that was never in scope to begin with.
+ *
+ * Declared on `.nh-nav-scope` rather than on `.hv2`, so it reaches the one rule
+ * inside the bar that reads it and nothing else on the page.
+ */
 .hv2-home .nh-nav-scope {
-  --io-nav-scrim: rgba(23, 30, 34, 0.96);
-  --io-nav-plate: rgba(19, 23, 25, 0.94);
-  --nh-nav-plate: rgba(19, 23, 25, 0.94);
+  --nh-hairline: rgba(255, 255, 255, 0.13);
 }
 
 .hv2-home .nh-nav {
   background: transparent;
 }
 
+/* Nothing at the top of the page. The hero is the tallest, darkest thing on
+   the site and the bar has to read straight through it, so this route drops
+   the house scrim entirely rather than tinting it. */
 .hv2-home .nh-nav__scrim {
   height: 100%;
   background: transparent;
 }
 
-.hv2-home .nh-nav__plate {
-  background:
-    radial-gradient(120% 160% at 50% 0%, rgba(30, 40, 45, 0.92) 0%, rgba(30, 40, 45, 0) 62%),
-    linear-gradient(180deg, rgba(23, 30, 34, 0.96) 0%, rgba(19, 23, 25, 0.96) 54%, rgba(14, 15, 17, 0.96) 100%);
-  box-shadow: none;
-}
+/**
+ * The scrolled bar is the HOUSE bar. This route no longer paints its own.
+ *
+ * It used to, and the recipe was three departures at once: a
+ * `rgba(30, 40, 45, 0.92)` radial glow across the top edge, a vertical gradient
+ * at 96% opacity where the house plate sits flat at 74%, and `box-shadow: none`
+ * where the house plate carries a hairline along its bottom.
+ *
+ * Over the hero that reads well — but the plate is never seen over the hero. It
+ * only fades in once the page has scrolled under the bar, by which point the
+ * shopper is well past it, and what they got was a bar visibly lighter, cooler
+ * and edgeless compared with the one on every other route. Scrolling from here
+ * to Men changed the colour of the chrome, which is the one thing chrome must
+ * not do.
+ *
+ * The top-of-hero state above is this route's own, because that genuinely is
+ * unlike anywhere else. The scrolled state is not, so it is not styled here —
+ * `chrome.css` owns it, and changing it there changes it everywhere at once.
+ */
 
 .hv2-home .nh-nav__pill--solid {
   color: var(--nh-solid-fg);
