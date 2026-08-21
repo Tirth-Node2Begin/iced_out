@@ -3,7 +3,7 @@
 import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
 import { useRef } from "react";
 
-import { PHILOSOPHY } from "./data";
+import { useCopy } from "./copy";
 import { RevealImage, ScrollWords } from "./motion";
 
 /**
@@ -18,6 +18,7 @@ import { RevealImage, ScrollWords } from "./motion";
  * sitting flat.
  */
 export function Philosophy() {
+  const { philosophy } = useCopy();
   const ref = useRef<HTMLElement>(null);
   const reduce = useReducedMotion();
   const { scrollYProgress } = useScroll({
@@ -32,13 +33,13 @@ export function Philosophy() {
       <div className="hv2-philosophy__grid">
         <div className="hv2-philosophy__copy">
           <p className="hv2-eyebrow" data-aos="hv2-rise">
-            {PHILOSOPHY.eyebrow}
+            {philosophy.eyebrow}
           </p>
           <ScrollWords
             className="hv2-philosophy__statement"
             offset={["start 0.85", "center 0.55"]}
             spread={2.2}
-            text={PHILOSOPHY.body}
+            text={philosophy.body}
           />
         </div>
 
@@ -47,9 +48,9 @@ export function Philosophy() {
           style={reduce ? undefined : { y: mainY }}
         >
           <RevealImage
-            alt={PHILOSOPHY.main.alt}
+            alt={philosophy.main.alt}
             className="hv2-philosophy__main"
-            src={PHILOSOPHY.main.src}
+            src={philosophy.main.src}
           />
         </motion.div>
       </div>

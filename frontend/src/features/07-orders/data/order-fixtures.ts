@@ -1,3 +1,11 @@
+/**
+ * The SHAPE of an order as the customer's screens read it.
+ *
+ * The two hand-written orders that used to sit below these types are gone: the
+ * archive, the order screen and the account rail all read `GET /me/orders`, so a
+ * new account has none and two people on one machine never see each other's
+ * purchases. What is left is the type the API's payload is checked against.
+ */
 export type OrderLineFixture = {
   id: string;
   name: string;
@@ -40,37 +48,3 @@ export type OrderFixture = {
   shipment: { token: string; service: string; awb: string; destination: string; estimate: string };
   cancellationEligible: boolean;
 };
-
-export const orderFixtures: OrderFixture[] = [
-  {
-    id: "ord-1048",
-    number: "IO-2026-1048",
-    date: "04 Aug 2026",
-    total: "₹17,800",
-    status: "Processing",
-    items: "Afterdark Hoodie · Core Heavy Tee",
-    lines: [
-      { id: "line-1048-1", name: "Afterdark Hoodie", variant: "Washed black / M", quantity: 1, price: "₹8,900", returnEligible: false },
-      { id: "line-1048-2", name: "Core Heavy Tee", variant: "Ink / M", quantity: 1, price: "₹4,600", returnEligible: false },
-    ],
-    payment: { method: "UPI ending 42", status: "Captured", reference: "pay_••••1048" },
-    shipment: { token: "track-1048-demo", service: "Standard delivery", awb: "AWB ••••1048", destination: "Bengaluru, Karnataka", estimate: "08–09 Aug" },
-    cancellationEligible: true,
-  },
-  {
-    id: "ord-1027",
-    number: "IO-2026-1027",
-    date: "18 Jul 2026",
-    total: "₹11,400",
-    status: "Delivered",
-    items: "Bone Utility Overshirt",
-    lines: [{ id: "line-1027-1", name: "Bone Utility Overshirt", variant: "Bone / L", quantity: 1, price: "₹11,400", returnEligible: true }],
-    payment: { method: "Visa ending 1182", status: "Captured", reference: "pay_••••1027" },
-    shipment: { token: "track-1027-demo", service: "Express delivery", awb: "AWB ••••1027", destination: "New Delhi, Delhi", estimate: "Delivered 18 Jul" },
-    cancellationEligible: false,
-  },
-];
-
-export function findOrder(orderId: string) {
-  return orderFixtures.find((order) => order.id === orderId || order.number === orderId);
-}

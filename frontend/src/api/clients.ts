@@ -5,9 +5,32 @@ import { getRequestContext } from "@/api/request-context";
 
 type ApiAudience = "public" | "customer" | "admin";
 
+/**
+ * The API's address — relative, and that is the whole point.
+ *
+ * `/api/v1` is same-origin wherever the site is served from, so the session
+ * cookie is first-party and no CORS preflight ever happens. Both halves of the
+ * project already arrange for that path to reach PHP:
+ *
+ *   development — `next dev` proxies /api/v1 to the API (see next.config.ts),
+ *                 which is what lets the site run on localhost:3000 while the
+ *                 API listens on 127.0.0.1:8000. Calling the API's own origin
+ *                 directly would be cross-site, and a SameSite=Lax cookie is
+ *                 not sent across that line.
+ *   production  — Nginx serves the static export at / and proxies /api/v1 to
+ *                 PHP-FPM (spec §3.1).
+ *
+ * `NEXT_PUBLIC_API_BASE_URL` overrides it for a deployment where the API is
+ * genuinely on another origin. Set it only if you have also arranged for the
+ * cookie to survive that trip.
+ */
+export function apiBaseUrl(): string {
+  return process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api/v1";
+}
+
 function createClient(audience: ApiAudience): AxiosInstance {
   const client = axios.create({
-    baseURL: process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api/v1",
+    baseURL: apiBaseUrl(),
     timeout: 12_000,
     withCredentials: audience !== "public",
   });

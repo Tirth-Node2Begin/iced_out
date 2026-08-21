@@ -20,10 +20,14 @@ export function ProductCard({ product }: { product: Product; index: number }) {
       <div className="product-card__media media-frame">
         <Link
           className="product-card__media-link"
-          href={`/product/${product.slug}`}
+          href={`/product?slug=${product.slug}`}
           aria-label={`View ${product.name}`}
         >
-          <ProductImage position={product.imagePosition} />
+          <ProductImage
+            alt={product.name}
+            position={product.imagePosition}
+            src={product.image}
+          />
         </Link>
         {product.badge && <span className="product-badge">{product.badge}</span>}
         <button
@@ -69,7 +73,7 @@ export function ProductCard({ product }: { product: Product; index: number }) {
       <div className="product-card__details">
         <div>
           <p>{product.category}</p>
-          <h3><Link href={`/product/${product.slug}`}>{product.name}</Link></h3>
+          <h3><Link href={`/product?slug=${product.slug}`}>{product.name}</Link></h3>
           <span>{product.color}</span>
         </div>
         <div className="product-price">

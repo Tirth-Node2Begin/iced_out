@@ -12,6 +12,7 @@ import {
   UserRound,
   X,
 } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { StatGrid, type Stat } from "@/components/admin/admin-stats";
@@ -19,6 +20,7 @@ import {
   AdminPage,
   Btn,
   DetailList,
+  Empty,
   Field,
   Note,
   Panel,
@@ -26,12 +28,9 @@ import {
   Status,
   Timeline,
 } from "@/components/admin/admin-ui";
+import { useCatalog } from "@/features/02-products";
 import { formatPrice } from "@/features/02-products/utils/format-price";
-import {
-  AWAITING_PAYMENT,
-  EXCHANGE,
-  adminReturnFixtures,
-} from "@/features/18-returns/data/admin-return-fixtures";
+import { AWAITING_PAYMENT, EXCHANGE } from "@/features/18-returns/data/admin-return-fixtures";
 import { useReturnsRegister } from "@/features/18-returns/data/returns-store";
 import { balanceOf, replacementPrice } from "@/features/18-returns/utils/exchange";
 
@@ -48,19 +47,71 @@ const ELIGIBILITY = [
  * supports each of those sits above them rather than behind a tab.
  */
 export function AdminReturnDetail({ returnId }: { returnId: string }) {
-  const { returns, patch } = useReturnsRegister();
+  const { returns, ready, approve, reject, collectPayment, settle } = useReturnsRegister();
+  /* Replacement prices come from the live catalogue — see `balanceOf`. */
+  const { data: catalogue } = useCatalog();
+  const [busy, setBusy] = useState(false);
 
-  /* The register, not the fixtures. A decision taken on the list has to be the
-     one this page shows, and a decision taken here has to be the one the list
-     shows when you go back — which is only true if there is one copy of the
-     record and both screens are reading it. */
-  const record = returns.find((entry) => entry.id === returnId) ?? returns[0] ?? adminReturnFixtures[0];
+  /**
+   * The record, from the register — which is the database.
+   *
+   * It falls back to nothing rather than to the first row, and certainly not to a
+   * fixture: showing SOME return under the id of another is worse than saying the
+   * id is not there, because every decision on this page would then be taken
+   * against the wrong record.
+   */
+  const record = returns.find((entry) => entry.id === returnId);
+
+  if (!record) {
+    return (
+      <AdminPage
+        back={{ href: "/admin/returns/requests", label: "Returns" }}
+        eyebrow="Return"
+        icon={RotateCcw}
+        title={
+          <>
+            Return <em>{returnId}</em>
+          </>
+        }
+      >
+        <Empty
+          copy={
+            ready
+              ? "No return with this id is in the register — the link may be stale."
+              : "Reading the register…"
+          }
+          icon={RotateCcw}
+          title={ready ? "Not found" : "Loading"}
+        />
+      </AdminPage>
+    );
+  }
+
   const decision = record.state;
 
   /* An exchange is the only outcome with a second item and a second price
      behind it, so it is the only one that gets a block of its own below. */
   const swap = record.outcome === EXCHANGE && Boolean(record.replacement);
-  const balance = swap ? balanceOf(record.amount, record.replacement) : null;
+  const balance = swap ? balanceOf(record.amount, record.replacement, catalogue) : null;
+
+  /**
+   * One decision, awaited, with its refusal reported rather than swallowed.
+   *
+   * The id is passed in rather than read from the closure: `record` is narrowed by
+   * the early return above, and a callback cannot carry that narrowing with it.
+   */
+  function decide(id: string, verb: () => Promise<void>, said: string, detail: string) {
+    setBusy(true);
+    verb()
+      .then(() => toast.success(said, { description: detail }))
+      .catch((caught: unknown) =>
+        toast.error("That could not be recorded", {
+          description:
+            caught instanceof Error ? caught.message : `${id} was not changed.`,
+        }),
+      )
+      .finally(() => setBusy(false));
+  }
 
   /* A pricier replacement is the one case where approving does not finish the
      decision: the difference is asked for in the same press, and the return
@@ -84,27 +135,67 @@ export function AdminReturnDetail({ returnId }: { returnId: string }) {
     <AdminPage
       actions={
         <>
+          {/* Three verbs, and only the two that write anything reach the API. The
+              server decides whether approving parks this in `Awaiting payment` —
+              it does the same balance arithmetic — so no state is sent from here. */}
           <Btn
-            onClick={() => {
-              patch(record.id, { state: collects ? AWAITING_PAYMENT : "Approved" });
-              toast.success(collects ? `${balance?.amount} requested` : "Pickup approved", {
-                description: balance
-                  ? `${record.id} scheduled for 06 Aug · ${record.replacement} reserved. ${balance.sentence}`
-                  : `${record.id} scheduled for 06 Aug.`,
-              });
-            }}
+            disabled={busy}
+            onClick={() =>
+              decide(
+                record.id,
+                () => approve(record.id),
+                collects ? `${balance?.amount} requested` : "Pickup approved",
+                balance
+                  ? `${record.id} · ${record.replacement} reserved. ${balance.sentence}`
+                  : `${record.id} is approved for pickup.`,
+              )
+            }
             variant="solid"
           >
             <Check aria-hidden size={15} strokeWidth={1.9} /> Approve pickup
           </Btn>
-          <Btn onClick={() => toast.info("Evidence requested", { description: "The customer was asked for two more photographs." })}>
-            <ImageIcon aria-hidden size={15} strokeWidth={1.7} /> Request evidence
-          </Btn>
+          {decision === AWAITING_PAYMENT && (
+            <Btn
+              disabled={busy}
+              onClick={() =>
+                decide(
+                  record.id,
+                  () => collectPayment(record.id),
+                  "Difference collected",
+                  `${balance?.amount ?? ""} is in against ${record.id}.`,
+                )
+              }
+            >
+              <CreditCard aria-hidden size={15} strokeWidth={1.7} /> Difference received
+            </Btn>
+          )}
+          {approved && (
+            <Btn
+              disabled={busy}
+              onClick={() =>
+                decide(
+                  record.id,
+                  () => settle(record.id),
+                  swap ? "Replacement sent" : "Voucher issued",
+                  swap
+                    ? `${record.replacement} is on its way to ${record.customer}.`
+                    : `${formatPrice(Number(record.amount) || 0)} is on ${record.customer}'s account.`,
+                )
+              }
+            >
+              <Ticket aria-hidden size={15} strokeWidth={1.7} /> Settle
+            </Btn>
+          )}
           <Btn
-            onClick={() => {
-              patch(record.id, { state: "Rejected" });
-              toast.error("Return rejected", { description: `${record.id} was closed with a policy reason.` });
-            }}
+            disabled={busy}
+            onClick={() =>
+              decide(
+                record.id,
+                () => reject(record.id),
+                "Return rejected",
+                `${record.id} was closed with a policy reason.`,
+              )
+            }
             variant="danger"
           >
             <X aria-hidden size={15} strokeWidth={1.9} /> Reject
@@ -143,7 +234,7 @@ export function AdminReturnDetail({ returnId }: { returnId: string }) {
               <DetailList
                 rows={[
                   { label: "Coming back", value: `${record.item} · ${formatPrice(Number(record.amount) || 0)}` },
-                  { label: "Going out", value: `${record.replacement} · ${formatPrice(replacementPrice(record.replacement))}` },
+                  { label: "Going out", value: `${record.replacement} · ${formatPrice(replacementPrice(record.replacement, catalogue))}` },
                   { label: "Difference", value: balance.short },
                 ]}
               />

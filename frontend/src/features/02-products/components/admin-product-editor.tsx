@@ -6,6 +6,8 @@ import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 
 import { StatGrid, type Stat } from "@/components/admin/admin-stats";
+import { MediaField } from "@/components/admin/media-field";
+import { MediaGalleryField } from "@/components/admin/media-gallery-field";
 import { AdminPage, Btn, Empty, Field, Note, Panel, Section, Select } from "@/components/admin/admin-ui";
 import {
   RecordManager,
@@ -13,21 +15,21 @@ import {
   type FormField,
   type RecordRow,
 } from "@/components/admin/record-manager";
-import { useCatalog } from "@/features/02-products/catalog-context";
+import { useCatalogRegisters } from "@/features/02-products/catalog-context";
 import {
   FALLBACK_SIZES,
   PRODUCT_STATES,
   VARIANT_STATES,
-  mintVariantSku,
 } from "@/features/02-products/catalog-seed";
 import { available, findStockItem, sizesOf, useStock } from "@/features/03-inventory/stock-context";
 
 /**
  * The product editor.
  *
- * It reads the record the catalogue actually holds rather than a fixture, so
- * what you saved on the register is what opens here — and saving writes back
- * to the same store, which is what the register re-reads on the way out.
+ * It reads the record the DATABASE holds, so what you saved on the register is
+ * what opens here — and saving writes back through PATCH
+ * /admin/catalog/products/{slug}, which is what both the register and the
+ * storefront re-read afterwards.
  *
  * The eight-step wizard is gone. What is left is two things a person actually
  * edits: the product's own facts, and its variants — which are a register, so
@@ -58,31 +60,32 @@ const CATEGORIES_FALLBACK = ["Uncategorised"];
 const COLLECTIONS_FALLBACK = ["Unassigned"];
 
 /**
- * A variant's SKU and the product it hangs off — neither of which the form
- * asks for. Uniqueness is checked against every variant in the catalogue
- * rather than this product's, because two products sharing a SKU is exactly
- * the mix-up a SKU exists to prevent.
+ * The product a new variant hangs off — which the form does not ask for, because
+ * it is the product being edited.
+ *
+ * The SKU is NOT minted here any more. `SkuMinter::uniqueVariantSku` does it, and
+ * has to: uniqueness is checked against every variant in the database rather than
+ * the ones this browser happens to be holding, and two products sharing a SKU is
+ * exactly the mix-up a SKU exists to prevent.
  */
-function deriveVariant(productSku: string, productId: string, all: RecordRow[]) {
-  return (values: RecordRow, rows: RecordRow[], previous?: RecordRow): RecordRow => {
-    if (previous) return values;
-    return {
-      ...values,
-      product: productId,
-      id: mintVariantSku(
-        productSku,
-        values.colour,
-        values.size,
-        all.map((variant) => variant.id),
-      ),
-    };
-  };
+function deriveVariant(productId: string) {
+  return (values: RecordRow, _rows: RecordRow[], previous?: RecordRow): RecordRow =>
+    previous ? values : { ...values, product: productId };
 }
 
 export function AdminProductEditor({ productId }: { productId: string }) {
-  const { products, categories, collections, variants, ready, commit } = useCatalog();
-  const { items } = useStock();
+  const { products, categories, collections, variants, ready, register, error } =
+    useCatalogRegisters();
+  const productRegister = register("products");
+  const variantRegister = register("variants");
+  /* The gallery hangs off the STOCK ITEM, not the listing — a piece photographs
+     the same however it is sold. Editing it here therefore writes through the
+     inventory register, which is why that register's verbs are pulled in too. */
+  const { items, register: stockRegister } = useStock();
   const router = useRouter();
+  /* Held while a save or a publish is in flight, so neither control can be
+     pressed twice into two requests. */
+  const [busy, setBusy] = useState(false);
 
   const product = products.find((entry) => entry.id === productId);
   /* The register is the only place a product is created, so anything that
@@ -127,18 +130,46 @@ export function AdminProductEditor({ productId }: { productId: string }) {
     );
   }
 
-  function save(event: FormEvent<HTMLFormElement>) {
+  async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const values: Record<string, string> = {};
     for (const [key, value] of form.entries()) values[key] = String(value).trim();
 
-    commit("products", (current) =>
-      current.map((entry) => (entry.id === productId ? { ...entry, ...values } : entry)),
-    );
+    if (!product) return;
 
-    setSaved(true);
-    toast.success("Product saved", { description: `${values.name} was written to the catalogue.` });
+    setBusy(true);
+
+    try {
+      /* Sent as the whole record merged over the current one, so the register's
+         `toUpdate` can work out what actually moved — a price it did not change
+         must not be re-logged in `product_price_history`. */
+      await productRegister.onUpdate({ ...product, ...values }, product);
+
+      /* The gallery is a second record, so it is a second write — and only when
+         it actually moved, because a PATCH to the stock item touches a row the
+         warehouse screens are also looking at. Sent after the product so a
+         refused product edit does not leave the photographs changed for a
+         listing that did not save. */
+      const gallery = values.images ?? "";
+
+      if (stockItem && gallery !== (stockItem.images ?? "")) {
+        await stockRegister.onUpdate({ ...stockItem, images: gallery }, stockItem);
+      }
+
+      setSaved(true);
+      toast.success("Product saved", {
+        description: `${values.name} was written to the catalogue.`,
+      });
+    } catch (caught) {
+      /* Shown rather than swallowed: without this the button read "Saved" over a
+         product the server had refused to change. */
+      toast.error("That could not be saved", {
+        description: caught instanceof Error ? caught.message : "The server refused the change.",
+      });
+    } finally {
+      setBusy(false);
+    }
   }
 
   const stats: Stat[] = [
@@ -152,20 +183,28 @@ export function AdminProductEditor({ productId }: { productId: string }) {
     <AdminPage
       actions={
         <>
-          <Btn form="aui-product-form" type="submit" variant="solid">
-            <Save aria-hidden size={15} strokeWidth={1.8} /> {saved ? "Saved" : "Save product"}
+          <Btn disabled={busy} form="aui-product-form" type="submit" variant="solid">
+            <Save aria-hidden size={15} strokeWidth={1.8} />{" "}
+            {busy ? "Saving…" : saved ? "Saved" : "Save product"}
           </Btn>
           <Btn
-            disabled={product.status === "Published"}
+            disabled={busy || product.status === "Published"}
             onClick={() => {
-              commit("products", (current) =>
-                current.map((entry) =>
-                  entry.id === productId ? { ...entry, status: "Published" } : entry,
-                ),
-              );
-              toast.success("Published", {
-                description: `${product.name} is live on the storefront.`,
-              });
+              setBusy(true);
+              productRegister
+                .onUpdate({ ...product, status: "Published" }, product)
+                .then(() =>
+                  toast.success("Published", {
+                    description: `${product.name} is live on the storefront.`,
+                  }),
+                )
+                .catch((caught: unknown) =>
+                  toast.error("That could not be published", {
+                    description:
+                      caught instanceof Error ? caught.message : "The server refused the change.",
+                  }),
+                )
+                .finally(() => setBusy(false));
             }}
           >
             Publish product
@@ -196,7 +235,11 @@ export function AdminProductEditor({ productId }: { productId: string }) {
           title="Product truth"
         >
           <Panel>
-            <form className="aui-form aui-form--2" id="aui-product-form" onSubmit={save}>
+            <form
+              className="aui-form aui-form--2"
+              id="aui-product-form"
+              onSubmit={(event) => void save(event)}
+            >
               <Field label="Product name">
                 <input defaultValue={product.name} name="name" required />
               </Field>
@@ -229,6 +272,44 @@ export function AdminProductEditor({ productId }: { productId: string }) {
               </Field>
               <Field full label="Short description">
                 <textarea defaultValue={product.description ?? ""} name="description" rows={4} />
+              </Field>
+
+              {/* The photo. Uploaded to `POST /admin/media` the moment it is
+                  chosen, so what this field submits is the stored asset's URL —
+                  see `MediaField`. A product without one draws an empty frame
+                  rather than borrowing a picture of another garment. */}
+              <Field
+                full
+                help="The one frame the card, the bag and search show. Replacing it takes effect as soon as you save."
+                label="Primary photo"
+              >
+                <MediaField defaultValue={product.image ?? ""} label="Product photo" name="image" />
+              </Field>
+
+              {/* The rest of the run, which the product page pages through.
+                  It belongs to the STOCK ITEM this listing sells from, so it is
+                  shown and edited here but saved there — see `save`. Where the
+                  item is gone there is nothing to attach photographs to, and the
+                  field says so instead of silently discarding them. */}
+              <Field
+                full
+                help={
+                  stockItem
+                    ? `The gallery on ${stockItem.itemName}. Every listing of this item shows the same run, so a re-shoot only has to happen once.`
+                    : "This listing has no stock record, so there is nowhere to keep a gallery. Point it at an item on the catalogue register first."
+                }
+                label="More photos"
+              >
+                {stockItem ? (
+                  <MediaGalleryField
+                    defaultValue={stockItem.images ?? ""}
+                    key={stockItem.id}
+                    label="Product gallery"
+                    name="images"
+                  />
+                ) : (
+                  <p className="aui-gallery__count">No stock item.</p>
+                )}
               </Field>
             </form>
           </Panel>
@@ -270,12 +351,29 @@ export function AdminProductEditor({ productId }: { productId: string }) {
                 already hold, and the code is stamped on every SKU below it.
               </Note>
               <Btn
+                disabled={busy}
                 onClick={() => {
-                  commit("products", (current) => current.filter((entry) => entry.id !== productId));
-                  toast.success("Product deleted", {
-                    description: `${product.name} was removed from the catalogue.`,
-                  });
-                  router.push("/admin/catalog/products");
+                  setBusy(true);
+                  productRegister
+                    .onDelete(product)
+                    .then(() => {
+                      toast.success("Product deleted", {
+                        description: `${product.name} was removed from the catalogue.`,
+                      });
+                      /* Only after the server confirms. Navigating first meant
+                         landing back on a register that still listed the product
+                         because the delete had failed. */
+                      router.push("/admin/catalog/products");
+                    })
+                    .catch((caught: unknown) =>
+                      toast.error("That could not be deleted", {
+                        description:
+                          caught instanceof Error
+                            ? caught.message
+                            : "The server refused the change.",
+                      }),
+                    )
+                    .finally(() => setBusy(false));
                 }}
                 variant="danger"
                 wide
@@ -294,15 +392,21 @@ export function AdminProductEditor({ productId }: { productId: string }) {
       >
         <RecordManager
           columns={VARIANT_COLUMNS}
-          derive={deriveVariant(product.sku ?? "SKU", productId, variants)}
+          derive={deriveVariant(productId)}
           emptyHint="Nothing is buyable until this product has a size to buy. Add the first variant to get started."
           fields={variantFields(stockSizes)}
           filterKey="status"
           filterValues={VARIANT_STATES}
+          error={error}
           icon={Tag}
-          onCommit={(next) => commit("variants", next)}
-          /* The register shows this product's sizes; the store holds every
-             product's, so the updater is re-aimed at the whole list. */
+          loaded={variantRegister.loaded}
+          loading={variantRegister.loading}
+          onCreate={variantRegister.onCreate}
+          onDelete={variantRegister.onDelete}
+          onUpdate={variantRegister.onUpdate}
+          /* This product's variants only. The register behind them holds every
+             product's, and the endpoints address one by SKU, so no re-aiming is
+             needed — see `catalog-context`. */
           rows={mine}
           searchKeys={["id", "colour", "size", "status"]}
           singular="variant"

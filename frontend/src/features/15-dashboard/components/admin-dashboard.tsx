@@ -18,14 +18,13 @@ import { Section } from "@/components/admin/admin-ui";
 import { DateRangePicker } from "@/components/admin/date-range-picker";
 import { formatPrice } from "@/features/02-products";
 import { ActivityFeed } from "@/features/15-dashboard/components/activity-feed";
+import { useQueues, useTrading } from "@/features/15-dashboard/dashboard-api";
 import {
   change,
   earliestDay,
-  openWork,
   pad,
   periodFor,
   pointChange,
-  queues,
   RANGE_PRESETS,
   rangeFromWindow,
   today,
@@ -46,7 +45,7 @@ import { useHydrated } from "@/lib/use-hydrated";
  * The split between the first two rows is deliberate. Trading is a PERIOD and
  * moves with the filter; a queue is a MOMENT and does not — "orders to
  * confirm, last 30 days" is not a thing anyone can act on. Both halves are
- * counted from the same fixtures the registers render, so no card can
+ * counted by the SERVER off the same tables the registers read, so no card can
  * disagree with the screen it opens.
  */
 
@@ -59,7 +58,7 @@ function periodLabel(window: Window, key: RangeKey): string {
 
 /* ================================================================= queues */
 
-/** Icon, tone and destination per queue. The counts come from the fixtures. */
+/** Icon, tone and destination per queue. The counts come from the API. */
 const QUEUE_CARDS = [
   { key: "ordersToConfirm", label: "Orders to confirm", icon: ShoppingBag, tone: "amber", href: "/admin/orders" },
   { key: "paymentExceptions", label: "Payment exceptions", icon: Banknote, tone: "rose", href: "/admin/payments" },
@@ -69,18 +68,12 @@ const QUEUE_CARDS = [
   { key: "openTickets", label: "Open queries", icon: Headphones, tone: "sky", href: "/admin/support" },
 ] as const;
 
-const QUEUE_STATS: Stat[] = QUEUE_CARDS.map((card) => ({
-  label: card.label,
-  value: pad(queues[card.key].count),
-  note: queues[card.key].note,
-  icon: card.icon,
-  tone: card.tone,
-  href: card.href,
-}));
-
 /* ================================================================== screen */
 
 export function AdminDashboard() {
+  const { series, loading: seriesLoading, error: seriesError } = useTrading();
+  const { queues, error: queuesError } = useQueues();
+
   const [range, setRange] = useState<RangeKey>("today");
   /* Only set once the calendar has been used. A preset fills the picker from
      the window instead, so the control always shows the dates being counted. */
@@ -90,14 +83,14 @@ export function AdminDashboard() {
 
   const selected = useMemo<Window>(() => {
     if (range === "custom") {
-      const custom = windowFromRange(picked?.from, picked?.to);
+      const custom = windowFromRange(series, picked?.from, picked?.to);
       if (custom) return custom;
     }
     const preset = RANGE_PRESETS.find((entry) => entry.key === range) ?? RANGE_PRESETS[0];
     return { start: 0, length: preset.days };
-  }, [range, picked]);
+  }, [picked, range, series]);
 
-  const { current, previous } = useMemo(() => periodFor(selected), [selected]);
+  const { current, previous } = useMemo(() => periodFor(series, selected), [selected, series]);
   const per = periodLabel(selected, range);
   const activeLabel = RANGE_PRESETS.find((entry) => entry.key === range)?.label ?? "Custom range";
 
@@ -105,6 +98,18 @@ export function AdminDashboard() {
   const shownRange = hydrated
     ? (range === "custom" && picked ? picked : rangeFromWindow(selected))
     : undefined;
+
+  const queueStats: Stat[] = QUEUE_CARDS.map((card) => ({
+    label: card.label,
+    value: pad(queues[card.key].count),
+    note: queues[card.key].note,
+    icon: card.icon,
+    tone: card.tone,
+    href: card.href,
+  }));
+
+  /* The one number for "work outstanding", summed from what the server counted. */
+  const openWork = QUEUE_CARDS.reduce((run, card) => run + queues[card.key].count, 0);
 
   /** A completed pick becomes the range; a half-finished one only redraws. */
   function pick(next: DateRange | undefined) {
@@ -179,7 +184,7 @@ export function AdminDashboard() {
                 </button>
 
                 <DateRangePicker
-                  earliest={hydrated ? earliestDay() : undefined}
+                  earliest={hydrated ? earliestDay(series) : undefined}
                   fallback={activeLabel}
                   latest={hydrated ? today() : undefined}
                   onChange={pick}
@@ -189,7 +194,15 @@ export function AdminDashboard() {
                 />
               </div>
             }
-            copy={`Trading over ${per}, each figure against the period immediately before it.`}
+            copy={
+              seriesError
+                ? seriesError
+                : seriesLoading && series.length === 0
+                  ? "Reading the trading figures…"
+                  : series.length === 0
+                    ? "Nothing has been traded yet. Figures appear here as orders come in."
+                    : `Trading over ${per}, each figure against the period immediately before it.`
+            }
             eyebrow="Operations"
             level={1}
             title="Dashboard"
@@ -198,11 +211,17 @@ export function AdminDashboard() {
           </Section>
 
           <Section
-            copy={`${openWork} items are waiting on a person right now. Counts are live and do not follow the date filter — open a card to work the queue behind it.`}
+            copy={
+              queuesError
+                ? queuesError
+                : openWork === 0
+                  ? "Nothing is waiting on a person right now."
+                  : `${openWork} items are waiting on a person right now. Counts are live and do not follow the date filter — open a card to work the queue behind it.`
+            }
             eyebrow="Action required"
             title="Queues"
           >
-            <StatGrid stats={QUEUE_STATS} />
+            <StatGrid stats={queueStats} />
           </Section>
 
           <ActivityFeed />

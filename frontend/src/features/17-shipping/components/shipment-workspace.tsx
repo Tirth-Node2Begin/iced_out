@@ -11,9 +11,10 @@ import {
   Truck,
   Undo2,
 } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 
+import { useRegister } from "@/api/use-register";
 import { StatGrid, type Stat } from "@/components/admin/admin-stats";
 import { AdminPage, Btn, Field, Modal, Note, Select } from "@/components/admin/admin-ui";
 import {
@@ -24,7 +25,7 @@ import {
   type RowAction,
 } from "@/components/admin/record-manager";
 import { awaitingDispatch, useFulfilment } from "@/features/07-orders/fulfilment-context";
-import { COURIERS, SHIPMENT_STATES } from "@/features/17-shipping/data/shipment-fixtures";
+import { COURIERS, SHIPMENT_STATES } from "@/features/17-shipping/shipment-states";
 
 export type ShipmentView = "active" | "failed" | "pickups";
 
@@ -34,8 +35,15 @@ export type ShipmentView = "active" | "failed" | "pickups";
  * column of promises, not across twenty cards.
  *
  * A shipment starts when an order is DISPATCHED, which is why the active view
- * opens by offering the confirmed orders that nothing is carrying yet: pick
- * the courier and the day it goes out, and the parcel exists from then on.
+ * opens by offering the confirmed orders that nothing is carrying yet: pick the
+ * courier, and the parcel exists from then on.
+ *
+ * Every register here is READ-ONLY, and that is a correction. They used to offer
+ * "New shipment", with fields for an order number and an AWB — a form for
+ * inventing a parcel. A parcel comes into existence when an order is dispatched,
+ * and the server is what mints its id, its AWB and its dispatch date
+ * (`ShipmentService`). What an operator does to one afterwards is move it along,
+ * and every one of those moves is its own endpoint.
  */
 
 const SHIPMENT_COLUMNS: Column[] = [
@@ -45,15 +53,6 @@ const SHIPMENT_COLUMNS: Column[] = [
   { key: "destination", label: "Destination", hideSmall: true },
   { key: "dispatched", label: "Dispatched", align: "right", hideSmall: true },
   { key: "status", label: "State", status: true },
-];
-
-const SHIPMENT_FIELDS: FormField[] = [
-  { key: "order", label: "Order", placeholder: "IO-2026-1049", required: true },
-  { key: "provider", label: "Courier", type: "select", options: [...COURIERS] },
-  { key: "awb", label: "AWB", placeholder: "••••1049" },
-  { key: "destination", label: "Destination", placeholder: "Bengaluru" },
-  { key: "dispatched", label: "Dispatched on", type: "date" },
-  { key: "status", label: "State", type: "select", options: [...SHIPMENT_STATES] },
 ];
 
 /**
@@ -124,14 +123,10 @@ export function ShipmentWorkspace({ view = "active" }: { view?: ShipmentView }) 
 const NEEDS_ACTION = "Needs action";
 const SENDING_BACK = "Sending back";
 
-/** Why a courier came back with the parcel, in the words a person would use. */
-const FAILURE_REASONS = [
-  "Nobody was home",
-  "Address was wrong",
-  "Customer said no",
-  "Could not reach the customer",
-  "Not shared yet",
-];
+/* The failure reasons a courier can give are a SETTINGS vocabulary the server
+   validates against (`ShipmentService`), and a parcel is marked failed on the
+   active screen rather than typed in here — so the list this file used to hold is
+   gone with the form that offered it. */
 
 const FAILED_COLUMNS: Column[] = [
   { key: "id", label: "Parcel", primary: true, sub: "order" },
@@ -141,15 +136,8 @@ const FAILED_COLUMNS: Column[] = [
   { key: "handling", label: "Status", status: true },
 ];
 
-const FAILED_FIELDS: FormField[] = [
-  { key: "order", label: "Order", placeholder: "IO-2026-1049", required: true },
-  { key: "provider", label: "Courier", type: "select", options: [...COURIERS] },
-  { key: "destination", label: "Going to", placeholder: "Bengaluru" },
-  { key: "reason", label: "What went wrong", type: "select", options: FAILURE_REASONS, full: true },
-];
-
 function FailedDeliveries() {
-  const { shipments, commitShipments } = useFulfilment();
+  const { shipments, ready, loading, error, shipmentAction } = useFulfilment();
 
   /* The two blanks a parcel arrives with — it was marked failed on the active
      screen, which asks for neither — are filled in for reading only. Nothing
@@ -223,34 +211,31 @@ function FailedDeliveries() {
       <RecordManager
         columns={FAILED_COLUMNS}
         emptyHint="Nothing has failed. If a parcel is marked failed on active shipments, it appears here by itself."
-        fields={FAILED_FIELDS}
+        error={error}
+        fields={[]}
         filterKey="handling"
         filterValues={[NEEDS_ACTION, SENDING_BACK]}
         icon={AlertTriangle}
-        idPrefix="shp"
-        onCommit={commitShipments}
+        loaded={ready}
+        loading={loading}
+        readOnly
         rows={failed}
         searchKeys={["id", "order", "reason", "provider", "destination", "handling"]}
         singular="failed delivery"
         plural="failed deliveries"
         tone="rose"
         statusTone={(row) => (row.handling === SENDING_BACK ? "info" : "warn")}
-        /* A row typed in here is still a parcel in the one register, so it is
-           created already failed and already waiting on a decision. On an edit
-           `previous` carries what the row is doing now, and that is kept. */
-        derive={(values, _rows, previous) => ({
-          ...values,
-          status: "Failed",
-          handling: previous?.handling || NEEDS_ACTION,
-          awb: previous?.awb ?? `••••${values.order.slice(-4)}`,
-        })}
         rowAction={(row) => {
+          /* Each of the three verbs is the endpoint that owns it. `resend` also
+             counts the NDR attempt and refuses a fourth; `arrived-back` closes the
+             parcel and puts the stock back. Neither is something a status patch
+             could have done. */
           if (row.handling === SENDING_BACK) {
             return {
               icon: PackageCheck,
               tone: "good" as const,
               label: `${row.id} is back in the store`,
-              patch: { status: "Cancelled", handling: "Back in store" },
+              onSelect: () => shipmentAction(row.id, "arrived-back"),
               toast: {
                 title: "Parcel is back",
                 description: `${row.id} reached the store and is closed.`,
@@ -263,7 +248,7 @@ function FailedDeliveries() {
               icon: RotateCcw,
               tone: "good" as const,
               label: `Send ${row.id} out again`,
-              patch: { status: "In transit", handling: "" },
+              onSelect: () => shipmentAction(row.id, "resend"),
               toast: {
                 title: "Out for delivery again",
                 description: `${row.id} is back with ${row.provider}.`,
@@ -273,7 +258,7 @@ function FailedDeliveries() {
               icon: Undo2,
               tone: "danger" as const,
               label: `Send ${row.id} back to the store`,
-              patch: { handling: SENDING_BACK },
+              onSelect: () => shipmentAction(row.id, "return-to-store"),
               toast: {
                 title: "Coming back",
                 description: `${row.id} is on its way back to the store.`,
@@ -301,12 +286,6 @@ function FailedDeliveries() {
 const PICKUP_OPEN = "Open";
 const PICKUP_DONE = "Handed over";
 
-const PICKUPS: RecordRow[] = [
-  { id: "PICK-0412", provider: "Blue Dart", parcels: "18", pickup: "05 Aug · 17:30", status: PICKUP_OPEN },
-  { id: "PICK-0411", provider: "Delhivery", parcels: "09", pickup: "05 Aug · 16:00", status: PICKUP_DONE },
-  { id: "PICK-0410", provider: "Ecom Express", parcels: "04", pickup: "04 Aug · 17:00", status: PICKUP_DONE },
-];
-
 const PICKUP_COLUMNS: Column[] = [
   { key: "id", label: "Pickup", primary: true, sub: "provider" },
   { key: "parcels", label: "Parcels", align: "right", numeric: true },
@@ -321,10 +300,24 @@ const PICKUP_FIELDS: FormField[] = [
 ];
 
 function CourierPickups() {
-  /* The register keeps the rows; this copy exists only so the head can count
-     them, and is fed by the same change that updates the table. */
-  const [rows, setRows] = useState<RecordRow[]>(PICKUPS);
+  /* `/admin/pickups`, not three rows held in `useState`. A pickup is a batch a
+     driver physically collects, so it has to be the same batch for whoever is at
+     the desk when the van arrives. */
+  const pickups = useRegister(
+    useMemo(
+      () => ({
+        path: "/admin/pickups",
+        toCreate: (values: RecordRow) => ({
+          provider: values.provider,
+          parcels: Number(values.parcels ?? 0) || 0,
+          pickup: values.pickup,
+        }),
+      }),
+      [],
+    ),
+  );
 
+  const rows = pickups.rows;
   const open = rows.filter((row) => row.status === PICKUP_OPEN);
   const parcels = open.reduce((total, row) => total + (Number(row.parcels) || 0), 0);
 
@@ -346,29 +339,28 @@ function CourierPickups() {
       <RecordManager
         columns={PICKUP_COLUMNS}
         emptyHint="No pickups yet. Start one for the courier collecting today, then hand it over when the driver arrives."
+        error={pickups.error}
         fields={PICKUP_FIELDS}
         filterKey="status"
         filterValues={[PICKUP_OPEN, PICKUP_DONE]}
         icon={PackageCheck}
-        idPrefix="PICK"
-        initial={PICKUPS}
-        onRowsChange={setRows}
+        loaded={pickups.loaded}
+        loading={pickups.loading}
+        onCreate={pickups.onCreate}
         singular="pickup"
         tone="violet"
         statusTone={(row) => (row.status === PICKUP_DONE ? "good" : "warn")}
-        /* The form does not ask for a state — a new batch is open, and an edit
-           leaves whatever the batch is already doing alone. */
-        derive={(values, _rows, previous) => ({
-          ...values,
-          status: previous?.status ?? PICKUP_OPEN,
-        })}
+        /* A batch is created open and then handed over; there is nothing else to
+           edit about it, and no endpoint to delete one — a pickup that happened
+           happened. So neither verb is offered, and the state is not a field. */
         rowAction={(row) =>
           row.status === PICKUP_OPEN
             ? {
                 icon: Truck,
                 tone: "good" as const,
                 label: `Hand ${row.id} to ${row.provider}`,
-                patch: { status: PICKUP_DONE },
+                onSelect: () =>
+                  pickups.act(`/admin/pickups/${encodeURIComponent(row.id)}/handover`),
                 toast: {
                   title: "Handed over",
                   description: `${row.parcels} parcels went with ${row.provider}.`,
@@ -383,25 +375,17 @@ function CourierPickups() {
 
 /* ================================================= the active register */
 
-/** Today, as the date input wants it. */
-function todayValue() {
-  const now = new Date();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${now.getFullYear()}-${month}-${day}`;
-}
-
-/** `2026-08-06` as an operator reads it. */
-function readableDate(value: string) {
-  const [year, month, day] = value.split("-").map(Number);
-  if (!year || !month || !day) return value;
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  return `${String(day).padStart(2, "0")} ${months[month - 1]}`;
-}
+/* The two date helpers that used to live here — one to seed a date input with
+   today, one to render `2026-08-06` as "06 Aug" — are gone with the dispatch
+   dialog's date field. The server stamps a parcel's dispatch date at the moment
+   it creates the shipment, and formats it for the column; a date typed in a
+   browser could only ever disagree with the record it described. */
 
 function ActiveShipments() {
-  const { orders, shipments, commitShipments, dispatchOrder } = useFulfilment();
+  const { orders, shipments, ready, loading, error, dispatchOrder, transitionShipment } =
+    useFulfilment();
   const [dispatching, setDispatching] = useState(false);
+  const [sending, setSending] = useState(false);
 
   const waiting = awaitingDispatch(orders, shipments);
   const count = (state: string) => shipments.filter((row) => row.status === state).length;
@@ -437,20 +421,39 @@ function ActiveShipments() {
     },
   ];
 
-  function dispatch(event: FormEvent<HTMLFormElement>) {
+  /**
+   * Hands an order to a courier.
+   *
+   * The dispatch date is deliberately not asked for any more. The server stamps
+   * it — along with the AWB, the delivery promise and the parcel's id — at the
+   * moment the shipment is created, and a date typed in a browser could disagree
+   * with the record it is supposed to describe. Two questions became one.
+   */
+  async function dispatch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const orderId = String(form.get("order") ?? "");
     const provider = String(form.get("provider") ?? COURIERS[0]);
-    const date = String(form.get("dispatched") ?? "") || todayValue();
 
     if (!orderId) return;
 
-    dispatchOrder({ orderId, provider, dispatched: readableDate(date) });
-    setDispatching(false);
-    toast.success("Order dispatched", {
-      description: `${orderId} left with ${provider} on ${readableDate(date)}.`,
-    });
+    setSending(true);
+
+    try {
+      await dispatchOrder({ orderId, provider });
+      setDispatching(false);
+      toast.success("Order dispatched", {
+        description: `${orderId} left with ${provider}.`,
+      });
+    } catch (caught) {
+      /* The server refuses an unconfirmed order and a second live parcel. Both
+         are worth reading rather than swallowing. */
+      toast.error("That could not be dispatched", {
+        description: caught instanceof Error ? caught.message : "The server refused the change.",
+      });
+    } finally {
+      setSending(false);
+    }
   }
 
   return (
@@ -485,22 +488,15 @@ function ActiveShipments() {
       <RecordManager
         columns={SHIPMENT_COLUMNS}
         emptyHint="Nothing has been dispatched yet. Confirm an order, then dispatch it to create its first parcel."
-        fields={SHIPMENT_FIELDS}
-        /* The form picks a date, the column reads a day — and an untouched
-           date input submits nothing, which would otherwise wipe the day a
-           parcel already went out on. */
-        derive={(values, _rows, previous) => ({
-          ...values,
-          dispatched: values.dispatched
-            ? readableDate(values.dispatched)
-            : (previous?.dispatched ?? ""),
-        })}
+        error={error}
+        fields={[]}
         filterKey="status"
         filterValues={[...SHIPMENT_STATES]}
         icon={Truck}
-        idPrefix="shp"
-        onCommit={commitShipments}
-        rowHref={(row) => `/admin/shipments/${row.id}`}
+        loaded={ready}
+        loading={loading}
+        readOnly
+        rowHref={(row) => `/admin/shipments/detail?id=${encodeURIComponent(row.id)}`}
         rows={shipments}
         singular="shipment"
         tone="sky"
@@ -508,19 +504,23 @@ function ActiveShipments() {
           const step = NEXT_SHIPMENT_STEP[row.status];
           if (!step) return null;
 
+          /* Each move is `POST /admin/shipments/{id}/transition`, which also
+             writes the event a customer sees on the tracking page — a patched
+             status column would have changed the word on this screen and nothing
+             else. */
           return [
             {
               icon: step.to === "Delivered" ? CheckCircle2 : Route,
               tone: "good" as const,
               label: `${step.verb} · ${row.id}`,
-              patch: { status: step.to },
+              onSelect: () => transitionShipment(row.id, step.to),
               toast: { title: `Shipment ${step.to.toLowerCase()}`, description: `${row.id} ${step.said}.` },
             },
             {
               icon: step.exit.to === "Cancelled" ? Ban : AlertTriangle,
               tone: "danger" as const,
               label: `${step.exit.verb} · ${row.id}`,
-              patch: { status: step.exit.to },
+              onSelect: () => transitionShipment(row.id, step.exit.to),
               toast: {
                 title: step.exit.title,
                 description: `${row.id} ${step.exit.said}.`,
@@ -536,20 +536,26 @@ function ActiveShipments() {
       <Modal
         footer={
           <>
-            <Btn onClick={() => setDispatching(false)}>Cancel</Btn>
-            <Btn form="dispatch-form" type="submit" variant="solid">
-              Dispatch order
+            <Btn disabled={sending} onClick={() => setDispatching(false)}>
+              Cancel
+            </Btn>
+            <Btn disabled={sending} form="dispatch-form" type="submit" variant="solid">
+              {sending ? "Dispatching…" : "Dispatch order"}
             </Btn>
           </>
         }
-        description="The order leaves the warehouse on the day you choose and becomes a parcel with that date on it."
+        description="The order leaves the warehouse now and becomes a parcel, with its AWB and delivery promise stamped on it."
         icon={Truck}
         onOpenChange={setDispatching}
         open={dispatching}
         title="Dispatch an order"
         tone="sky"
       >
-        <form className="aui-form aui-form--2" id="dispatch-form" onSubmit={dispatch}>
+        <form
+          className="aui-form aui-form--2"
+          id="dispatch-form"
+          onSubmit={(event) => void dispatch(event)}
+        >
           <Field full label="Order">
             <Select
               ariaLabel="Order to dispatch"
@@ -562,9 +568,6 @@ function ActiveShipments() {
           </Field>
           <Field label="Courier">
             <Select ariaLabel="Courier" defaultValue={COURIERS[0]} name="provider" options={[...COURIERS]} />
-          </Field>
-          <Field help="Defaults to today." label="Dispatch date">
-            <input defaultValue={todayValue()} name="dispatched" type="date" />
           </Field>
         </form>
       </Modal>

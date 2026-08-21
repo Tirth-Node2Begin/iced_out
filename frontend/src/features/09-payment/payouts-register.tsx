@@ -4,14 +4,8 @@ import { Banknote, CheckCircle2, Landmark, Scale } from "lucide-react";
 
 import { StatGrid, type Stat } from "@/components/admin/admin-stats";
 import { AdminPage } from "@/components/admin/admin-ui";
-import { RecordManager, type Column, type FormField } from "@/components/admin/record-manager";
-import {
-  GATEWAYS,
-  PAYOUT_STATES,
-  money,
-  pad,
-  total,
-} from "@/features/09-payment/payment-data";
+import { RecordManager, type Column } from "@/components/admin/record-manager";
+import { PAYOUT_STATES, money, pad, total } from "@/features/09-payment/payment-data";
 import { usePaymentLedger } from "@/features/09-payment/payment-store";
 import { PaymentTabs } from "@/features/09-payment/payment-tabs";
 
@@ -58,19 +52,14 @@ const COLUMNS: Column[] = [
   { key: "status", label: "State", status: true },
 ];
 
-/* No `net` field: it is gross minus fees, and a number you can derive is a
-   number nobody should be able to mistype. */
-const FIELDS: FormField[] = [
-  { key: "id", label: "Payout id", placeholder: "out_ICE085", required: true },
-  { key: "gateway", label: "Gateway", type: "select", options: GATEWAYS },
-  { key: "period", label: "Period", placeholder: "05–06 Aug 2026" },
-  { key: "gross", label: "Gross captured", hint: "₹", type: "number", min: "0", step: "1000", placeholder: "284600", required: true },
-  { key: "fees", label: "Gateway fees", hint: "₹", type: "number", min: "0", step: "100", placeholder: "5692" },
-  { key: "status", label: "State", type: "select", options: PAYOUT_STATES },
-];
-
 export function PayoutsRegister() {
-  const { payouts: rows, commitPayouts } = usePaymentLedger();
+  /**
+   * A payout is what the GATEWAY settled to the bank. Nobody at the shop creates
+   * one, which is why there is no form here any more — it had editable gross and
+   * fee amounts, which is a form for inventing a bank statement. The one verb is
+   * confirming that the money arrived.
+   */
+  const { payouts: rows, ready, loading, error, act } = usePaymentLedger();
 
   const pending = rows.filter((row) => row.status === "Pending");
   const paid = rows.filter((row) => row.status === "Paid");
@@ -119,17 +108,17 @@ export function PayoutsRegister() {
 
       <RecordManager
         columns={COLUMNS}
-        /* The one sum on this screen, done in one place. */
-        derive={(values) => ({
-          ...values,
-          net: String(Math.max(0, (Number(values.gross) || 0) - (Number(values.fees) || 0))),
-        })}
-        fields={FIELDS}
+        emptyHint="No payouts yet. They appear as the gateway settles captured payments to the bank."
+        error={error}
+        /* `net` is derived by the server — max(0, gross − fees) — so the column
+           cannot drift from the two figures it comes from. */
+        fields={[]}
         filterKey="status"
         filterValues={PAYOUT_STATES}
         icon={Banknote}
-        idPrefix="out_ICE"
-        onCommit={commitPayouts}
+        loaded={ready}
+        loading={loading}
+        readOnly
         rows={rows}
         singular="payout"
         toolbarLead={<PaymentTabs />}
@@ -140,7 +129,7 @@ export function PayoutsRegister() {
                 icon: CheckCircle2,
                 tone: "good" as const,
                 label: `Mark ${row.id} paid`,
-                patch: { status: "Paid" },
+                onSelect: () => act(`/admin/payouts/${encodeURIComponent(row.id)}/mark-paid`),
                 toast: {
                   title: "Payout confirmed",
                   description: `${money(row.net)} is in the bank.`,

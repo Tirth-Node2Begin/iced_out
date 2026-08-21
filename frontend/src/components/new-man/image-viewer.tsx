@@ -8,10 +8,10 @@ import {
   useEffect,
   useRef,
   useState,
-  type CSSProperties,
 } from "react";
 
 import { EASE_OUT } from "@/components/new-home/motion-primitives";
+import { ProductFrame } from "@/components/new-man/product-bits";
 import type { Frame } from "@/components/new-man/data";
 
 /** px of drag, or px/s of throw, that counts as "next" rather than a wobble */
@@ -213,23 +213,11 @@ function ViewerPanel({
               key={index}
               transition={{ duration: reduce ? 0 : 0.34, ease: EASE_OUT }}
             >
-              <span className="nmv__shot" data-mode={frame.mode}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  alt={`${name} — photograph ${index + 1} of ${total}`}
-                  draggable={false}
-                  src={frame.src}
-                  style={
-                    frame.mode === "quad"
-                      ? ({
-                          "--qx": frame.qx,
-                          "--qy": frame.qy,
-                          "--zoom": frame.zoom,
-                        } as CSSProperties)
-                      : undefined
-                  }
-                />
-              </span>
+              <ProductFrame
+                alt={`${name} — photograph ${index + 1} of ${total}`}
+                className="nmv__shot"
+                frame={frame}
+              />
             </motion.figure>
           </AnimatePresence>
         </motion.div>

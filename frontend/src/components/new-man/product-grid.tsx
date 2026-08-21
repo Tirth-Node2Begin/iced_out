@@ -3,7 +3,7 @@
 import { Expand, Heart } from "lucide-react";
 import Link from "next/link";
 import { motion, useReducedMotion } from "motion/react";
-import { useCallback, useMemo, type CSSProperties } from "react";
+import { useCallback, useMemo } from "react";
 
 import {
   formatPrice,
@@ -13,6 +13,7 @@ import {
 } from "@/components/new-man/data";
 import { productSlug } from "@/components/new-man/product-deck";
 import { useWishlist } from "@/features/05-wishlist/wishlist-context";
+import { ProductFrame } from "@/components/new-man/product-bits";
 
 /** The grid's default track count, which the entrance cascade reads off.
  *  Deliberately the four-track layout and not the five the widest breakpoint
@@ -85,40 +86,25 @@ function ProductTile({
     >
       <div className="nh-mcard__frame">
         {/* Only five photographs ship in /public/images, so every tile is a
-            framing of one of them. Two modes, both driven by custom properties
+            framing of one of them. The modes are driven by custom properties
             the stylesheet reads (see `frameFor`): `crop` centres on a point and
-            zooms around it, `quad` addresses one cell of the 2×2 contact
-            sheet. */}
-        <span className="nh-mcard__media" data-mode={frame.mode}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            alt={piece.name}
-            decoding="async"
-            loading="lazy"
-            src={frame.src}
-            style={
-              frame.mode === "quad"
-                ? ({
-                    "--qx": frame.qx,
-                    "--qy": frame.qy,
-                    "--zoom": frame.zoom,
-                  } as CSSProperties)
-                : ({ "--op": frame.op, "--zoom": frame.zoom } as CSSProperties)
-            }
-          />
-        </span>
+            zooms around it, `quad` addresses one cell of the 2×2 contact sheet,
+            and `none` is a piece nobody has photographed — an empty frame, never
+            a picture of some other garment. `ProductFrame` owns all three, so a
+            tile and the page it opens can never draw them differently. */}
+        <ProductFrame alt={piece.name} className="nh-mcard__media" frame={frame} />
 
         {/* The frame itself goes to the product page. It sits under the
             controls in the corners so both of those stay pressable.
 
             The destination is this piece's own page under /new-man, not
-            `/product/${piece.slug}`: twenty tiles share four fixture slugs, so
+            `/product?slug=${piece.slug}`: twenty tiles share four fixture slugs, so
             that route could only ever open one of four garments and a shopper
             selecting the Nightshift Overcoat landed on the overshirt. */}
         <Link
           aria-label={`${piece.name}, ${formatPrice(price.price)} — view product`}
           className="nh-mcard__hit"
-          href={`/new-man/${productSlug(piece)}`}
+          href={`/new-man/piece?slug=${productSlug(piece)}`}
         />
 
         <span className="nh-mcard__flags">
@@ -160,16 +146,23 @@ function ProductTile({
       <div className="nh-mcard__info">
         <div className="nh-mcard__prices">
           <span className="nh-mcard__price">{formatPrice(price.price)}</span>
-          <span className="nh-mcard__mrp">
-            MRP: <s>{formatPrice(price.mrp)}</s>
-          </span>
-          <span className="nh-mcard__off">{price.off}% OFF</span>
+          {/* Only where the catalogue records what the piece was reduced from.
+              These two used to render for every tile off an invented reference
+              price — see `pricingFor`. A piece at one price simply shows one. */}
+          {price.mrp !== null && (
+            <>
+              <span className="nh-mcard__mrp">
+                MRP: <s>{formatPrice(price.mrp)}</s>
+              </span>
+              <span className="nh-mcard__off">{price.off}% OFF</span>
+            </>
+          )}
         </div>
 
         {/* the name is the second way into the product page — the frame's link
             stops at the photograph, and a title that looks like a title but
             does nothing reads as broken */}
-        <Link className="nh-mcard__name" href={`/new-man/${productSlug(piece)}`}>
+        <Link className="nh-mcard__name" href={`/new-man/piece?slug=${productSlug(piece)}`}>
           {piece.name}
         </Link>
       </div>

@@ -5,12 +5,7 @@ import { IndianRupee, UserCheck, Users } from "lucide-react";
 import { StatGrid, type Stat } from "@/components/admin/admin-stats";
 import { AdminPage, Note } from "@/components/admin/admin-ui";
 import { RecordManager, type Column, type FormField } from "@/components/admin/record-manager";
-import {
-  CUSTOMER_STATES,
-  moneyValue,
-  nextCustomerId,
-  rupees,
-} from "@/features/01-users/customers-data";
+import { CUSTOMER_STATES, moneyValue, rupees } from "@/features/01-users/customers-data";
 import { useCustomers } from "@/features/01-users/customers-store";
 
 /**
@@ -37,8 +32,9 @@ const COLUMNS: Column[] = [
 /**
  * What a new customer is asked for — the person, and nothing else.
  *
- * The id is minted, and orders and lifetime value are what the shop records as
- * they buy. None of the three is something an operator should be typing.
+ * The id is minted by the server, and orders and lifetime value are counted from
+ * what they have actually bought. None of the three is something an operator
+ * should be typing.
  */
 const FIELDS: FormField[] = [
   { key: "name", label: "Full name", placeholder: "Aarav Kapoor", required: true },
@@ -55,7 +51,7 @@ const FIELDS: FormField[] = [
 ];
 
 export function AdminCustomersWorkspace() {
-  const { customers: rows, commit } = useCustomers();
+  const { customers: rows, register, ready, loading, error } = useCustomers();
 
   const active = rows.filter((row) => row.state === "Active").length;
   const lifetime = rows.reduce((sum, row) => sum + moneyValue(row.value), 0);
@@ -95,23 +91,25 @@ export function AdminCustomersWorkspace() {
 
       <RecordManager
         columns={COLUMNS}
-        /* The id is ours to keep unique, so it is minted here rather than
-           asked for; a new customer starts with nothing bought. */
-        derive={(values, current, previous) =>
-          previous
-            ? values
-            : { ...values, id: nextCustomerId(current), orders: "0", value: rupees(0) }
-        }
-        emptyHint="No customers yet. Add the first one to get started."
+        emptyHint="Nobody has an account yet. They appear here as people register on the storefront."
+        error={error}
         fields={FIELDS}
         filterKey="state"
         filterValues={CUSTOMER_STATES}
         icon={Users}
-        onCommit={commit}
-        rowHref={(row) => `/admin/customers/${row.id}`}
+        loaded={ready}
+        loading={loading}
+        onCreate={register.onCreate}
+        onUpdate={register.onUpdate}
+        /* No delete. An account is a person, and their orders, returns and
+           payments all point at it — there is no endpoint to remove one, and
+           there should not be. Blocking is the verb, and it keeps the history. */
+        rowHref={(row) => `/admin/customers/detail?id=${encodeURIComponent(row.id)}`}
         rows={rows}
         singular="customer"
         tone="sky"
+        /* A first answer only. The server holds the unique index on the email and
+           has the whole table to check against, not just the page in front of us. */
         validate={(values, current, previous) =>
           current.some(
             (row) =>

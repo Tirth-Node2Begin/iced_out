@@ -4,57 +4,62 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
+  useRef,
   useSyncExternalStore,
   type ReactNode,
 } from "react";
 
-import { createLocalStore } from "@/lib/local-store";
-import { useHydrated } from "@/lib/use-hydrated";
-import {
-  approvedReviews,
-  asReview,
-  reviewStamp,
-  seededReviews,
-  type Review,
-} from "@/features/11-reviews/reviews";
+import { customerClient, publicClient } from "@/api/clients";
+import { useAuth } from "@/features/20-auth-security/auth-context";
+import { asReview, type Review } from "@/features/11-reviews/reviews";
+import { createRemoteStore } from "@/lib/remote-store";
 
 /**
- * The reviews this browser holds, from both directions.
+ * Reviews, from the shopper's side.
  *
- * The account writes one and it arrives on the moderation desk waiting for a
- * decision; the console decides; the home page quotes whatever was approved.
- * All three read this store, so an approval in the console is the quote the
- * shopper sees — there is no second list anywhere to drift from it.
+ * This was a `localStorage` register seeded with four written-in reviews, and the
+ * consequence was sharper than it looks: the moderation desk and the storefront
+ * were the same browser. A review "approved" in the console was approved for
+ * exactly one person on one machine, and a review a real shopper wrote never
+ * reached the shop at all. Both halves are now the `reviews` table.
  *
- * It sits high in the provider tree for the same reason the vouchers store
- * does: the console and the storefront are two routes in one app, and both ends
- * have to be looking at the same record.
+ * Split by AUDIENCE, which is what the endpoints are:
  *
- * Backed by `createLocalStore` rather than a `useState` filled from an effect,
- * which is what makes a decision survive a reload and show up in the other tab
- * without either screen having to be told about it.
+ *   `published` — `GET /reviews`, public. What the storefront may quote, and the
+ *                 only thing it can see. Everything is here until the desk
+ *                 hides it.
+ *   `mine`      — `GET /me/reviews`, the signed-in shopper's own, in every state,
+ *                 so their feedback tab can show a hidden one as taken down.
+ *   `submit`    — `POST /me/reviews`. Lands `Published`; the server decides that,
+ *                 not this code.
+ *
+ * The console's moderation desk deliberately does NOT read this context. It reads
+ * `/admin/reviews` through `useRegister`, because it needs every review and the
+ * verbs to act on them — see `admin-review-moderation`.
  */
 
-const STORAGE_KEY = "iced-out-reviews-v1";
+/** The live reviews, shared by every storefront surface that quotes one. */
+const publishedStore = createRemoteStore<Review>(async () => {
+  const response = await publicClient.get<{ data: Record<string, string>[] }>("/reviews");
+  return response.data.data.map(asReview);
+});
 
-type Register = { reviews: Review[] };
-
-const store = createLocalStore<Register>(STORAGE_KEY, { reviews: seededReviews }, (parsed, fallback) => {
-  if (!parsed || typeof parsed !== "object") return null;
-  const held: unknown = (parsed as { reviews?: unknown }).reviews;
-  if (!Array.isArray(held)) return fallback;
-
-  /* Normalised on the way in, so a record written before a field existed — or
-     edited by hand — is still usable instead of poisoning a render. Anything
-     without an id is not a review and is dropped rather than repaired. */
-  return {
-    reviews: (held as unknown[]).flatMap((entry): Review[] => {
-      if (!entry || typeof entry !== "object") return [];
-      const review = asReview(entry as Record<string, string | undefined>);
-      return review.id === "" ? [] : [review];
-    }),
-  };
+/**
+ * The signed-in shopper's own reviews.
+ *
+ * A store rather than component state filled by an effect: the load then belongs
+ * to the store, which starts it on first read and joins concurrent readers, and
+ * nothing has to setState inside an effect body — which this repo lints as an
+ * error, and correctly, since it is a cascading render.
+ *
+ * `reset()` on sign-out is what stops two people on one machine seeing each
+ * other's feedback — the exact failure the `localStorage` version had.
+ */
+const mineStore = createRemoteStore<Review>(async () => {
+  const response = await customerClient.get<{ data: Record<string, string>[] }>("/me/reviews");
+  return response.data.data.map(asReview);
 });
 
 type SubmitInput = {
@@ -63,89 +68,149 @@ type SubmitInput = {
   rating: number;
   headline: string;
   body: string;
+  /** "True to size" and the like. Optional. */
+  fit?: string;
 };
 
 type ReviewsContextValue = {
-  reviews: Review[];
   /** The only ones the storefront is allowed to show. */
-  approved: Review[];
-  /** What the shopper wrote, for their own feedback tab. */
+  published: Review[];
+  /** What the shopper wrote, for their own feedback tab — any state. */
   mine: Review[];
-  /** False while React is rendering the exported markup. */
+  /** False until the approved list has been read at least once. */
   ready: boolean;
-  /**
-   * Applies one change to the register. It takes an updater rather than a list
-   * because an undo can fire long after the render that offered it, and it
-   * still has to build on what is current.
-   */
-  setAll: (next: (current: Review[]) => Review[]) => void;
+  loading: boolean;
+  error: string | null;
   /** A shopper's own feedback, which always lands waiting on a decision. */
-  submit: (input: SubmitInput) => Review;
+  submit: (input: SubmitInput) => Promise<Review>;
+  /** Re-reads both lists — for a screen that has just written one. */
+  refresh: () => Promise<void>;
+  /** Re-reads the shopper's own list alone — after the server refused a write. */
+  refreshMine: () => Promise<void>;
 };
 
 const ReviewsContext = createContext<ReviewsContextValue | null>(null);
 
 export function ReviewsProvider({ children }: { children: ReactNode }) {
-  const register = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getServerSnapshot);
-  const ready = useHydrated();
+  const { isAuthenticated, sessionReady, customer } = useAuth();
 
-  const setAll = useCallback((next: (current: Review[]) => Review[]) => {
-    store.write({ reviews: next(store.getSnapshot().reviews).map(asReview) });
+  /**
+   * Whose feedback the held list is.
+   *
+   * `mineStore` is a module-level store, so it outlives every screen and every
+   * sign-in on this tab — and until now nothing ever dropped it. `resetMyReviews`
+   * was written for exactly this and then never called from anywhere.
+   *
+   * That is what left a shopper looking at a "Write a review" button for a piece
+   * they had already reviewed. The store is read the moment `isAuthenticated`
+   * turns true, and a read that lands a beat before the session cookie is live
+   * comes back 401 — which `createRemoteStore` records as `loaded: true` with an
+   * error, so it is never retried. `mine` stays empty for the life of the tab,
+   * the page believes they have written nothing, and the server refuses the
+   * submit with the 409 it should never have been allowed to reach.
+   *
+   * Keying it to the account fixes both halves: signing in drops a list that was
+   * loaded (or failed) while signed out, and signing in as somebody else cannot
+   * leave the previous person's feedback on screen.
+   */
+  const account = isAuthenticated && sessionReady ? (customer?.email ?? "signed-in") : null;
+  const heldFor = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (heldFor.current === account) return;
+    heldFor.current = account;
+    /* An effect is the right place for this: it is a write to an external store,
+       not a setState — which is the distinction the repo's lint rule draws. The
+       reset notifies subscribers, and the re-render that follows reads the
+       snapshot again, which is what starts the fresh load. */
+    mineStore.reset();
+  }, [account]);
+
+  const publishedState = useSyncExternalStore(
+    publishedStore.subscribe,
+    publishedStore.getSnapshot,
+    publishedStore.getServerSnapshot,
+  );
+
+  const mineState = useSyncExternalStore(
+    mineStore.subscribe,
+    /* Only asked for once there IS a session. Reading the store's snapshot is what
+       starts its request, so a signed-out visitor must not read it — the endpoint
+       needs a cookie, and asking without one is a 401 on every page load. */
+    isAuthenticated && sessionReady ? mineStore.getSnapshot : mineStore.getServerSnapshot,
+    mineStore.getServerSnapshot,
+  );
+
+  const refresh = useCallback(async () => {
+    await Promise.all([publishedStore.refresh(), mineStore.refresh()]);
   }, []);
 
-  const submit = useCallback((input: SubmitInput) => {
-    const current = store.getSnapshot().reviews;
-    const rating = Math.round(input.rating);
-
-    const review = asReview({
-      id: mintId(current),
-      product: input.product,
-      rating: String(rating >= 1 && rating <= 5 ? rating : 5),
-      customer: "You",
-      headline: input.headline,
-      body: input.body,
-      submitted: reviewStamp(new Date()),
-      /* Never anything else on the way in. A review is published by a decision
-         on the desk, not by having been written. */
-      status: "Pending",
-      origin: "Customer",
-    });
-
-    store.write({ reviews: [review, ...current] });
-    return review;
+  /**
+   * Re-reads only the shopper's own list.
+   *
+   * For the case where the SERVER knows something this browser does not — a
+   * refused submit saying they have already reviewed the piece. Whatever state
+   * the held list is in, that answer is proof it is wrong, so it is thrown away
+   * and asked again rather than argued with.
+   */
+  const refreshMine = useCallback(async () => {
+    await mineStore.refresh();
   }, []);
+
+  const submit = useCallback(
+    async (input: SubmitInput) => {
+      const rating = Math.round(input.rating);
+
+      const response = await customerClient.post<{ data: Record<string, string> }>("/me/reviews", {
+        product: input.product,
+        rating: rating >= 1 && rating <= 5 ? rating : 5,
+        headline: input.headline,
+        body: input.body,
+        ...(input.fit ? { fit: input.fit } : {}),
+      });
+
+      const review = asReview(response.data.data);
+
+      /* Shown at once on the shopper's own tab, so the confirmation has something
+         to point at. The public list is left to re-read from the server rather
+         than being written to here — what the storefront quotes should come from
+         the endpoint that decides it, not from the browser that just posted. */
+      mineStore.put([review, ...mineStore.peek().data]);
+
+      return review;
+    },
+    [],
+  );
 
   const value = useMemo<ReviewsContextValue>(
     () => ({
-      reviews: register.reviews,
-      approved: approvedReviews(register.reviews),
-      mine: register.reviews.filter((review) => review.origin === "Customer"),
-      ready,
-      setAll,
+      published: publishedState.data,
+      mine: mineState.data,
+      ready: publishedState.loaded,
+      loading: publishedState.loading,
+      error: publishedState.error,
       submit,
+      refresh,
+      refreshMine,
     }),
-    [ready, register, setAll, submit],
+    [publishedState, mineState.data, refresh, refreshMine, submit],
   );
 
   return <ReviewsContext.Provider value={value}>{children}</ReviewsContext.Provider>;
-}
-
-/**
- * The next free id, stepped over what is already taken.
- *
- * Minted from the list rather than from a clock or a random source, so the
- * sequence is stable and an id can never collide with one storage already
- * holds. Nothing on screen shows it — it identifies a row and nothing else.
- */
-function mintId(current: Review[]) {
-  const taken = new Set(current.map((review) => review.id));
-  let n = current.length + 1;
-  while (taken.has(`REV-${String(n).padStart(4, "0")}`)) n += 1;
-  return `REV-${String(n).padStart(4, "0")}`;
 }
 
 export function useReviews() {
   const context = useContext(ReviewsContext);
   if (!context) throw new Error("useReviews must be used inside ReviewsProvider");
   return context;
+}
+
+/** Drops the held list — after the desk hides, edits or deletes one. */
+export function resetPublishedReviews() {
+  publishedStore.reset();
+}
+
+/** Drops the shopper's own list. Called on sign-out. */
+export function resetMyReviews() {
+  mineStore.reset();
 }

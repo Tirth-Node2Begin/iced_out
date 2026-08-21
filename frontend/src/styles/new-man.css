@@ -1207,12 +1207,124 @@
 }
 
 /* --------------------------------------------------------- load more / foot */
-.nh-root .nh-cat__more {
+/* ------------------------------------------------------------------ pager */
+/* The grid pages rather than growing, so this is a bar of destinations rather
+   than one button that consumes itself. Same plate, edges and muted-to-ink
+   move as the filter bar above the grid — the two are the shopper's only
+   controls on this page and they should read as one family. */
+.nh-root .nh-cat__pager {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.75rem;
   margin-top: clamp(1.75rem, 3.2vw, 2.75rem);
+}
+
+.nh-root .nh-cat__pagerRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 999px;
+  background: var(--cat-plate);
+  box-shadow:
+    inset 0 0 0 1px var(--cat-edge),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.05),
+    0 16px 40px -26px rgba(0, 0, 0, 0.9);
+  -webkit-backdrop-filter: blur(20px) saturate(1.3);
+  backdrop-filter: blur(20px) saturate(1.3);
+}
+
+.nh-root .nh-cat__pages {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* The numbers are square-ish and the steps are wider, so the ends of the bar
+   read as verbs and the middle reads as a place. */
+.nh-root .nh-cat__page,
+.nh-root .nh-cat__step {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 1;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+  color: var(--nh-muted);
+  background: transparent;
+  cursor: pointer;
+  transition:
+    color 0.35s var(--nh-ease),
+    background-color 0.35s var(--nh-ease);
+}
+
+.nh-root .nh-cat__page {
+  min-width: 32px;
+  padding: 0 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.nh-root .nh-cat__step {
+  padding: 0 14px;
+  box-shadow: inset 0 0 0 1px var(--cat-edge-soft);
+}
+
+.nh-root .nh-cat__page:hover,
+.nh-root .nh-cat__step:not(:disabled):hover {
+  color: var(--nh-ink);
+  background: var(--cat-fill);
+}
+
+.nh-root .nh-cat__page:active,
+.nh-root .nh-cat__step:not(:disabled):active {
+  transform: scale(0.97);
+}
+
+/* The page you are on. It is lit the way the selected filter chip is lit —
+   a raised fill rather than an accent colour, which is the only "on" state
+   this route has. */
+.nh-root .nh-cat__page[data-on] {
+  color: var(--nh-ink);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.15) 0%,
+    rgba(255, 255, 255, 0.08) 100%
+  );
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.14),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.12);
+  cursor: default;
+}
+
+/* Dimmed rather than removed: a bar that loses a control at the first and last
+   page shifts every other button sideways under the cursor. */
+.nh-root .nh-cat__step:disabled {
+  opacity: 0.32;
+  cursor: not-allowed;
+}
+
+.nh-root .nh-cat__gap {
+  padding: 0 4px;
+  color: var(--nh-muted-2, var(--nh-muted));
+  font-size: 12px;
+  line-height: 1;
+  user-select: none;
+}
+
+/* A zero-height marker, not a spacer — it exists to be scrolled to. The offset
+   keeps the first row clear of the top edge on landing. */
+.nh-root .nh-cat__gridTop {
+  scroll-margin-top: clamp(16px, 4vw, 48px);
 }
 
 .nh-root .nh-cat__notes {
@@ -1510,35 +1622,22 @@
   border-bottom: 0;
 }
 
-/* the same sprite sheet `.product-sprite` reads, restated here because
-   commerce.css is not loaded on this route */
+/* The frame the line's photograph fills.
+
+   It used to BE the picture: the sprite sheet restated here, addressed by the
+   product's `imagePosition`, because commerce.css is not loaded on this route.
+   That made the bag the last place in the shop still showing a stand-in — and
+   the worst place for one, since this panel exists for a shopper to check they
+   picked the right piece. `<ProductImage>` carries its own stylesheet now, so
+   the real photograph reaches here like everywhere else and this is just the
+   box it sits in. */
 .nmb__thumb {
+  position: relative;
+  overflow: hidden;
   height: 82px;
   border-radius: 12px;
-  background-image: url("/images/drop-001-products.webp");
-  background-image: image-set(
-    url("/images/drop-001-products.avif") type("image/avif"),
-    url("/images/drop-001-products.webp") type("image/webp")
-  );
-  background-repeat: no-repeat;
-  background-size: 200% 200%;
+  background: var(--nh-card-bg, rgba(255, 255, 255, 0.04));
   box-shadow: inset 0 0 0 1px var(--b-edge-soft);
-}
-
-.nmb__thumb[data-pos="top-left"] {
-  background-position: 0 0;
-}
-
-.nmb__thumb[data-pos="top-right"] {
-  background-position: 100% 0;
-}
-
-.nmb__thumb[data-pos="bottom-left"] {
-  background-position: 0 100%;
-}
-
-.nmb__thumb[data-pos="bottom-right"] {
-  background-position: 100% 100%;
 }
 
 .nmb__lineBody {
@@ -2469,4 +2568,39 @@
   .nsg__close {
     transition: none;
   }
+}
+
+/* A piece nobody has photographed.
+   ---------------------------------------------------------------------------
+   Deliberately not a picture. These frames used to fall back to a quadrant of
+   the house contact sheet, which advertised an unshot garment with a photograph
+   of a different one. A flat surface with a faint diagonal on it reads as
+   "no photograph yet" and cannot be mistaken for the piece.
+
+   `.nmp-frame`, `.nh-mcard__media` and `.nhq__shot` are all `position:
+   absolute; inset: 0` boxes, so the blank simply fills them. */
+.nh-root .nmp-frame__blank {
+  position: absolute;
+  inset: 0;
+  display: block;
+  background-color: rgba(255, 255, 255, 0.035);
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(255, 255, 255, 0.04) 0,
+    rgba(255, 255, 255, 0.04) 1px,
+    transparent 1px,
+    transparent 11px
+  );
+}
+
+/* The full-screen viewer is the exception: `.nmv__shot` is sized BY its
+   photograph rather than being a box the photograph fills, so a blank in there
+   has nothing to stretch against and needs to state its own shape. 3:4 is the
+   ratio every product frame on this page uses. */
+.nmv__shot > .nmp-frame__blank {
+  position: relative;
+  inset: auto;
+  width: min(62vh, 86vw);
+  aspect-ratio: 3 / 4;
+  border-radius: 16px;
 }

@@ -44,10 +44,29 @@ export function StaffLoginPage() {
    */
   const ready = useHydrated();
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  /** What the server said went wrong, shown under the fields. */
+  const [error, setError] = useState("");
+  const [pending, setPending] = useState(false);
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    signInStaff();
-    router.replace(safeReturnPath(searchParams.get("returnTo"), "/admin"));
+
+    const data = new FormData(event.currentTarget);
+    setPending(true);
+    setError("");
+
+    try {
+      await signInStaff({
+        email: String(data.get("email") ?? "").trim(),
+        password: String(data.get("password") ?? ""),
+      });
+      router.replace(safeReturnPath(searchParams.get("returnTo"), "/admin"));
+    } catch (failure) {
+      setError(
+        failure instanceof Error ? failure.message : "That did not work. Please try again.",
+      );
+      setPending(false);
+    }
   }
 
   return (
@@ -90,6 +109,14 @@ export function StaffLoginPage() {
 
           <h2 className="adl__heading">Sign in</h2>
 
+          {/* Every control below carries `suppressHydrationWarning`. Password
+              managers and form fillers stamp their own bookkeeping attributes
+              (`fdprocessedid` and friends) onto inputs and buttons while the
+              HTML is still parsing — before React hydrates — and React reads
+              that as the server having rendered something the client did not.
+              The flag is one level deep, so it goes on each control rather
+              than the form. Nothing here renders differently on the two
+              sides; only an operator's extension does. */}
           <div className="adl__fields">
             {/* The label is inside the well and always visible, so it is a
                 label rather than a placeholder that disappears the moment
@@ -103,6 +130,7 @@ export function StaffLoginPage() {
                 name="email"
                 placeholder="you@iced-out.example"
                 required
+                suppressHydrationWarning
                 type="email"
               />
             </label>
@@ -117,6 +145,7 @@ export function StaffLoginPage() {
                 name="password"
                 placeholder="Enter your password"
                 required
+                suppressHydrationWarning
                 type={revealed ? "text" : "password"}
               />
               <button
@@ -124,6 +153,7 @@ export function StaffLoginPage() {
                 aria-pressed={revealed}
                 className="adl__reveal"
                 onClick={() => setRevealed((on) => !on)}
+                suppressHydrationWarning
                 type="button"
               >
                 {revealed ? (
@@ -135,8 +165,14 @@ export function StaffLoginPage() {
             </label>
           </div>
 
-          <button className="adl__submit" disabled={!ready} type="submit">
-            Enter console
+          {error ? (
+            <p className="adl__error" role="alert">
+              {error}
+            </p>
+          ) : null}
+
+          <button className="adl__submit" disabled={!ready || pending} suppressHydrationWarning type="submit">
+            {pending ? "Checking…" : "Enter console"}
             <ArrowRight aria-hidden="true" size={15} strokeWidth={2} />
           </button>
 

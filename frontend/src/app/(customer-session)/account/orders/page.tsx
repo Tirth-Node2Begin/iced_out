@@ -104,7 +104,7 @@ export default function OrdersPage() {
                       {/* The number is the link. Looking for an order means
                           looking for its number, so that is what has to be
                           pressable — not a word at the far end of the row. */}
-                      <Link className="io-table__primary" href={`/account/orders/${order.id}`}>
+                      <Link className="io-table__primary" href={`/account/orders/detail?id=${order.id}`}>
                         {order.number}
                       </Link>
                       <span className="io-table__sub">{order.date}</span>
@@ -142,14 +142,14 @@ export default function OrdersPage() {
                           to give, so it does not offer one — and an unpaid one
                           is asked something else entirely. */}
                       {order.status === "Payment failed" ? (
-                        <Link href={`/account/orders/${order.id}`}>
+                        <Link href={`/account/orders/detail?id=${order.id}`}>
                           Pay now
                           <ArrowRight aria-hidden size={14} strokeWidth={1.7} />
                         </Link>
                       ) : (
                         order.status !== "Delivered" &&
                         order.shipment.token && (
-                          <Link href={`/track/${order.shipment.token}`}>
+                          <Link href={`/track?token=${order.shipment.token}`}>
                             Track
                             <Truck aria-hidden size={14} strokeWidth={1.7} />
                           </Link>
@@ -157,7 +157,7 @@ export default function OrdersPage() {
                       )}
                     </td>
                     <td data-align="right">
-                      <Link href={`/account/orders/${order.id}`}>
+                      <Link href={`/account/orders/detail?id=${order.id}`}>
                         Open
                         <ArrowRight aria-hidden size={14} strokeWidth={1.7} />
                       </Link>

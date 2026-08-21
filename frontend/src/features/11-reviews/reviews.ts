@@ -12,7 +12,14 @@
  * moderation screen be a plain `RecordManager` with no adapter around it.
  */
 
-export const REVIEW_STATES = ["Pending", "Approved", "Rejected"] as const;
+/**
+ * The two states a review can be in.
+ *
+ * There is no `Pending`. A review is live the moment it is written, and the
+ * desk's job is taking one DOWN rather than letting it up — see migration
+ * 0022. `Hidden` is that: reversible, recorded, and invisible to shoppers.
+ */
+export const REVIEW_STATES = ["Published", "Hidden"] as const;
 
 export type ReviewState = (typeof REVIEW_STATES)[number];
 
@@ -24,11 +31,22 @@ export type Review = {
    */
   id: string;
   product: string;
+  /**
+   * The slug the review is filed against.
+   *
+   * A product page matches on THIS, never on the name: two pieces can be called
+   * the same thing, and quoting one garment's reviews on another is the mistake
+   * that makes a review section worthless. Empty where the product has since
+   * been deleted, in which case no page claims it.
+   */
+  productSlug: string;
   /** "5" — a string, so a review stays the flat map the register renders. */
   rating: string;
   customer: string;
   headline: string;
   body: string;
+  /** "True to size" and the like, where the shopper answered it. */
+  fit: string;
   /** "04 Aug 2026" — the same stamp the account and the vouchers tab use. */
   submitted: string;
   status: ReviewState;
@@ -44,9 +62,9 @@ export function reviewStamp(date: Date) {
   return date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 }
 
-/** Only an approved review leaves the desk. Everything else stays internal. */
-export function approvedReviews(reviews: Review[]) {
-  return reviews.filter((review) => review.status === "Approved");
+/** What a shopper may see. A hidden review has been taken down. */
+export function publishedReviews(reviews: Review[]) {
+  return reviews.filter((review) => review.status === "Published");
 }
 
 export function averageRating(reviews: Review[]) {
@@ -70,16 +88,22 @@ export function countByState(reviews: Review[], state: ReviewState) {
  * render with `undefined`.
  */
 export function asReview(row: Record<string, string | undefined>): Review {
-  const status = REVIEW_STATES.find((state) => state === row.status) ?? "Pending";
+  /* Anything the server sends that this build does not know is read as
+     published, because that is what a review IS unless somebody hid it — and
+     defaulting an unrecognised state to invisible would silently take real
+     reviews off the page during a deploy. */
+  const status = REVIEW_STATES.find((state) => state === row.status) ?? "Published";
   const rating = String(row.rating ?? "5").trim();
 
   return {
     id: row.id ?? "",
     product: row.product ?? "",
+    productSlug: row.productSlug ?? "",
     rating: /^[1-5]$/.test(rating) ? rating : "5",
     customer: row.customer?.trim() || "Anonymous",
     headline: row.headline ?? "",
     body: row.body ?? "",
+    fit: row.fit ?? "",
     submitted: row.submitted ?? "",
     status,
     origin: row.origin === "Customer" ? "Customer" : "Console",
@@ -96,89 +120,3 @@ export function asReview(row: Record<string, string | undefined>): Review {
 export function reviewByline(review: Review) {
   return review.origin === "Customer" ? "Verified buyer" : review.customer;
 }
-
-/**
- * What this browser starts with: three waiting on a decision, one already
- * published, one already refused — plus the two the account's own feedback tab
- * has always claimed the shopper wrote, so the two screens tell one story
- * instead of two.
- */
-export const seededReviews: Review[] = [
-  {
-    id: "REV-2041",
-    product: "Afterdark Hoodie",
-    rating: "5",
-    customer: "A•••• K••••",
-    headline: "Built like an outer layer should be.",
-    body: "The canvas has real structure without fighting movement. The shoulders sit exactly where the size guide suggested.",
-    submitted: "04 Aug 2026",
-    status: "Pending",
-    origin: "Console",
-  },
-  {
-    id: "REV-2040",
-    product: "Bone Utility Overshirt",
-    rating: "3",
-    customer: "M•••• P••••",
-    headline: "Good weight, awkward sleeve.",
-    body: "The fabric is genuinely heavy and the colour is accurate. The sleeve runs a little long on a 40 chest.",
-    submitted: "04 Aug 2026",
-    status: "Pending",
-    origin: "Console",
-  },
-  {
-    id: "REV-2039",
-    product: "Core Heavy Tee",
-    rating: "2",
-    customer: "R•••• S••••",
-    headline: "Shrank more than I expected.",
-    body: "Washed cold and it still came back a size shorter. The cotton itself is nice.",
-    submitted: "03 Aug 2026",
-    status: "Pending",
-    origin: "Console",
-  },
-  {
-    id: "REV-2036",
-    product: "Shadow Cargo 02",
-    rating: "5",
-    customer: "D•• W••••",
-    headline: "The only pair I reach for.",
-    body: "Pockets that actually hold something and a hem that sits right over a boot. Three months in and the knees have not gone.",
-    submitted: "03 Aug 2026",
-    status: "Approved",
-    origin: "Console",
-  },
-  {
-    id: "REV-2031",
-    product: "Nocturne Cap",
-    rating: "1",
-    customer: "S••• R••••",
-    headline: "Closed with a policy reason.",
-    body: "Contained another shopper's contact details, so it was refused rather than published.",
-    submitted: "02 Aug 2026",
-    status: "Rejected",
-    origin: "Console",
-  },
-  {
-    id: "REV-2028",
-    product: "Afterdark Hoodie",
-    rating: "5",
-    customer: "You",
-    headline: "Dense fabric and a clean oversized fit.",
-    body: "Dense fabric and a clean oversized fit. It has kept its shape through a month of daily wear.",
-    submitted: "22 Jul 2026",
-    status: "Approved",
-    origin: "Customer",
-  },
-  {
-    id: "REV-2024",
-    product: "Core Heavy Tee",
-    rating: "4",
-    customer: "You",
-    headline: "The uploaded image showed personal contact details.",
-    body: "The uploaded image showed personal contact details, so this one needs an edit before it can be published.",
-    submitted: "19 Jul 2026",
-    status: "Rejected",
-    origin: "Customer",
-  },
-];

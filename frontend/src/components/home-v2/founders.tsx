@@ -11,7 +11,7 @@ import {
 } from "motion/react";
 import { useRef, useState } from "react";
 
-import { FOUNDERS } from "./data";
+import { useCopy, type Founder } from "./copy";
 import { DUR, EASE, MaskLines } from "./motion";
 
 /** The meta lines under the name — they settle after it, not with it. */
@@ -33,8 +33,11 @@ const metaVariants = {
  * the text is swapped (discrete, on the active index). Mixing the two is
  * deliberate: a crossfading image reads smooth at any scroll speed, but text
  * that dissolves mid-word reads broken — it wants a clean out-and-in.
+ *
+ * The roster's length is read per render rather than fixed at module scope:
+ * each page brings its own people, and the runway, the crossfade bands and the
+ * tick row are all measured off however many there are.
  */
-const COUNT = FOUNDERS.length;
 
 /**
  * Motion binds a `useTransform` off `scrollYProgress` straight onto a WAAPI
@@ -59,20 +62,22 @@ function Portrait({
   progress,
   reduce,
   active,
+  count,
 }: {
-  founder: (typeof FOUNDERS)[number];
+  founder: Founder;
   index: number;
   progress: MotionValue<number>;
   reduce: boolean;
   active: number;
+  count: number;
 }) {
-  const band = 1 / COUNT;
+  const band = 1 / count;
   const fade = band * 0.42;
   const start = index * band;
   const end = (index + 1) * band;
 
   const first = index === 0;
-  const last = index === COUNT - 1;
+  const last = index === count - 1;
 
   /* Every portrait's curve is declared across the FULL 0→1 of the runway, with
      its band as interior stops. Describing only the band and letting the ends
@@ -116,6 +121,8 @@ function Portrait({
 }
 
 export function Founders() {
+  const { founders } = useCopy();
+  const count = founders.length;
   const ref = useRef<HTMLElement>(null);
   const reduce = useReducedMotion() ?? false;
   const [active, setActive] = useState(0);
@@ -127,20 +134,20 @@ export function Founders() {
 
   // A short lead-in and lead-out so the first and last founder each get a
   // settled beat instead of changing the instant the section pins.
-  const stage = useTransform(scrollYProgress, [0.05, 0.95], [0, COUNT - 0.001]);
+  const stage = useTransform(scrollYProgress, [0.05, 0.95], [0, count - 0.001]);
   useMotionValueEvent(stage, "change", (v) => {
-    const next = Math.max(0, Math.min(COUNT - 1, Math.floor(v)));
+    const next = Math.max(0, Math.min(count - 1, Math.floor(v)));
     setActive((prev) => (prev === next ? prev : next));
   });
 
-  const founder = FOUNDERS[active];
+  const founder = founders[active];
 
   return (
     <section
       className="hv2-founders"
       id="team"
       ref={ref}
-      style={{ height: `${COUNT * 100}svh` }}
+      style={{ height: `${count * 100}svh` }}
     >
       <div className="hv2-founders__pin hv2-shell">
         {/* No AOS in this section. It is a pinned stage: everything inside is
@@ -149,9 +156,10 @@ export function Founders() {
         <span className="hv2-founders__eyebrow hv2-eyebrow">Meet the founders</span>
 
         <div className="hv2-founders__stage">
-          {FOUNDERS.map((f, i) => (
+          {founders.map((f, i) => (
             <Portrait
               active={active}
+              count={count}
               founder={f}
               index={i}
               key={f.index}
@@ -208,7 +216,7 @@ export function Founders() {
 
         {/* Position within the roster — the only cue that the stage is paging. */}
         <div className="hv2-founders__ticks" aria-hidden>
-          {FOUNDERS.map((f, i) => (
+          {founders.map((f, i) => (
             <span
               className="hv2-founders__tick"
               data-on={i <= active ? "" : undefined}

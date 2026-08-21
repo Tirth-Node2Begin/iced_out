@@ -89,6 +89,46 @@ body:has(.hv2) {
   background-color: #101113;
 }
 
+.hv2-home {
+  --hv2-nav-h: 74px;
+}
+
+.hv2-home .nh-nav-scope {
+  --io-nav-scrim: rgba(23, 30, 34, 0.96);
+  --io-nav-plate: rgba(19, 23, 25, 0.94);
+  --nh-nav-plate: rgba(19, 23, 25, 0.94);
+}
+
+.hv2-home .nh-nav {
+  background: transparent;
+}
+
+.hv2-home .nh-nav__scrim {
+  height: 100%;
+  background: transparent;
+}
+
+.hv2-home .nh-nav__plate {
+  background:
+    radial-gradient(120% 160% at 50% 0%, rgba(30, 40, 45, 0.92) 0%, rgba(30, 40, 45, 0) 62%),
+    linear-gradient(180deg, rgba(23, 30, 34, 0.96) 0%, rgba(19, 23, 25, 0.96) 54%, rgba(14, 15, 17, 0.96) 100%);
+  box-shadow: none;
+}
+
+.hv2-home .nh-nav__pill--solid {
+  color: var(--nh-solid-fg);
+}
+
+.hv2-home .nh-nav[data-plate="auto"]:not([data-elevated="true"]):not([data-menu-open="true"]) .nh-nav__plate {
+  opacity: 0;
+}
+
+@media (max-width: 720px) {
+  .hv2-home {
+    --hv2-nav-h: 62px;
+  }
+}
+
 .hv2 ::selection {
   background: var(--hv2-ink);
   color: var(--hv2-surface);
@@ -245,6 +285,9 @@ body:has(.hv2) {
   /* the bar's brand link keeps the clicks — its wordmark is still in flow
      underneath this, it is simply not inked */
   pointer-events: none;
+  /* Only the fallback for the frame before the first measurement lands: the
+     flight sets weight inline, interpolated between the hero's heavy cut and
+     the bar's, the same way it carries size, tracking and stretch. */
   font-weight: 500;
   color: var(--hv2-ink);
   white-space: nowrap;
@@ -283,6 +326,7 @@ body:has(.hv2) {
 .hv2-brandmorph[data-landed] {
   visibility: hidden;
 }
+
 
 .hv2-hero__strip {
   display: flex;
@@ -356,25 +400,35 @@ body:has(.hv2) {
   overflow: hidden;
 }
 
-/* Both columns share one centre line — with the old bottom-left inset gone
-   there is nothing to justify hanging the copy off the top. */
+/* The picture is a portrait crop and wants its height. Centring a much
+   shorter copy column against it left a deep void above and below the text,
+   so both columns run the full row and the copy spans it — the same move the
+   founders eyebrow makes with `align-self: start`. */
 .hv2-philosophy__grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: clamp(24px, 3vw, 64px);
-  align-items: center;
+  align-items: stretch;
 }
 
 /* Measured: 5 lines over 43vw of measure. Expressed in vw rather than `ch`
    because the statement's own font-size is 2x this box's inherited one — a
-   `ch` here would resolve against 16px and come out less than half as wide. */
+   `ch` here would resolve against 16px and come out less than half as wide.
+
+   Laid out top-and-tail: the eyebrow sets the row's top line level with the
+   picture and the statement sets its bottom line, so the space between them
+   is the section's negative space rather than dead margin around a block
+   floating in the middle of it. */
 .hv2-philosophy__copy {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
   max-width: 43.5vw;
 }
 
 .hv2-philosophy__statement {
   margin: clamp(14px, 1.4vw, 30px) 0 0;
-  font-size: clamp(21px, 2.06vw, 41px);
+  font-size: clamp(22px, 2.28vw, 45px);
   line-height: 1.16;
   letter-spacing: -0.028em;
   font-weight: 500;
@@ -389,6 +443,11 @@ body:has(.hv2) {
 .hv2-philosophy__main {
   width: 100%;
   aspect-ratio: 36 / 40;
+  /* The ratio alone reads off the width, so on a wide monitor the picture
+     runs to ~770px and the copy spanning it gets stretched to match. Capping
+     against the viewport keeps the row a readable height; the crop takes up
+     the difference. */
+  max-height: 62svh;
   border-radius: var(--hv2-radius-card);
 }
 
@@ -1134,6 +1193,13 @@ body:has(.hv2) {
 
   .hv2-philosophy__mainWrap { width: 100%; justify-self: stretch; }
 
+  /* Stacked, the copy has no picture to span — the top-and-tail split would
+     just strand the eyebrow, so it goes back to normal flow. */
+  .hv2-philosophy__copy {
+    display: block;
+    max-width: none;
+  }
+
   .hv2-founders__pin {
     grid-template-columns: minmax(0, 1fr);
     align-content: center;
@@ -1209,5 +1275,1278 @@ body:has(.hv2) {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Fashion reference hero - root home only.
+   ------------------------------------------------------------------------ */
+.hv2-fashion-hero {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  /* min-content, not 0: on short viewports the section grows past 100svh
+     rather than clipping the top of the centre card. */
+  grid-template-rows: auto minmax(min-content, 1fr);
+  min-height: calc(100svh - var(--hv2-nav-h));
+  overflow: hidden;
+  padding-inline: var(--hv2-gutter);
+  background: linear-gradient(
+    180deg,
+    #121614 0%,
+    #111513 62%,
+    #0f1513 94%,
+    #101113 100%
+  );
+  color: var(--hv2-ink);
+}
+
+.hv2-fashion-hero__shade {
+  position: absolute;
+  z-index: 0;
+  inset: auto 0 0;
+  height: 42%;
+  background: linear-gradient(180deg, rgba(16, 17, 19, 0), rgba(6, 7, 8, 0.38));
+  pointer-events: none;
+}
+
+/* Carries the load entrance so the link below keeps its own transform for
+   hover and press. Grid rather than block: no line-box strut under the
+   button, so the spacing is exactly the link’s own margin. */
+.hv2-fashion-hero__ctaWrap {
+  display: grid;
+  justify-items: center;
+}
+
+.hv2-fashion-hero__cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  min-width: 9rem;
+  height: 2.85rem;
+  margin-top: 2.2rem;
+  padding: 0.28rem 0.34rem 0.28rem 1.25rem;
+  border-radius: 999px;
+  background: #f4f2ee;
+  color: #121113;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1;
+  box-shadow: 0 1rem 2.4rem rgba(0, 0, 0, 0.24);
+  transition:
+    background 0.35s var(--hv2-ease-soft),
+    transform 0.35s var(--hv2-ease);
+}
+
+.hv2 .hv2-fashion-hero__cta {
+  color: #121113;
+}
+
+.hv2-fashion-hero__cta:hover {
+  background: #ffffff;
+  transform: translateY(-2px);
+}
+
+.hv2-fashion-hero__cta:active {
+  transform: scale(0.97);
+}
+
+.hv2-fashion-hero__ctaIcon {
+  display: grid;
+  width: 2.12rem;
+  aspect-ratio: 1;
+  place-items: center;
+  border-radius: 999px;
+  background: #111113;
+  color: #f7f5f0;
+}
+
+.hv2-fashion-hero__gallery {
+  /* Slot geometry. Only the centre slot uses the -lg pair, so a card grows as
+     it steps into the middle and shrinks as it steps out. */
+  --arch-w-sm: clamp(8.5rem, 15.4vw, 14rem);
+  --arch-w-md: clamp(9.5rem, 17.2vw, 15.5rem);
+  --arch-w-lg: clamp(11rem, 19.4vw, 17.5rem);
+  --arch-h-sm: clamp(12.5rem, 34.5svh, 23rem);
+  --arch-h-md: clamp(15.5rem, 42svh, 28.5rem);
+  --arch-h-lg: clamp(19rem, 52svh, 34rem);
+  --arch-gap: clamp(0.7rem, 2vw, 2.3rem);
+  /* Centre-to-centre distance from the middle slot out to slots 1, 2 and 3. */
+  --arch-step-1: calc(var(--arch-w-lg) / 2 + var(--arch-gap) + var(--arch-w-md) / 2);
+  --arch-step-2: calc(
+    var(--arch-step-1) + var(--arch-w-md) / 2 + var(--arch-gap) + var(--arch-w-sm) / 2
+  );
+  --arch-step-3: calc(var(--arch-step-2) + var(--arch-w-sm) + var(--arch-gap));
+  --arch-move: 0.95s;
+
+  position: relative;
+  z-index: 1;
+  align-self: end;
+  width: 100%;
+  margin: 0 auto;
+  overflow: hidden;
+  padding-top: 1rem;
+}
+
+.hv2-fashion-hero__stage {
+  position: relative;
+  height: var(--arch-h-lg);
+}
+
+.hv2-fashion-hero__arch {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  margin: 0;
+  overflow: hidden;
+  border-radius: 999px 999px 0 0;
+  background: #252725;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 1.2rem 4rem rgba(0, 0, 0, 0.34);
+  /* width/height/transform are set inline per slot; the transition is what
+     turns a slot reassignment into the step across and the resize. */
+  transition:
+    width var(--arch-move) var(--hv2-ease-soft),
+    height var(--arch-move) var(--hv2-ease-soft),
+    transform var(--arch-move) var(--hv2-ease-soft),
+    opacity var(--arch-move) var(--hv2-ease-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hv2-fashion-hero__arch {
+    transition: none;
+  }
+}
+
+.hv2-fashion-hero__arch img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: var(--arch-position);
+}
+
+@media (max-width: 720px) {
+  .hv2-fashion-hero {
+    padding-inline: 0;
+  }
+
+  .hv2-fashion-hero__cta {
+    height: 2.6rem;
+    margin-top: 1.45rem;
+    font-size: 0.74rem;
+  }
+
+  .hv2-fashion-hero__ctaIcon {
+    width: 1.95rem;
+  }
+
+  .hv2-fashion-hero__gallery {
+    --arch-w-sm: clamp(6.5rem, 26vw, 9.5rem);
+    --arch-w-md: clamp(8rem, 31vw, 11.5rem);
+    --arch-w-lg: clamp(9.5rem, 37vw, 13.5rem);
+    --arch-h-sm: clamp(10rem, 27svh, 15rem);
+    --arch-h-md: clamp(13rem, 35svh, 19rem);
+    --arch-h-lg: clamp(16rem, 44svh, 24rem);
+    --arch-gap: 0.62rem;
+  }
+}
+
+
+/* Product commerce hero - root home only. */
+.hv2-fashion-hero {
+  --hv2-fashion-product-w: clamp(21rem, 42vw, 39rem);
+
+  position: relative;
+  isolation: isolate;
+  display: block;
+  min-height: calc(100svh - var(--hv2-nav-h));
+  overflow: clip;
+  padding: clamp(1rem, 2.2vw, 2rem) var(--hv2-gutter) clamp(1.4rem, 2.6vw, 2.6rem);
+  background:
+    radial-gradient(120% 80% at 50% 0%, #1e282d 0%, rgba(30, 40, 45, 0) 62%),
+    linear-gradient(180deg, #171e22 0%, #131719 46%, #0e0f11 100%);
+  color: #f1f3f3;
+}
+
+.hv2-home .hv2-fashion-hero {
+  margin-top: calc(var(--hv2-nav-h) * -1);
+  min-height: 100svh;
+}
+
+.hv2-fashion-hero__field {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(80% 68% at 50% 36%, rgba(184, 205, 214, 0.08), rgba(184, 205, 214, 0) 58%),
+    linear-gradient(180deg, rgba(5, 6, 7, 0) 0%, rgba(5, 6, 7, 0.28) 100%);
+  pointer-events: none;
+}
+
+.hv2-fashion-hero__field::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 43%;
+  width: clamp(28rem, 58vw, 58rem);
+  aspect-ratio: 1.18 / 1;
+  translate: -50% -50%;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(246, 240, 229, 0.34), rgba(203, 193, 181, 0.18) 27%, rgba(111, 107, 103, 0.1) 48%, rgba(20, 24, 26, 0) 72%),
+    radial-gradient(ellipse at 50% 68%, rgba(248, 244, 237, 0.15), rgba(248, 244, 237, 0) 58%);
+  filter: blur(18px);
+  opacity: 0.92;
+}
+
+.hv2-fashion-hero__rayClip {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.hv2-fashion-hero__rays {
+  position: absolute;
+  left: 50%;
+  top: 56%;
+  width: min(2000px, 165vw);
+  aspect-ratio: 1 / 1;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.hv2-fashion-hero__ray {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 50%;
+  height: 1px;
+  transform-origin: 0 50%;
+  background: linear-gradient(
+    90deg,
+    rgba(184, 205, 214, 0) 0%,
+    rgba(184, 205, 214, 0.1) 32%,
+    rgba(184, 205, 214, 0.045) 70%,
+    rgba(184, 205, 214, 0) 100%
+  );
+}
+
+.hv2-fashion-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background:
+    linear-gradient(180deg, rgba(5, 6, 7, 0.12), rgba(5, 6, 7, 0) 26%, rgba(5, 6, 7, 0.2)),
+    url("/textures/noise.svg");
+  opacity: 0.34;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+
+.hv2-fashion-hero__title {
+  position: absolute;
+  top: clamp(0.25rem, 4svh, 2.7rem);
+  left: 0;
+  right: 0;
+  z-index: 1;
+  display: block;
+  height: 0.86em;
+  max-width: none;
+  font-size: clamp(4.2rem, 10.5vw, 12.4rem);
+  font-weight: 700;
+  line-height: 0.78;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  color: rgba(248, 244, 237, 0.58);
+  text-shadow: 0 0.28rem 0.6rem rgba(0, 0, 0, 0.16);
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+}
+
+.hv2-home .hv2-fashion-hero__title {
+  top: calc(var(--hv2-nav-h) + clamp(0.25rem, 4svh, 2.7rem));
+}
+
+.hv2-fashion-hero__titleMask {
+  display: block;
+  position: absolute;
+  top: 0;
+  min-width: 0;
+  overflow: hidden;
+  padding-bottom: 0.08em;
+}
+
+.hv2-fashion-hero__titleMask:first-child {
+  right: calc(50% + var(--hv2-fashion-product-w) / 2);
+}
+
+.hv2-fashion-hero__titleMask:last-child {
+  left: calc(50% + var(--hv2-fashion-product-w) / 2);
+}
+
+.hv2-fashion-hero__titleMask span {
+  display: block;
+}
+
+.hv2-fashion-hero__product {
+  position: absolute;
+  top: clamp(-0.45rem, 1.4svh, 1.25rem);
+  left: 50%;
+  z-index: 4;
+  width: var(--hv2-fashion-product-w);
+  height: clamp(26rem, 78svh, 48rem);
+  translate: -50% 0;
+  pointer-events: none;
+}
+
+.hv2-home .hv2-fashion-hero__product {
+  top: calc(var(--hv2-nav-h) + clamp(-0.45rem, 1.4svh, 1.25rem));
+}
+
+.hv2-fashion-hero__productAura {
+  position: absolute;
+  z-index: 0;
+  inset: -4% -28% 2%;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 50% 27%, rgba(255, 248, 234, 0.36), rgba(255, 248, 234, 0) 24%),
+    radial-gradient(ellipse at 50% 48%, rgba(235, 224, 211, 0.32), rgba(155, 148, 141, 0.16) 38%, rgba(0, 0, 0, 0) 70%);
+  filter: blur(18px);
+  mix-blend-mode: screen;
+  opacity: 0.94;
+  animation: hv2-product-glow 6.5s ease-in-out infinite;
+}
+
+.hv2-fashion-hero__productFloat {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.hv2-fashion-hero__productSwap {
+  position: absolute;
+  inset: 0;
+  /* The source art is square and `object-position: center bottom` parks it at
+     the foot of a box that is taller than it is wide, so the garment reads a
+     little below the box centre. Scaling about the box centre would therefore
+     drag the garment upward as it shrinks, and the swap offsets in
+     `fashion-hero.tsx` are measured against the garment, not the box. Pinning
+     the origin to the garment's own optical centre keeps them honest. */
+  transform-origin: 50% 55%;
+  will-change: opacity, transform;
+}
+
+/* What `fill` supplies to a `next/image`, written out for the plain <img> a
+   console-chosen garment has to be — its src is a runtime API URL, which the
+   static export's optimiser has no build-time way to resolve. Without this the
+   garment lays itself out at its intrinsic size and shoulders the headline off
+   the screen. */
+.hv2-fashion-hero__productImage--raw {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.hv2-fashion-hero__productImage {
+  object-fit: contain;
+  object-position: center bottom;
+  filter:
+    drop-shadow(0 -0.75rem 1.8rem rgba(246, 240, 229, 0.13))
+    drop-shadow(0 2.2rem 2.4rem rgba(0, 0, 0, 0.38))
+    drop-shadow(0 0.7rem 0.55rem rgba(0, 0, 0, 0.24));
+}
+
+@keyframes hv2-product-glow {
+  0%,
+  100% {
+    opacity: 0.78;
+    scale: 0.97;
+  }
+
+  50% {
+    opacity: 1;
+    scale: 1.03;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hv2-fashion-hero__productAura {
+    animation: none;
+  }
+}
+
+/* The next garment, parked in the bottom-right corner at thumbnail size.
+   Its transform IS the sweep's starting pose — the `enter` variant of
+   `productOrbit` in fashion-hero.tsx opens on translate(90%, 40%) scale(0.36)
+   about the same origin — so the garment that flies in appears to lift off this
+   thumbnail rather than materialise next to it. The two have to move together:
+   change one and the swap stops reading as a single object. */
+.hv2-fashion-hero__next {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  transform-origin: 50% 55%;
+  translate: 90% 40%;
+  /* Must equal `productOrbit.enter.scale` and the first sample of `center`.
+     The origin is the element's own middle, so changing this shrinks the
+     thumbnail in place rather than moving it out of its corner. */
+  scale: 0.3;
+  pointer-events: none;
+}
+
+.hv2-fashion-hero__productShadow {
+  position: absolute;
+  left: 50%;
+  bottom: 4%;
+  z-index: 1;
+  width: 58%;
+  height: 8%;
+  translate: -50% 0;
+  border-radius: 999px;
+  background: rgba(9, 8, 8, 0.42);
+  filter: blur(18px);
+}
+
+.hv2-fashion-hero__social {
+  position: absolute;
+  left: clamp(1.1rem, 3.1vw, 4rem);
+  bottom: clamp(1.6rem, 5svh, 4rem);
+  z-index: 6;
+  display: grid;
+  gap: 0.75rem;
+  color: rgba(248, 244, 237, 0.72);
+}
+
+.hv2-fashion-hero__social > span {
+  width: fit-content;
+  border-radius: 999px;
+  padding: 0.45rem 0.78rem;
+  background: rgba(248, 244, 237, 0.24);
+  color: rgba(255, 255, 255, 0.82);
+  font-size: clamp(0.72rem, 0.68vw, 0.86rem);
+  line-height: 1;
+}
+
+.hv2-fashion-hero__socialIcons {
+  display: flex;
+  align-items: center;
+  gap: 0.62rem;
+}
+
+.hv2-fashion-hero__socialIcons a {
+  display: grid;
+  width: 1.2rem;
+  aspect-ratio: 1;
+  place-items: center;
+  color: rgba(248, 244, 237, 0.72);
+  transition:
+    color 0.25s var(--hv2-ease-soft),
+    transform 0.35s var(--hv2-ease);
+}
+
+.hv2-fashion-hero__socialIcons a:hover {
+  color: #ffffff;
+  transform: translateY(-2px);
+}
+
+.hv2-fashion-hero__price {
+  position: absolute;
+  left: 50%;
+  bottom: clamp(3.35rem, 8.2svh, 5.65rem);
+  z-index: 6;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: clamp(0.75rem, 1vw, 1.2rem);
+  translate: -50% 0;
+  white-space: nowrap;
+}
+
+.hv2-fashion-hero__price span {
+  color: rgba(248, 244, 237, 0.22);
+  font-size: clamp(1rem, 1.45vw, 1.55rem);
+}
+
+.hv2-fashion-hero__price strong {
+  color: #ffffff;
+  font-size: clamp(1.08rem, 1.75vw, 1.85rem);
+  font-weight: 700;
+}
+
+.hv2-fashion-hero__buyWrap {
+  position: absolute;
+  left: 50%;
+  bottom: clamp(1rem, 3.2svh, 2.35rem);
+  z-index: 7;
+  translate: -50% 0;
+}
+
+.hv2-fashion-hero__buy {
+  display: inline-flex;
+  min-width: 5.9rem;
+  min-height: 2rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #111111;
+  color: #f6f2eb;
+  font-size: clamp(0.72rem, 0.72vw, 0.9rem);
+  font-weight: 600;
+  line-height: 1;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 0.75rem 1.8rem rgba(0, 0, 0, 0.34);
+  transition:
+    background 0.25s var(--hv2-ease-soft),
+    transform 0.35s var(--hv2-ease);
+}
+
+.hv2-fashion-hero__buy:hover {
+  background: #000000;
+  transform: translateY(-2px);
+}
+
+.hv2-fashion-hero__buy:active {
+  transform: scale(0.96);
+}
+
+.hv2-fashion-hero__quantity button {
+  display: grid;
+  width: 2rem;
+  aspect-ratio: 1;
+  place-items: center;
+  border: 1px solid rgba(248, 244, 237, 0.26);
+  border-radius: 999px;
+  background: rgba(248, 244, 237, 0.08);
+  color: rgba(248, 244, 237, 0.82);
+  cursor: pointer;
+  transition:
+    border-color 0.25s var(--hv2-ease-soft),
+    background 0.25s var(--hv2-ease-soft),
+    color 0.25s var(--hv2-ease-soft),
+    transform 0.35s var(--hv2-ease);
+}
+
+.hv2-fashion-hero__quantity button:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.52);
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  transform: translateY(-2px);
+}
+
+.hv2-fashion-hero__quantity button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.hv2-fashion-hero__panel {
+  position: absolute;
+  right: clamp(1.3rem, 5.6vw, 7rem);
+  bottom: clamp(1.7rem, 7.4svh, 5.1rem);
+  z-index: 6;
+  display: grid;
+  justify-items: start;
+  gap: 0.88rem;
+  color: rgba(248, 244, 237, 0.76);
+}
+
+.hv2-fashion-hero__available {
+  border-radius: 999px;
+  padding: 0.58rem 1rem;
+  background: rgba(248, 244, 237, 0.25);
+  color: rgba(255, 255, 255, 0.86);
+  font-size: clamp(0.82rem, 0.9vw, 1.05rem);
+  line-height: 1;
+}
+
+.hv2-fashion-hero__sizes {
+  display: flex;
+  align-items: center;
+  gap: clamp(0.55rem, 0.74vw, 0.9rem);
+}
+
+.hv2-fashion-hero__size {
+  border: 0;
+  background: transparent;
+  color: rgba(248, 244, 237, 0.34);
+  cursor: pointer;
+  font-size: clamp(1rem, 1.3vw, 1.5rem);
+  font-weight: 700;
+  line-height: 1;
+  padding: 0;
+  transition:
+    color 0.25s var(--hv2-ease-soft),
+    transform 0.35s var(--hv2-ease);
+}
+
+.hv2-fashion-hero__size:hover,
+.hv2-fashion-hero__size[data-selected] {
+  color: #ffffff;
+}
+
+.hv2-fashion-hero__size:hover {
+  transform: translateY(-2px);
+}
+
+.hv2-fashion-hero__quantity {
+  display: flex;
+  align-items: center;
+  gap: clamp(0.7rem, 0.95vw, 1rem);
+  margin-top: 0.12rem;
+}
+
+.hv2-fashion-hero__quantity strong {
+  min-width: 1.2rem;
+  text-align: center;
+  color: #ffffff;
+  font-size: clamp(1rem, 1.3vw, 1.5rem);
+  font-weight: 700;
+  line-height: 1;
+}
+
+@media (max-width: 1040px) {
+  .hv2-fashion-hero {
+    --hv2-fashion-product-w: clamp(18rem, 44vw, 31rem);
+  }
+
+  .hv2-fashion-hero__panel {
+    right: clamp(1.2rem, 4vw, 3rem);
+  }
+}
+
+@media (max-width: 760px) {
+  .hv2-fashion-hero {
+    --hv2-fashion-product-w: min(68vw, 20rem);
+
+    display: flex;
+    min-height: auto;
+    flex-direction: column;
+    gap: 0.72rem;
+    padding: 1rem 1rem 1.35rem;
+  }
+
+  .hv2-home .hv2-fashion-hero {
+    min-height: auto;
+    padding-top: calc(var(--hv2-nav-h) + 1rem);
+  }
+
+  .hv2-fashion-hero__title,
+  .hv2-fashion-hero__product,
+  .hv2-fashion-hero__social,
+  .hv2-fashion-hero__price,
+  .hv2-fashion-hero__buyWrap,
+  .hv2-fashion-hero__panel {
+    position: relative;
+    top: auto;
+    right: auto;
+    bottom: auto;
+    left: auto;
+    translate: none;
+  }
+
+  .hv2-home .hv2-fashion-hero__title,
+  .hv2-home .hv2-fashion-hero__product {
+    top: auto;
+  }
+
+  .hv2-fashion-hero__title {
+    order: 1;
+    display: grid;
+    width: 100%;
+    grid-template-columns: auto auto;
+    justify-content: space-between;
+    column-gap: 0.6rem;
+    height: auto;
+    max-width: none;
+    margin-top: 0.35rem;
+    padding-inline: 0;
+    font-size: clamp(2.45rem, 14.2vw, 3.65rem);
+    line-height: 0.9;
+  }
+
+  .hv2-fashion-hero__titleMask {
+    position: static;
+  }
+
+  .hv2-fashion-hero__product {
+    order: 2;
+    width: var(--hv2-fashion-product-w);
+    height: clamp(18rem, 38svh, 23rem);
+    margin: -0.35rem auto -0.2rem;
+  }
+
+  /* The hero is a column here and the product box sits in the flow, so the
+     bottom-right corner the thumbnail belongs to no longer exists — parking it
+     there would drop it on top of the price and the buy button. */
+  .hv2-fashion-hero__next {
+    display: none;
+  }
+
+  .hv2-fashion-hero__price {
+    order: 3;
+    justify-content: center;
+  }
+
+  .hv2-fashion-hero__buyWrap {
+    order: 4;
+    align-self: center;
+  }
+
+  .hv2-fashion-hero__panel {
+    order: 5;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    justify-items: center;
+    align-self: center;
+    gap: 0.76rem 0.92rem;
+  }
+
+  .hv2-fashion-hero__available {
+    padding: 0.5rem 0.85rem;
+  }
+
+  .hv2-fashion-hero__quantity {
+    margin-top: 0;
+  }
+
+  .hv2-fashion-hero__social {
+    order: 6;
+    justify-items: center;
+    align-self: center;
+    margin-top: 0.5rem;
+  }
+}
+
+/* Home-only manifesto rhythm. The shared section is intentionally full-screen
+   elsewhere; directly after the product hero it needs to read as a tight second
+   beat rather than another empty viewport. */
+.hv2-manifesto--compact {
+  min-height: clamp(22rem, 52svh, 30rem);
+  padding-block: clamp(2.5rem, 5.4vw, 4.75rem);
+}
+
+.hv2-manifesto--compact .hv2-manifesto__text {
+  max-width: min(62rem, 72vw);
+  font-size: clamp(2rem, 3.1vw, 3.45rem);
+  line-height: 1.08;
+}
+
+.hv2-manifesto__text--rise {
+  text-wrap: balance;
+}
+
+.hv2-manifesto__wordMask {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: bottom;
+}
+
+.hv2-manifesto__word {
+  display: inline-block;
+  will-change: transform, opacity;
+}
+
+.hv2-manifesto--compact .hv2-manifesto__rail {
+  top: 50%;
+  color: color-mix(in srgb, var(--hv2-muted) 86%, var(--hv2-ink));
+}
+
+@media (max-width: 720px) {
+  .hv2-manifesto--compact {
+    min-height: auto;
+    padding-block: clamp(3.75rem, 17vw, 5.5rem);
+  }
+
+  .hv2-manifesto--compact .hv2-manifesto__text {
+    max-width: none;
+    font-size: clamp(1.85rem, 8vw, 2.35rem);
+    line-height: 1.1;
+  }
+}
+
+
+/* ---------------------------------------------------------------------------
+   Hero review corner — bottom left, opposite the parked garment.
+
+   One small face per live review, the score under them, and one more chip that
+   opens the form. Sized to be read at a glance and ignored just as easily: the
+   hero carries one instruction (Buy Now) and this must not become a second.
+   `hero-reviews.tsx` is where the reviews come from.
+--------------------------------------------------------------------------- */
+.hv2-fashion-hero__reviews {
+  position: absolute;
+  left: clamp(1.1rem, 3.1vw, 4rem);
+  bottom: clamp(1.6rem, 5svh, 4rem);
+  /* Above the buy button, because the panel opens upward across it. */
+  z-index: 9;
+}
+
+.hv2-heroRev {
+  /* The one number the whole cluster is sized from — the faces, how far they
+     overlap, and the pad that keeps the leftmost one off the hero gutter. */
+  --chip: 2.45rem;
+
+  position: relative;
+  display: grid;
+  gap: 0.6rem;
+  justify-items: start;
+  /* Native selects and scrollbars inside the panel follow the dark surface
+     they sit on rather than the light one the OS would assume. */
+  color-scheme: dark;
+}
+
+/* ------------------------------------------------------------------ faces */
+.hv2-heroRev__stack {
+  display: flex;
+  align-items: center;
+  /* Overlapped, so five reviews read as a group rather than as a row of
+     buttons. The ring below is what keeps each face separate inside it. */
+  padding-left: calc(var(--chip) * 0.24);
+}
+
+.hv2-heroRev__chip {
+  position: relative;
+  display: grid;
+  width: var(--chip);
+  aspect-ratio: 1;
+  place-items: center;
+  margin-left: calc(var(--chip) * -0.24);
+  border: 0;
+  border-radius: 999px;
+  padding: 0;
+  background: var(--tone, #e6e0d4);
+  box-shadow:
+    0 0 0 2px #171e22,
+    0 0.4rem 0.9rem rgba(0, 0, 0, 0.42);
+  color: #16191b;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  transition:
+    transform 0.35s var(--hv2-ease),
+    box-shadow 0.25s var(--hv2-ease-soft),
+    background 0.25s var(--hv2-ease-soft);
+}
+
+.hv2-heroRev__chip:hover,
+.hv2-heroRev__chip:focus-visible,
+.hv2-heroRev__chip[data-open] {
+  z-index: 2;
+  transform: translateY(-3px);
+  box-shadow:
+    0 0 0 2px #171e22,
+    0 0.6rem 1.2rem rgba(0, 0, 0, 0.5);
+}
+
+/* Their own review, so a shopper can find theirs in the row. */
+.hv2-heroRev__chip[data-own]::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border: 1px solid rgba(248, 244, 237, 0.72);
+  border-radius: 999px;
+}
+
+.hv2-heroRev__chip--rest {
+  background: rgba(248, 244, 237, 0.16);
+  color: rgba(248, 244, 237, 0.86);
+  cursor: default;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.hv2-heroRev__chip--add {
+  border: 1px dashed rgba(248, 244, 237, 0.45);
+  background: rgba(23, 30, 34, 0.72);
+  color: rgba(248, 244, 237, 0.86);
+}
+
+.hv2-heroRev__chip--add:hover,
+.hv2-heroRev__chip--add[data-open] {
+  border-style: solid;
+  border-color: rgba(255, 255, 255, 0.8);
+  background: rgba(248, 244, 237, 0.14);
+  color: #ffffff;
+}
+
+/* Inside the read card head, where it labels rather than acts — and where it
+   is sized against the card rather than against the stack outside it. */
+.hv2-heroRev__chip--flat {
+  width: 2.1rem;
+  margin-left: 0;
+  cursor: default;
+  box-shadow: none;
+  font-size: 0.86rem;
+}
+
+/* ------------------------------------------------------------------- score */
+.hv2-heroRev__meta {
+  display: flex;
+  align-items: center;
+  gap: 0.48rem;
+  color: rgba(248, 244, 237, 0.62);
+  font-size: clamp(0.82rem, 0.82vw, 0.98rem);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.hv2-heroRev__meta strong {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.hv2-heroRev__stars {
+  position: relative;
+  display: inline-flex;
+  /* Not stretch. The fill row is clipped to a PERCENTAGE of this box, so the
+     box has to be the width of the five stars and nothing more — as a grid
+     item in the read card it would otherwise take the whole column, and 80% of
+     the column covers all five stars. That drew every rating as five. */
+  width: fit-content;
+  color: rgba(248, 244, 237, 0.3);
+  line-height: 0;
+}
+
+.hv2-heroRev__starRow {
+  display: flex;
+  gap: 1px;
+}
+
+/* The filled row is clipped to a percentage of the base row, so the stars
+   inside it must keep their natural size rather than shrink to fit. */
+.hv2-heroRev__starRow > svg {
+  flex: none;
+}
+
+.hv2-heroRev__starRow--on {
+  position: absolute;
+  inset: 0;
+  width: var(--pct, 0%);
+  overflow: hidden;
+  color: #f0dfb4;
+}
+
+/* The unlit stars carry the rating as much as the lit ones do — four out of
+   five only reads as four if the fifth is visible. On the panel, which is a
+   lighter surface than the hero behind it, the hero's alpha is not enough. */
+.hv2-heroRev__panel .hv2-heroRev__stars {
+  color: rgba(248, 244, 237, 0.42);
+}
+
+/* ------------------------------------------------------------------- panel */
+.hv2-heroRev__panel {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 0.7rem);
+  z-index: 3;
+  width: min(20.5rem, calc(100vw - 2rem));
+  border: 1px solid rgba(248, 244, 237, 0.14);
+  border-radius: 16px;
+  padding: 0.95rem 1rem 1rem;
+  background: rgba(17, 22, 25, 0.9);
+  backdrop-filter: blur(20px);
+  box-shadow: 0 1.4rem 3rem rgba(0, 0, 0, 0.55);
+  color: rgba(248, 244, 237, 0.82);
+  font-size: 0.8rem;
+  text-align: left;
+}
+
+.hv2-heroRev__close {
+  position: absolute;
+  right: 0.5rem;
+  top: 0.5rem;
+  display: grid;
+  width: 1.4rem;
+  aspect-ratio: 1;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  padding: 0;
+  background: transparent;
+  color: rgba(248, 244, 237, 0.5);
+  cursor: pointer;
+  transition:
+    color 0.25s var(--hv2-ease-soft),
+    background 0.25s var(--hv2-ease-soft);
+}
+
+.hv2-heroRev__close:hover {
+  background: rgba(248, 244, 237, 0.1);
+  color: #ffffff;
+}
+
+.hv2-heroRev__note {
+  margin: 0;
+  padding-right: 1.2rem;
+  color: rgba(248, 244, 237, 0.7);
+  line-height: 1.45;
+}
+
+.hv2-heroRev__eyebrow {
+  margin: 0;
+  color: rgba(248, 244, 237, 0.42);
+  font-size: 0.62rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+/* -------------------------------------------------------------- read card */
+.hv2-heroRev__card {
+  display: grid;
+  gap: 0.5rem;
+  padding-right: 1.2rem;
+}
+
+.hv2-heroRev__cardHead {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.hv2-heroRev__cardWho {
+  display: grid;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.hv2-heroRev__cardWho strong {
+  color: #ffffff;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.hv2-heroRev__cardWho > span {
+  color: rgba(248, 244, 237, 0.42);
+  font-size: 0.64rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.hv2-heroRev__cardTitle {
+  margin: 0;
+  color: #ffffff;
+  font-size: 0.86rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.hv2-heroRev__cardBody {
+  margin: 0;
+  color: rgba(248, 244, 237, 0.72);
+  font-size: 0.79rem;
+  line-height: 1.5;
+}
+
+.hv2-heroRev__cardFoot {
+  margin: 0;
+  border-top: 1px solid rgba(248, 244, 237, 0.1);
+  padding-top: 0.5rem;
+  color: rgba(248, 244, 237, 0.44);
+  font-size: 0.68rem;
+}
+
+/* ------------------------------------------------------------------- gate */
+.hv2-heroRev__gate {
+  display: grid;
+  justify-items: start;
+  gap: 0.55rem;
+  padding-right: 1.2rem;
+}
+
+.hv2-heroRev__gate p {
+  margin: 0;
+  line-height: 1.45;
+}
+
+.hv2-heroRev__gate strong {
+  color: #ffffff;
+}
+
+/* Scoped through `.hv2` for the ink alone: `.hv2 a { color: inherit }` outranks
+   a single class, and inheriting the panel's cream here paints the label the
+   same colour as the pill under it. Same reason `.hv2-fashion-hero__cta` is
+   written twice. */
+.hv2-heroRev__signin,
+.hv2 .hv2-heroRev__signin {
+  border-radius: 999px;
+  padding: 0.42rem 0.95rem;
+  background: #f4efe6;
+  color: #14181a;
+  font-size: 0.74rem;
+  font-weight: 600;
+  transition: background 0.25s var(--hv2-ease-soft);
+}
+
+.hv2-heroRev__signin:hover {
+  background: #ffffff;
+}
+
+/* ------------------------------------------------------------------- form */
+.hv2-heroRev__form {
+  display: grid;
+  gap: 0.6rem;
+  padding-right: 1.2rem;
+}
+
+.hv2-heroRev__pick {
+  display: flex;
+  gap: 0.12rem;
+}
+
+.hv2-heroRev__pickStar {
+  display: grid;
+  place-items: center;
+  border: 0;
+  padding: 0.1rem;
+  background: transparent;
+  color: rgba(248, 244, 237, 0.28);
+  cursor: pointer;
+  line-height: 0;
+  transition:
+    color 0.2s var(--hv2-ease-soft),
+    transform 0.3s var(--hv2-ease);
+}
+
+.hv2-heroRev__pickStar[data-on] {
+  color: #f0dfb4;
+}
+
+.hv2-heroRev__pickStar[data-on] svg {
+  fill: currentColor;
+}
+
+.hv2-heroRev__pickStar:hover {
+  transform: translateY(-2px);
+}
+
+.hv2-heroRev__field {
+  display: grid;
+  gap: 0.24rem;
+}
+
+.hv2-heroRev__field > span {
+  color: rgba(248, 244, 237, 0.42);
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.hv2-heroRev__field input,
+.hv2-heroRev__field select,
+.hv2-heroRev__field textarea {
+  width: 100%;
+  border: 1px solid rgba(248, 244, 237, 0.18);
+  border-radius: 9px;
+  padding: 0.44rem 0.6rem;
+  background: rgba(248, 244, 237, 0.05);
+  color: #f4f1ea;
+  font: inherit;
+  font-size: 0.79rem;
+  transition:
+    border-color 0.25s var(--hv2-ease-soft),
+    background 0.25s var(--hv2-ease-soft);
+}
+
+.hv2-heroRev__field textarea {
+  resize: vertical;
+  line-height: 1.45;
+}
+
+.hv2-heroRev__field input::placeholder,
+.hv2-heroRev__field textarea::placeholder {
+  color: rgba(248, 244, 237, 0.32);
+}
+
+.hv2-heroRev__field input:focus,
+.hv2-heroRev__field select:focus,
+.hv2-heroRev__field textarea:focus {
+  border-color: rgba(255, 255, 255, 0.6);
+  background: rgba(248, 244, 237, 0.09);
+  outline: none;
+}
+
+.hv2-heroRev__acts {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.1rem;
+}
+
+.hv2-heroRev__cancel,
+.hv2-heroRev__send {
+  border-radius: 999px;
+  padding: 0.42rem 1rem;
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 0.25s var(--hv2-ease-soft),
+    color 0.25s var(--hv2-ease-soft),
+    transform 0.3s var(--hv2-ease);
+}
+
+.hv2-heroRev__cancel {
+  border: 0;
+  background: transparent;
+  color: rgba(248, 244, 237, 0.55);
+}
+
+.hv2-heroRev__cancel:hover:not(:disabled) {
+  color: #ffffff;
+}
+
+.hv2-heroRev__send {
+  border: 0;
+  background: #f4efe6;
+  color: #14181a;
+}
+
+.hv2-heroRev__send:hover:not(:disabled) {
+  background: #ffffff;
+  transform: translateY(-1px);
+}
+
+.hv2-heroRev__cancel:disabled,
+.hv2-heroRev__send:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* The hero becomes a single column under 760px and every pinned corner joins
+   the flow. This one is last in that column, and its panel goes on opening
+   upward — which is now over the buy button rather than over background. */
+@media (max-width: 760px) {
+  .hv2-fashion-hero__reviews {
+    position: relative;
+    order: 5;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    align-self: center;
+    margin-top: 0.35rem;
+  }
+
+  .hv2-heroRev {
+    justify-items: center;
+  }
+
+  .hv2-heroRev__panel {
+    left: 50%;
+    translate: -50% 0;
   }
 }

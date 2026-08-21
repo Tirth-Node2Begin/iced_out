@@ -18,7 +18,7 @@ export function SearchResults() {
       <Container>
         <div className="search-discovery-strip">
           <span><Sparkles size={14} /> Discovery terminal</span>
-          <div><Link href="/search?q=hoodie">Heavyweight hoodies</Link><Link href="/search?q=black">All black</Link><Link href="/collections/drop-001">Drop 001</Link></div>
+          <div><Link href="/search?q=hoodie">Heavyweight hoodies</Link><Link href="/search?q=black">All black</Link><Link href="/collections/view?slug=drop-001">Drop 001</Link></div>
           <small><Clock3 size={13} /> Index refreshed now</small>
         </div>
         <form className="search-results-page__form" action="/search">

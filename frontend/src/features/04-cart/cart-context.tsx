@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from "react";
 
-import { formatPrice, productFixtures, type Product } from "@/features/02-products";
+import { formatPrice, loadCatalog, type Product } from "@/features/02-products";
 import {
   COUPONS,
   discountFor,
@@ -35,7 +35,8 @@ const COUPON_KEY = "iced-out.coupon";
 
 type StoredLine = { productId: string; size: string; quantity: number };
 
-function readBag(): CartLine[] {
+/** The stored lines, still as ids — nothing is resolved here. */
+function storedLines(): StoredLine[] {
   let raw: string | null = null;
   try {
     raw = window.localStorage.getItem(BAG_KEY);
@@ -48,24 +49,46 @@ function readBag(): CartLine[] {
     const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
 
-    return parsed.flatMap((entry): CartLine[] => {
+    return parsed.flatMap((entry): StoredLine[] => {
       const line = entry as Partial<StoredLine>;
       if (typeof line.productId !== "string" || typeof line.size !== "string") return [];
-
-      // A product that has left the catalogue drops out of the bag rather than
-      // resurfacing as a hole the rest of the page has to defend against.
-      const product = productFixtures.find((item) => item.id === line.productId);
-      if (!product) return [];
 
       const quantity = Number(line.quantity);
       if (!Number.isFinite(quantity) || quantity < 1) return [];
 
-      return [{ product, size: line.size, quantity: Math.floor(quantity) }];
+      return [{ productId: line.productId, size: line.size, quantity: Math.floor(quantity) }];
     });
   } catch {
     // hand-edited or half-written storage: start clean rather than throw on boot
     return [];
   }
+}
+
+/**
+ * The stored bag, with each line's product looked up in the live catalogue.
+ *
+ * Async now, because the catalogue is: it comes from `GET /catalog/products`
+ * rather than from an array compiled into the bundle. That is the point — a bag
+ * quoting a price the console has since changed is exactly what storing only ids
+ * was meant to prevent, and resolving against a fixture only ever gave the price
+ * as it was on the day of the build.
+ *
+ * A product that has left the catalogue — deleted, or moved back to Draft — drops
+ * out of the bag rather than resurfacing as a hole the rest of the page has to
+ * defend against.
+ */
+async function readBag(): Promise<CartLine[]> {
+  const lines = storedLines();
+  if (lines.length === 0) return [];
+
+  const catalogue = await loadCatalog();
+
+  return lines.flatMap((line): CartLine[] => {
+    const product = catalogue.find((item) => item.id === line.productId);
+    if (!product) return [];
+
+    return [{ product, size: line.size, quantity: line.quantity }];
+  });
 }
 
 /**
@@ -196,11 +219,30 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   /* Read after mount, never during render. The page is statically exported, so
      the markup React hydrates was written with an empty bag in it; seeding
-     state from storage during the first render makes the two disagree. */
+     state from storage during the first render makes the two disagree.
+
+     `restored` is set only once the catalogue has answered and the lines are
+     resolved. Flipping it earlier would let the write effect below run against
+     the empty initial state and erase the stored bag before it had been read —
+     which would look exactly like no persistence at all. */
   useEffect(() => {
-    setLines(readBag());
-    setCouponCode(readCouponCode());
-    setRestored(true);
+    let live = true;
+
+    /* Both writes happen in the promise callback rather than in the effect body.
+       A synchronous `setState` there is a cascading render — this repo lints it as
+       an error — and the coupon has to wait for the bag anyway: `restored` gates
+       the write effect below, and flipping it before the coupon was read would let
+       that effect erase the stored code. */
+    void readBag().then((lines) => {
+      if (!live) return;
+      setLines(lines);
+      setCouponCode(readCouponCode());
+      setRestored(true);
+    });
+
+    return () => {
+      live = false;
+    };
   }, []);
 
   /* `restored` is load-bearing. Without it this effect runs on the first render

@@ -2,8 +2,9 @@ import { ArrowLeftRight, Check, Circle, RotateCcw } from "lucide-react";
 import Link from "next/link";
 
 import { AccountSection } from "@/components/account/account-section";
+import { useCatalog } from "@/features/02-products";
 import { formatPrice } from "@/features/02-products/utils/format-price";
-import type { ReturnFixture } from "@/features/18-returns/data/return-fixtures";
+import type { CustomerReturn } from "@/features/18-returns/customer-returns";
 import { balanceOf, replacementPrice } from "@/features/18-returns/utils/exchange";
 
 /**
@@ -13,12 +14,17 @@ import { balanceOf, replacementPrice } from "@/features/18-returns/utils/exchang
  * back, what they get instead, and when — so those are the three things on it,
  * in that order. On an exchange the second question has a price attached, and
  * the figure quoted here is the same one the console approves: both read
- * `balanceOf`, so neither can quote the other's customer a different number.
+ * `balanceOf` over the same live catalogue, so neither can quote the other's
+ * customer a different number.
  */
-export function ReturnDetail({ item }: { item: ReturnFixture }) {
+export function ReturnDetail({ item }: { item: CustomerReturn }) {
+  /* The replacement is priced at what it sells for TODAY, so the figure comes
+     from the live catalogue rather than from anything stored on the return. */
+  const { data: catalogue } = useCatalog();
+
   const settled = item.status === "Voucher issued" || item.status === "Exchange on its way";
   const swap = item.outcome === "Exchange" && Boolean(item.replacement);
-  const balance = swap ? balanceOf(item.amount, item.replacement) : null;
+  const balance = swap ? balanceOf(item.amount, item.replacement, catalogue) : null;
 
   return (
     <AccountSection
@@ -46,7 +52,8 @@ export function ReturnDetail({ item }: { item: ReturnFixture }) {
                 <div>
                   <dt>Coming to you</dt>
                   <dd>
-                    {item.replacement} · {formatPrice(replacementPrice(item.replacement))}
+                    {item.replacement} ·{" "}
+                    {formatPrice(replacementPrice(item.replacement, catalogue))}
                   </dd>
                 </div>
                 <div>

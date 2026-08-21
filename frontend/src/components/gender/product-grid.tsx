@@ -6,7 +6,6 @@ import { motion, useReducedMotion } from "motion/react";
 import { useCallback } from "react";
 
 import {
-  CROPS,
   formatPrice,
   type Piece,
 } from "@/components/gender/data";
@@ -34,7 +33,6 @@ function ProductTile({
   wide?: boolean;
 }) {
   const reduce = useReducedMotion();
-  const crop = CROPS[piece.crop];
 
   /* The shared wishlist, not a local flag. The heart used to hold its own
      `useState`, so it filled in on press and emptied again on the next
@@ -67,22 +65,24 @@ function ProductTile({
       viewport={{ once: true, amount: 0.2 }}
       whileInView={{ opacity: 1, y: 0, scale: 1 }}
     >
+      {/* The product's own photo, or an empty frame.
+          It used to fall back to a quadrant of the house contact sheet, which
+          meant a piece nobody had photographed was advertised with a picture of
+          a different garment — and nothing on the card said so. */}
       <span className="gx-card__media">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          alt={piece.name}
-          decoding="async"
-          loading="lazy"
-          src={crop.src}
-          style={{ "--op": crop.op, "--z": crop.z ?? 1 } as React.CSSProperties}
-        />
+        {piece.image ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img alt={piece.name} decoding="async" loading="lazy" src={piece.image} />
+        ) : (
+          <span aria-hidden className="gx-card__blank" />
+        )}
       </span>
       <span className="gx-card__scrim" />
 
       <Link
         aria-label={`${piece.name} — ${formatPrice(piece.price)}`}
         className="gx-card__hit"
-        href={`/product/${piece.slug}`}
+        href={`/product?slug=${piece.slug}`}
       />
 
       <span className="gx-card__chips">
@@ -128,10 +128,11 @@ export function ProductShelf({
   light,
   right,
   foot,
-  footHref = "/collections/drop-001",
+  footHref = "/collections/view?slug=drop-001",
   pieces,
   columns = 4,
   wide,
+  emptyNote,
 }: {
   id?: string;
   eyebrow: string;
@@ -143,13 +144,23 @@ export function ProductShelf({
   pieces: Piece[];
   columns?: 3 | 4;
   wide?: boolean;
+  /**
+   * What to say instead of "nothing in this filter".
+   *
+   * The catalogue arrives over the network, so an empty shelf has three possible
+   * causes and only one of them is a filter. The page passes this when it knows
+   * which — see `GenderPage`.
+   */
+  emptyNote?: string;
 }) {
   if (pieces.length === 0) {
     return (
       <section className="gx-shelf" id={id}>
         <div className="gx-wrap gx-empty">
-          <h3 className="gx-display">Nothing in this filter.</h3>
-          <p className="gx-body">Clear the category to see the rest of the release.</p>
+          <h3 className="gx-display">{emptyNote ?? "Nothing in this filter."}</h3>
+          {emptyNote ? null : (
+            <p className="gx-body">Clear the category to see the rest of the release.</p>
+          )}
         </div>
       </section>
     );

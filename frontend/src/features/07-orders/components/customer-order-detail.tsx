@@ -301,7 +301,7 @@ export function CustomerOrderDetail({ orderId }: { orderId: string }) {
             </p>
           </div>
           {!unpaid && order.shipment.token && (
-            <Link className="io-btn io-btn--solid io-btn--sm" href={`/track/${order.shipment.token}`}>
+            <Link className="io-btn io-btn--solid io-btn--sm" href={`/track?token=${order.shipment.token}`}>
               <Truck aria-hidden size={14} strokeWidth={1.7} />
               Track shipment
             </Link>
@@ -499,7 +499,7 @@ export function CustomerOrderDetail({ orderId }: { orderId: string }) {
 
         <div className="od-actions">
           {returnable && (
-            <Link className="io-btn io-btn--ghost" href="/account/returns/new">
+            <Link className="io-btn io-btn--ghost" href="/account/returns/detail?id=new">
               <RotateCcw aria-hidden size={15} strokeWidth={1.7} />
               Start a return
             </Link>

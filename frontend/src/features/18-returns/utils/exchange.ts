@@ -1,4 +1,4 @@
-import { productFixtures } from "@/features/02-products/api/product-fixtures";
+import type { Product } from "@/features/02-products/types/product";
 import { formatPrice } from "@/features/02-products/utils/format-price";
 
 /**
@@ -23,19 +23,27 @@ import { formatPrice } from "@/features/02-products/utils/format-price";
  * on the shelf, priced from the catalogue rather than typed again here. A
  * sold-out variant is left out, so nobody can be promised a replacement that
  * does not exist.
+ *
+ * A function taking the catalogue, rather than the constant it used to be: the
+ * catalogue is the database's now and arrives over the network, so a screen
+ * offering these has to be subscribed to it. An empty catalogue gives an empty
+ * list, which is the honest answer — nothing can be promised as a replacement
+ * until we know what is in stock.
  */
-export const EXCHANGE_OPTIONS = productFixtures.flatMap((product) =>
-  product.variants
-    .filter((variant) => variant.stock !== "SOLD_OUT")
-    .map((variant) => ({
-      /* "Bone Utility Overshirt · L" — the product, then the size it is being
-         swapped for. This string is the value stored on a return. */
-      value: `${product.name} · ${variant.size}`,
-      product: product.name,
-      size: variant.size,
-      price: product.price,
-    })),
-);
+export function exchangeOptions(catalogue: Product[]) {
+  return catalogue.flatMap((product) =>
+    product.variants
+      .filter((variant) => variant.stock !== "SOLD_OUT")
+      .map((variant) => ({
+        /* "Bone Utility Overshirt · L" — the product, then the size it is being
+           swapped for. This string is the value stored on a return. */
+        value: `${product.name} · ${variant.size}`,
+        product: product.name,
+        size: variant.size,
+        price: product.price,
+      })),
+  );
+}
 
 /**
  * The catalogue price behind a replacement line.
@@ -44,10 +52,10 @@ export const EXCHANGE_OPTIONS = productFixtures.flatMap((product) =>
  * and the price is read live rather than stored on the return, because what a
  * replacement costs is what it costs today.
  */
-export function replacementPrice(replacement: string) {
+export function replacementPrice(replacement: string, catalogue: Product[]) {
   if (!replacement) return 0;
   const name = (replacement.split("·")[0] ?? "").trim().toLowerCase();
-  return productFixtures.find((product) => product.name.toLowerCase() === name)?.price ?? 0;
+  return catalogue.find((product) => product.name.toLowerCase() === name)?.price ?? 0;
 }
 
 export type ExchangeBalance = {
@@ -104,6 +112,10 @@ export function exchangeBalance(returned: number, replacement: number): Exchange
 }
 
 /** The balance on a return, read straight off the record. */
-export function balanceOf(returnedAmount: string | number, replacement: string) {
-  return exchangeBalance(Number(returnedAmount) || 0, replacementPrice(replacement));
+export function balanceOf(
+  returnedAmount: string | number,
+  replacement: string,
+  catalogue: Product[],
+) {
+  return exchangeBalance(Number(returnedAmount) || 0, replacementPrice(replacement, catalogue));
 }

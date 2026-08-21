@@ -1,22 +1,17 @@
-import { stockItemFixtures, stockLevel } from "@/features/03-inventory/data/stock-fixtures";
-import { adminOrderFixtures, ageMinutes } from "@/features/07-orders/data/admin-order-fixtures";
-import { paymentExceptions } from "@/features/09-payment/payment-data";
-import { NO_ORDER, supportQuerySeed } from "@/features/14-support/data/support-queries";
-import { shipmentFixtures } from "@/features/17-shipping/data/shipment-fixtures";
-import { adminReturnFixtures } from "@/features/18-returns/data/admin-return-fixtures";
-import { SERIES_DAYS, tradingSeries } from "@/features/15-dashboard/data/trading-series";
+import type { TradingDay } from "@/features/15-dashboard/dashboard-api";
 
 /**
- * Everything the landing screen puts a number on.
+ * The date filter's arithmetic — window maths, period totals and movements.
  *
- * Two halves, and they answer different questions on purpose:
+ * Pure functions over a series that is PASSED IN. It used to import six fixture
+ * modules and export the answers as module constants, which had two consequences
+ * worth naming: the numbers were computed once at import time (so nothing could
+ * ever change them), and they were computed from demo data (so they described a
+ * store that did not exist). The data now comes from `dashboard-api`, and this
+ * file does what it was always really about — deciding which days a filter
+ * selects and what the movement against the previous period is.
  *
- *   - TRADING is a period. It sums the day series over whatever the date
- *     filter selected, and against the period immediately before it so a
- *     movement is a comparison rather than a decoration.
- *   - QUEUES are a moment. They are counted off the same fixtures the
- *     registers render, so the dashboard cannot disagree with the screen it
- *     links to — open "orders to confirm" and you find exactly that many rows.
+ * Kept free of `"use client"`: plain maths, testable on its own.
  */
 
 /* ==================================================== the selected period */
@@ -49,7 +44,7 @@ export type Totals = {
   returnRate: number;
 };
 
-const EMPTY: Totals = {
+export const EMPTY_TOTALS: Totals = {
   days: 0,
   revenue: 0,
   orders: 0,
@@ -60,9 +55,18 @@ const EMPTY: Totals = {
   returnRate: 0,
 };
 
-function sum({ start, length }: Window): Totals {
-  const days = tradingSeries.slice(Math.max(0, start), Math.max(0, start) + Math.max(0, length));
-  if (!days.length) return EMPTY;
+/**
+ * Adds up a window of the series.
+ *
+ * Indexed by POSITION, and the caller is responsible for handing over a series
+ * sorted newest-first — `useTrading` does that. A day the server has no row for
+ * is simply absent, so a store that has traded for a week and is asked for
+ * ninety days gets a seven-day total rather than eighty-three zeroes dragging
+ * the average down.
+ */
+export function sumDays(series: TradingDay[], { start, length }: Window): Totals {
+  const days = series.slice(Math.max(0, start), Math.max(0, start) + Math.max(0, length));
+  if (!days.length) return EMPTY_TOTALS;
 
   const revenue = days.reduce((run, day) => run + day.revenue, 0);
   const orders = days.reduce((run, day) => run + day.orders, 0);
@@ -87,9 +91,9 @@ export type Period = {
   previous: Totals;
 };
 
-export function periodFor(window: Window): Period {
-  const current = sum(window);
-  const previous = sum({ start: window.start + current.days, length: current.days });
+export function periodFor(series: TradingDay[], window: Window): Period {
+  const current = sumDays(series, window);
+  const previous = sumDays(series, { start: window.start + current.days, length: current.days });
   return { current, previous };
 }
 
@@ -123,16 +127,28 @@ function offsetOf(date: Date): number {
 }
 
 /**
+ * How far back the calendar may go.
+ *
+ * The oldest day the SERIES can answer for, rather than a fixed constant. It was
+ * 200 — the length of the generated fixture — which on a real install would have
+ * offered a shopkeeper ninety days of calendar for a store that opened last week.
+ * A series with nothing in it still allows today, so the picker is never empty.
+ */
+export function seriesDays(series: TradingDay[]): number {
+  return Math.max(1, series.length);
+}
+
+/**
  * A picked calendar range → a window on the series. Null while the pair is
  * incomplete or lands entirely outside the series, so the caller can hold the
  * numbers already on screen rather than flashing zeroed cards mid-pick.
  */
-export function windowFromRange(from?: Date, to?: Date): Window | null {
+export function windowFromRange(series: TradingDay[], from?: Date, to?: Date): Window | null {
   if (!from || !to) return null;
 
   /* A bigger offset is an older day, so the newest end is the smaller one. */
   const newest = Math.max(0, Math.min(offsetOf(from), offsetOf(to)));
-  const oldest = Math.min(SERIES_DAYS - 1, Math.max(offsetOf(from), offsetOf(to)));
+  const oldest = Math.min(seriesDays(series) - 1, Math.max(offsetOf(from), offsetOf(to)));
   if (oldest < newest) return null;
 
   return { start: newest, length: oldest - newest + 1 };
@@ -144,8 +160,8 @@ export function rangeFromWindow({ start, length }: Window): { from: Date; to: Da
 }
 
 /** The oldest day the series can answer for — the calendar's floor. */
-export function earliestDay(): Date {
-  return daysBefore(SERIES_DAYS - 1);
+export function earliestDay(series: TradingDay[]): Date {
+  return daysBefore(seriesDays(series) - 1);
 }
 
 /* -------------------------------------------------------------- movements */
@@ -167,72 +183,6 @@ export function pointChange(current: number, previous: number): Delta | undefine
   if (Math.abs(shift) < 0.05) return undefined;
   return { dir: shift > 0 ? "up" : "down", value: `${Math.abs(shift).toFixed(2)} pts` };
 }
-
-/* ============================================================== the queues */
-
-export type QueueCount = { count: number; note: string };
-
-const confirming = adminOrderFixtures.filter((order) => order.status === "Placed");
-/* The oldest order IN THIS QUEUE — an order waiting on payment review is
-   somebody else's problem and would make the note read as a false alarm. */
-const oldestWait = [...confirming].sort((a, b) => ageMinutes(b.age) - ageMinutes(a.age))[0];
-
-/* A parcel is created at the moment it is dispatched, so what is waiting to go
-   out is an ORDER that nothing is carrying yet — not a shipment in some
-   pre-dispatch state, which no longer exists. */
-const readyToDispatch = adminOrderFixtures.filter(
-  (order) =>
-    order.status === "Confirmed" &&
-    !shipmentFixtures.some((shipment) => shipment.order === order.id),
-);
-const failedDelivery = shipmentFixtures.filter((shipment) => shipment.status === "Failed");
-const returnsToReview = adminReturnFixtures.filter((entry) => entry.state === "New");
-const returnsApproved = adminReturnFixtures.filter((entry) => entry.state === "Approved");
-const low = stockItemFixtures.filter((item) => stockLevel(item) === "Low");
-const out = stockItemFixtures.filter((item) => stockLevel(item) === "Out");
-const openTickets = supportQuerySeed.filter((query) => query.status === "Open");
-const aboutAnOrder = openTickets.filter((query) => query.order !== NO_ORDER);
-
-/**
- * The six queues worth a card. Everything else in the console is either an
- * outcome (it belongs in the period row above) or a register you go looking
- * for rather than one that comes looking for you.
- */
-export const queues = {
-  ordersToConfirm: {
-    count: confirming.length,
-    note: oldestWait ? `Oldest waiting ${oldestWait.age}` : "Queue is clear",
-  },
-  paymentExceptions: {
-    count: paymentExceptions.length,
-    /* Named rather than counted: with one or two of them, what went wrong is
-       the useful bit — and it is the same sentence the ledger row shows. */
-    note: paymentExceptions.map((payment) => payment.note).join(" · ") || "Every payment landed",
-  },
-  readyToDispatch: {
-    count: readyToDispatch.length,
-    note: failedDelivery.length
-      ? `${failedDelivery.length} delivery exception open`
-      : "No delivery exceptions",
-  },
-  returnsToReview: {
-    count: returnsToReview.length,
-    note: `${returnsApproved.length} approved, awaiting pickup`,
-  },
-  stockAtRisk: {
-    count: low.length + out.length,
-    note: `${low.length} low · ${out.length} out of stock`,
-  },
-  openTickets: {
-    count: openTickets.length,
-    note: aboutAnOrder.length
-      ? `${aboutAnOrder.length} about an order`
-      : "None about an order",
-  },
-} satisfies Record<string, QueueCount>;
-
-/** What the queue row adds up to — the one number for "work outstanding". */
-export const openWork = Object.values(queues).reduce((run, queue) => run + queue.count, 0);
 
 /** Two digits, so a row of counts does not jump about as they change. */
 export function pad(count: number): string {

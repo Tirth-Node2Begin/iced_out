@@ -21,10 +21,13 @@ import {
   sizesFor,
   type Piece,
 } from "@/components/new-man/data";
-import { productSlug, shotsFor } from "@/components/new-man/product-deck";
+import { productSlug, shippingNote, shotsFor } from "@/components/new-man/product-deck";
 import { SizeGuide } from "@/components/new-man/size-guide";
 import { EASE_OUT } from "@/components/new-home/motion-primitives";
+import { useCatalog } from "@/features/02-products";
+import { ProductFrame } from "@/components/new-man/product-bits";
 import { useCart } from "@/features/04-cart/cart-context";
+import { useStorefrontConfig } from "@/features/04-cart/storefront-config";
 import { useWishlist } from "@/features/05-wishlist/wishlist-context";
 import { lockScroll } from "@/lib/scroll-lock";
 
@@ -63,6 +66,7 @@ function QuickAddPanel({ piece, onClose }: { piece: Piece; onClose: () => void }
   const [guide, setGuide] = useState(false);
 
   const { addItem } = useCart();
+  const { freeDeliveryOver } = useStorefrontConfig();
 
   /* The same wishlist the tile's heart writes to, keyed on the same piece — so
      opening this panel over a saved tile shows a filled heart, and unsaving it
@@ -71,23 +75,31 @@ function QuickAddPanel({ piece, onClose }: { piece: Piece; onClose: () => void }
   const { isSaved, toggle } = useWishlist();
   const saved = isSaved(piece.id);
 
-  const sizes = useMemo(() => sizesFor(piece), [piece]);
+  /* The catalogue arrives over the network, so these lookups take it as an
+     argument and re-run when it lands. */
+  const { data: catalogue } = useCatalog();
+  const sizes = useMemo(() => sizesFor(piece, catalogue), [catalogue, piece]);
   const price = useMemo(() => pricingFor(piece), [piece]);
-  const product = useMemo(() => productFor(piece), [piece]);
+  const product = useMemo(() => productFor(piece, catalogue), [catalogue, piece]);
 
-  /* The same four framings the piece's own product page opens with, so the
-     panel and the PDP are showing one garment rather than two shot lists. Shot
-     0 is the piece's own crop — the photograph on the tile that was just
-     clicked, which is what makes the panel feel like it grew out of the tile. */
-  const shots = useMemo(() => shotsFor(piece), [piece]);
+  /* The same photographs the piece's own product page opens with, so the panel
+     and the PDP are showing one garment rather than two shot lists. Shot 0 is
+     the piece's primary — the photograph on the tile that was just clicked,
+     which is what makes the panel feel like it grew out of the tile. */
+  const shots = useMemo(() => shotsFor(piece, product), [piece, product]);
 
   /* The index travels with the DIRECTION it moved in, as one piece of state.
      Two separate values would let a render land between them and animate a
      backwards step forwards. */
-  const [[shot, heading], setShot] = useState<[number, number]>([0, 1]);
+  const [[shotIndex, heading], setShot] = useState<[number, number]>([0, 1]);
   /* Hovering or focusing the photograph holds it: reading the shot a shopper
      stopped on matters more than finishing the rotation. */
   const [held, setHeld] = useState(false);
+
+  /* Clamped, for the same reason the product page clamps: a gallery is as long
+     as the operator's own run, so an index held from one piece can point past
+     the end of another's. The panel is reused across tiles without remounting. */
+  const shot = Math.min(shotIndex, Math.max(0, shots.length - 1));
 
   /** the photograph on screen */
   const frame = shots[shot];
@@ -267,22 +279,11 @@ function QuickAddPanel({ piece, onClose }: { piece: Piece; onClose: () => void }
               transition={{ duration: reduce ? 0 : 0.58, ease: EASE_OUT }}
               variants={slide}
             >
-              <span className="nhq__shot" data-mode={frame.mode}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  alt={`${piece.name} — photograph ${shot + 1} of ${shots.length}`}
-                  src={frame.src}
-                  style={
-                    frame.mode === "quad"
-                      ? ({
-                          "--qx": frame.qx,
-                          "--qy": frame.qy,
-                          "--zoom": frame.zoom,
-                        } as React.CSSProperties)
-                      : ({ "--op": frame.op, "--zoom": frame.zoom } as React.CSSProperties)
-                  }
-                />
-              </span>
+              <ProductFrame
+                alt={`${piece.name} — photograph ${shot + 1} of ${shots.length}`}
+                className="nhq__shot"
+                frame={frame}
+              />
             </motion.div>
           </AnimatePresence>
 
@@ -330,10 +331,14 @@ function QuickAddPanel({ piece, onClose }: { piece: Piece; onClose: () => void }
 
           <div className="nhq__prices">
             <span className="nhq__price">{formatPrice(price.price)}</span>
-            <span className="nhq__mrp">
-              MRP: <s>{formatPrice(price.mrp)}</s>
-            </span>
-            <span className="nhq__off">{price.off}% OFF</span>
+            {price.mrp !== null && (
+              <>
+                <span className="nhq__mrp">
+                  MRP: <s>{formatPrice(price.mrp)}</s>
+                </span>
+                <span className="nhq__off">{price.off}% OFF</span>
+              </>
+            )}
           </div>
           <p className="nhq__tax">Inclusive of all taxes</p>
 
@@ -455,13 +460,13 @@ function QuickAddPanel({ piece, onClose }: { piece: Piece; onClose: () => void }
 
           {/* this piece's own page, not the shared fixture route — see the note
               on the tile's link in product-grid.tsx */}
-          <Link className="nhq__details" href={`/new-man/${productSlug(piece)}`}>
+          <Link className="nhq__details" href={`/new-man/piece?slug=${productSlug(piece)}`}>
             View full details
             <ArrowUpRight aria-hidden size={13} />
           </Link>
 
           <ul className="nhq__notes">
-            <li>Free shipping over ₹4,999</li>
+            <li>{shippingNote(freeDeliveryOver)}</li>
             <li>30-day returns</li>
           </ul>
         </div>

@@ -18,7 +18,7 @@ import { Reveal, SplitHeading } from "@/components/gender/motion";
  */
 export function LifestyleBanner({
   content,
-  href = "/collections/after-hours",
+  href = "/collections/view?slug=after-hours",
 }: {
   content: AudienceContent;
   href?: string;

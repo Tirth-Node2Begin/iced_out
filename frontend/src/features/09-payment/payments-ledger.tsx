@@ -5,15 +5,8 @@ import { toast } from "sonner";
 
 import { StatGrid, type Stat } from "@/components/admin/admin-stats";
 import { AdminPage, Btn } from "@/components/admin/admin-ui";
-import { RecordManager, type Column, type FormField } from "@/components/admin/record-manager";
-import {
-  GATEWAYS,
-  PAYMENT_STATES,
-  money,
-  pad,
-  stampNow,
-  total,
-} from "@/features/09-payment/payment-data";
+import { RecordManager, type Column } from "@/components/admin/record-manager";
+import { PAYMENT_STATES, money, pad, total } from "@/features/09-payment/payment-data";
 import { usePaymentLedger } from "@/features/09-payment/payment-store";
 import { PaymentTabs } from "@/features/09-payment/payment-tabs";
 
@@ -60,21 +53,17 @@ const COLUMNS: Column[] = [
   { key: "created", label: "Created", align: "right", hideSmall: true },
 ];
 
-const FIELDS: FormField[] = [
-  { key: "id", label: "Payment id", placeholder: "pay_ICE1049", required: true },
-  { key: "order", label: "Order", placeholder: "IO-2026-1049", required: true },
-  { key: "customer", label: "Customer", placeholder: "A•••• K••••" },
-  { key: "gateway", label: "Gateway", type: "select", options: GATEWAYS },
-  { key: "method", label: "Paid by", placeholder: "UPI ••••42" },
-  { key: "amount", label: "Amount", hint: "₹", type: "number", min: "0", step: "100", placeholder: "11400", required: true },
-  { key: "status", label: "State", type: "select", options: PAYMENT_STATES },
-  { key: "note", label: "What happened", full: true, placeholder: "Taken at checkout" },
-];
-
 export function PaymentsLedger() {
-  /* The same list checkout writes to — a shopper's payment is on this screen
-     the moment it settles. See `payment-store`. */
-  const { payments: rows, commitPayments } = usePaymentLedger();
+  /**
+   * The same rows the checkout wrote — a shopper's payment is on this screen the
+   * moment their order lands, because the order and the payment are one insert.
+   *
+   * There is no form. A ledger of money that moved is not something an operator
+   * types into: the entries come from checkout, and the two verbs below record
+   * new facts about them. "New payment", with an editable amount and state, was a
+   * form for inventing a receipt.
+   */
+  const { payments: rows, ready, loading, error, act } = usePaymentLedger();
 
   const captured = rows.filter((row) => row.status === "Captured");
   const due = rows.filter((row) => row.status === "Due");
@@ -115,14 +104,32 @@ export function PaymentsLedger() {
   return (
     <AdminPage
       actions={
+        /* Held for a ledger with nothing in it: there is nothing to compare, and
+           a button that reports "0 payments matched" is noise. */
         <Btn
-          onClick={() =>
-            toast.success("Checked against the gateway", {
-              description: failed.length
-                ? `${rows.length} payments compared · ${failed.length} did not go through.`
-                : `${rows.length} payments compared · everything matched.`,
-            })
-          }
+          disabled={rows.length === 0}
+          onClick={() => {
+            /* One request per payment, because `gateway-check` asks the gateway
+               about ONE payment — there is no bulk endpoint, and pretending
+               otherwise is what the old toast did: it reported a reconciliation
+               that had never happened. */
+            void Promise.allSettled(
+              rows.map((row) =>
+                act(`/admin/payments/${encodeURIComponent(row.id)}/gateway-check`),
+              ),
+            ).then((results) => {
+              const failures = results.filter((entry) => entry.status === "rejected").length;
+              if (failures === 0) {
+                toast.success("Checked against the gateway", {
+                  description: `${rows.length} payments compared.`,
+                });
+              } else {
+                toast.error("Some payments could not be checked", {
+                  description: `${rows.length - failures} of ${rows.length} compared.`,
+                });
+              }
+            });
+          }}
           variant="solid"
         >
           <RefreshCw aria-hidden size={15} strokeWidth={1.8} /> Check against gateway
@@ -146,19 +153,16 @@ export function PaymentsLedger() {
 
       <RecordManager
         columns={COLUMNS}
-        /* The form never asks when a payment happened — a new one is stamped
-           now, and an edited one keeps the moment it already had. */
-        derive={(values, _rows, previous) => ({
-          ...values,
-          created: previous?.created ?? stampNow(),
-        })}
-        fields={FIELDS}
+        emptyHint="No payments yet. Every order writes one the moment it is placed."
+        error={error}
+        fields={[]}
         filterKey="status"
         filterValues={PAYMENT_STATES}
         icon={WalletCards}
-        idPrefix="pay_ICE"
-        onCommit={commitPayments}
-        rowHref={(row) => `/admin/payments/${row.id}`}
+        loaded={ready}
+        loading={loading}
+        readOnly
+        rowHref={(row) => `/admin/payments/detail?id=${encodeURIComponent(row.id)}`}
         rows={rows}
         singular="payment"
         toolbarLead={<PaymentTabs />}
@@ -172,7 +176,10 @@ export function PaymentsLedger() {
                 icon: CheckCircle2,
                 tone: "good" as const,
                 label: `Mark ${row.id} collected`,
-                patch: { status: "Captured", note: "Cash collected on delivery" },
+                /* Its own endpoint, and replay-safe: collecting cash is a money
+                   movement, so a retried request must not book it twice. */
+                onSelect: () =>
+                  act(`/admin/payments/${encodeURIComponent(row.id)}/collect-cod`, undefined, true),
                 toast: {
                   title: "Cash collected",
                   description: `${money(row.amount)} for ${row.order} counts as captured.`,

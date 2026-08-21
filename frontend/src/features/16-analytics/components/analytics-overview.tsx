@@ -20,6 +20,8 @@ import { available, useStock } from "@/features/03-inventory/stock-context";
 import { stockLevel } from "@/features/03-inventory/data/stock-fixtures";
 import { awaitingDispatch, useFulfilment } from "@/features/07-orders/fulfilment-context";
 import { formatPrice } from "@/features/02-products";
+import { useRegisterList } from "@/api/use-register";
+import { useTrading, type TradingDay } from "@/features/15-dashboard/dashboard-api";
 import {
   change,
   periodFor,
@@ -28,8 +30,6 @@ import {
   today,
   type RangePreset,
 } from "@/features/15-dashboard/data/dashboard-metrics";
-import { tradingSeries, type TradingDay } from "@/features/15-dashboard/data/trading-series";
-import { adminReturnFixtures } from "@/features/18-returns/data/admin-return-fixtures";
 import { BarRows, ColumnChart, TrendChart, type BarRow } from "@/features/16-analytics/components/analytics-charts";
 import { useHydrated } from "@/lib/use-hydrated";
 
@@ -42,8 +42,11 @@ import { useHydrated } from "@/lib/use-hydrated";
  *     and stock screens write to, so a record changed anywhere in the console
  *     is counted here the moment it changes. Nothing is cached, nothing is
  *     five minutes behind.
- *   - THE PERIOD. The day-by-day trading series, summed over whatever the
- *     date filter selects and drawn against the period immediately before it.
+ *   - THE PERIOD. The day-by-day trading series from `/admin/dashboard/trading`,
+ *     summed over whatever the date filter selects and drawn against the period
+ *     immediately before it. It used to come from a fixture that GENERATED two
+ *     hundred days of revenue from a hash — every chart on this page was a
+ *     drawing rather than a report.
  *
  * Each analysis — sales, demand, the order book, inventory, returns — is its
  * own titled section down one page, so moving between them is a scroll rather
@@ -109,6 +112,11 @@ export function AnalyticsOverview() {
   const hydrated = useHydrated();
   const { orders, shipments } = useFulfilment();
   const { items } = useStock();
+  const { series, loading: seriesLoading, error: seriesError, loaded: seriesLoaded } = useTrading();
+  /* Returns, for the two breakdowns at the foot of the page. Read from the
+     register rather than from `adminReturnFixtures`, so a reason an actual
+     customer gave is what the chart counts. */
+  const returns = useRegisterList("/admin/returns");
 
   /* ------------------------------------------------ the registers, live */
 
@@ -205,18 +213,33 @@ export function AnalyticsOverview() {
       .map(([label, units]) => ({ label, value: units, display: `${units} units` }));
   }, [items]);
 
-  const reasonRows: BarRow[] = tally(adminReturnFixtures as unknown as RecordRow[], "reason").map(
+  const reasonRows: BarRow[] = tally(returns.rows, "reason").map(
     ([label, count]) => ({ label, value: count, display: countOf(count) }),
   );
 
-  const outcomeRows: BarRow[] = tally(adminReturnFixtures as unknown as RecordRow[], "outcome").map(
+  const outcomeRows: BarRow[] = tally(returns.rows, "outcome").map(
     ([label, count]) => ({ label, value: count, display: countOf(count) }),
   );
 
   /* -------------------------------------------------------- the period */
 
+  /**
+   * What the period half of this page can say for itself.
+   *
+   * Every chart below reads the trading series, so when that read is in flight or
+   * has failed the charts are drawing zeroes. Said out loud rather than left to
+   * look like a store that traded nothing.
+   */
+  const periodNote = seriesError
+    ? seriesError
+    : seriesLoading && !seriesLoaded
+      ? "Reading the trading figures…"
+      : series.length === 0
+        ? "Nothing has been traded yet. These fill in as orders come in."
+        : null;
+
   const preset = RANGE_PRESETS.find((entry) => entry.key === range) ?? RANGE_PRESETS[2];
-  const { current, previous } = periodFor({ start: 0, length: preset.days });
+  const { current, previous } = periodFor(series, { start: 0, length: preset.days });
   const per = preset.days === 1 ? "today" : `the last ${preset.days} days`;
 
   /* A one-day line is a dot, so "Today" charts a seven-day context and the
@@ -224,7 +247,7 @@ export function AnalyticsOverview() {
   const span = Math.max(preset.days, 7);
 
   const { days, labels } = useMemo(() => {
-    const slice = [...tradingSeries.slice(0, span)].reverse();
+    const slice = [...series.slice(0, span)].reverse();
     const name = (offset: number) => {
       if (offset === 0) return "Today";
       if (!hydrated) return `${offset}d ago`;
@@ -233,11 +256,11 @@ export function AnalyticsOverview() {
       return day.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
     };
     return { days: slice, labels: slice.map((day) => name(day.offset)) };
-  }, [span, hydrated]);
+  }, [hydrated, series, span]);
 
   const previousDays = useMemo(
-    () => [...tradingSeries.slice(span, span * 2)].reverse(),
-    [span],
+    () => [...series.slice(span, span * 2)].reverse(),
+    [series, span],
   );
 
   const demand = useMemo(() => {
@@ -338,7 +361,10 @@ export function AnalyticsOverview() {
             ))}
           </div>
         }
-        copy={`Trading over ${per}, each figure against the period immediately before it. The filter drives every chart below.`}
+        copy={
+          periodNote ??
+          `Trading over ${per}, each figure against the period immediately before it. The filter drives every chart below.`
+        }
         eyebrow="Period"
         title="Trading"
       >

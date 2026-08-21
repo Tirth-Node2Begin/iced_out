@@ -35,10 +35,13 @@ import { DispatchStrip, ProductFrame } from "@/components/new-man/product-bits";
 import {
   CATEGORY_LABELS,
   PRODUCT_COPY,
+  shippingNote,
   shotsFor,
 } from "@/components/new-man/product-deck";
 import { SizeGuide } from "@/components/new-man/size-guide";
+import { useCatalog } from "@/features/02-products";
 import { useCart } from "@/features/04-cart/cart-context";
+import { useStorefrontConfig } from "@/features/04-cart/storefront-config";
 import { scrollToHash } from "@/lib/in-page-scroll";
 
 /** how long a shot holds before the gallery advances on its own */
@@ -110,12 +113,17 @@ function pageRect(element: HTMLElement): Box {
 export function ProductHero({ piece }: { piece: Piece }) {
   const reduce = useReducedMotion();
 
-  const shots = useMemo(() => shotsFor(piece), [piece]);
-  const sizes = useMemo(() => sizesFor(piece), [piece]);
+  /* The catalogue arrives over the network, so these lookups take it as an
+     argument and re-run when it lands. */
+  const { data: catalogue } = useCatalog();
+  const sizes = useMemo(() => sizesFor(piece, catalogue), [catalogue, piece]);
   const price = useMemo(() => pricingFor(piece), [piece]);
-  const product = useMemo(() => productFor(piece), [piece]);
+  const product = useMemo(() => productFor(piece, catalogue), [catalogue, piece]);
+  /* The operator's photographs where the catalogue has landed and carries any,
+     the synthesised deck until then — see `shotsFor`. */
+  const shots = useMemo(() => shotsFor(piece, product), [piece, product]);
 
-  const [shot, setShot] = useState(0);
+  const [shotIndex, setShot] = useState(0);
   /** which way the next shot arrives from, so back and forward read apart */
   const [direction, setDirection] = useState(1);
   const [held, setHeld] = useState(false);
@@ -134,6 +142,35 @@ export function ProductHero({ piece }: { piece: Piece }) {
   const railRef = useRef<HTMLDivElement | null>(null);
 
   const { addItem } = useCart();
+  /* What the shop charges for delivery, from its own settings. */
+  const { freeDeliveryOver } = useStorefrontConfig();
+
+  /**
+   * Everything that is about the PIECE, reset when the piece changes.
+   *
+   * This page is one route with the slug in the query, so walking from a piece
+   * to a related one below it re-renders this component rather than mounting a
+   * fresh one — and every one of these held the last piece's answer. The size
+   * picker offered a size the new garment is not cut in and reported it as
+   * "Added"; the gallery kept an index into a run that no longer had that many
+   * photographs in it, which is a read straight off the end of the array.
+   *
+   * Adjusted during render rather than in an effect: that is the pattern React
+   * documents for "reset when a prop changes", and it is the one that avoids a
+   * second paint showing the previous piece's state. Same move the search dock
+   * makes when it opens.
+   */
+  const [lastPiece, setLastPiece] = useState(piece.id);
+  if (lastPiece !== piece.id) {
+    setLastPiece(piece.id);
+    setShot(0);
+    setDirection(1);
+    setSize(null);
+    setAdded(false);
+    setError(null);
+    setViewer(null);
+    setFlight(null);
+  }
 
   const soldOut = sizes.every((option) => option.state === "out");
   const lowOnSize =
@@ -141,6 +178,22 @@ export function ProductHero({ piece }: { piece: Piece }) {
     sizes.find((option) => option.label === size)?.state === "low";
 
   const total = shots.length;
+
+  /**
+   * The shot on screen — the held index, clamped to the run that actually
+   * exists.
+   *
+   * Everything below reads THIS rather than the state, which is why the state
+   * is the one with the awkward name. A gallery used to be exactly four frames
+   * for every piece, so an index could not be wrong; it is now however many
+   * photographs the operator uploaded, and the two ways it goes stale are a
+   * piece changing under the component (handled above) and the RUN changing
+   * under the piece — the catalogue landing mid-view replaces a provisional
+   * one-shot gallery with the real one, and a refused reload could put it back.
+   * Clamping is cheaper than reasoning about the order those can arrive in, and
+   * `shots[shot]` must never be undefined: that read is what crashed the page.
+   */
+  const shot = Math.min(shotIndex, Math.max(0, total - 1));
 
   /* What the rail shows: everything EXCEPT the photograph in the frame, in the
      order it arrives. A thumbnail of the picture already filling half the page
@@ -436,9 +489,16 @@ export function ProductHero({ piece }: { piece: Piece }) {
                 asks for next stand in it — all read off the piece or the
                 studio's own policy, none invented here. */}
             <ul className="nmp-buy__facts">
-              <li>{product?.fabric ?? "Heavyweight cotton"}</li>
+              {/* `||`, not `??`: the catalogue stores an unset fabric as an
+                  empty string, and `??` only catches null — so a piece with no
+                  fabric recorded rendered a blank bullet rather than the
+                  house default. */}
+              <li>{product?.fabric || "Heavyweight cotton"}</li>
               <li>Single run · numbered, never restocked</li>
-              {PRODUCT_COPY.notes.slice(0, 2).map((note) => (
+              {/* The threshold is a setting, so the line is written from it
+                  rather than quoted — see `shippingNote`. */}
+              <li>{shippingNote(freeDeliveryOver)}</li>
+              {PRODUCT_COPY.notes.slice(0, 1).map((note) => (
                 <li key={note}>{note}</li>
               ))}
             </ul>
@@ -483,10 +543,16 @@ export function ProductHero({ piece }: { piece: Piece }) {
                 <span className="nmp-buy__price">
                   {formatPrice(price.price)}
                 </span>
-                <span className="nmp-buy__mrp">
-                  MRP <s>{formatPrice(price.mrp)}</s>
-                  <b>{price.off}% off</b>
-                </span>
+                {/* Shown only against a real `compare_at_price`. It used to be
+                    worked backwards from a discount picked by hashing the slug,
+                    which put a different invented MRP on two pieces at the same
+                    price — see `pricingFor`. */}
+                {price.mrp !== null && (
+                  <span className="nmp-buy__mrp">
+                    MRP <s>{formatPrice(price.mrp)}</s>
+                    <b>{price.off}% off</b>
+                  </span>
+                )}
               </div>
             </div>
 

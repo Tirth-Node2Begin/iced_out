@@ -323,7 +323,10 @@ export function PrimaryNav({
   useEffect(() => {
     if (!isAuthenticated) return;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key.toLowerCase() === "k" && (event.metaKey || event.ctrlKey)) {
+      /* `key` is optional on a KeyboardEvent and genuinely absent on some
+         synthetic ones — password managers and autofill dispatch keydowns
+         without it. Reading it blind threw on every autofill. */
+      if (event.key?.toLowerCase() === "k" && (event.metaKey || event.ctrlKey)) {
         event.preventDefault();
         setSearchOpen(true);
       }

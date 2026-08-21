@@ -1,16 +1,9 @@
 "use client";
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useMemo,
-  useSyncExternalStore,
-  type ReactNode,
-} from "react";
+import { createContext, useCallback, useContext, useMemo, type ReactNode } from "react";
 
-import { createLocalStore } from "@/lib/local-store";
-import { useHydrated } from "@/lib/use-hydrated";
+import { customerClient } from "@/api/clients";
+import { useAuth } from "@/features/20-auth-security/auth-context";
 
 /**
  * The one copy of who the shopper is.
@@ -29,15 +22,19 @@ export type CustomerProfile = {
   photo: string | null;
 };
 
-/** What a fresh device is shown before anything has been saved on it. */
+/**
+ * What renders while nobody is signed in.
+ *
+ * Deliberately empty rather than a sample shopper: a placeholder with a real
+ * name and email in it is indistinguishable from a signed-in account, which is
+ * exactly how a fresh registration used to open onto somebody else's profile.
+ */
 export const DEFAULT_PROFILE: CustomerProfile = {
-  name: "Iced_out Shopper",
-  email: "shopper@example.com",
-  mobile: "+91 98765 43210",
+  name: "",
+  email: "",
+  mobile: "",
   photo: null,
 };
-
-const STORAGE_KEY = "iced-out-profile-v1";
 
 /* The photo is stored inline in localStorage, which is a ~5MB budget for the
    whole origin — so what gets stored is a 256px square, not the 4000px one the
@@ -103,30 +100,48 @@ export async function readPhotoFile(file: File): Promise<string> {
   }
 }
 
-/* Read through `useSyncExternalStore` rather than an effect: the record has to
-   be there on the first client render after hydration, and anything that has to
-   *fire* first (an effect body the lint rule rejects, a `requestAnimationFrame`
-   a background tab never runs) leaves the app showing the placeholder. */
-const store = createLocalStore<CustomerProfile>(STORAGE_KEY, DEFAULT_PROFILE);
-
 type ProfileContextValue = {
   profile: CustomerProfile;
-  /** False for the frame between first paint and the stored record being read. */
+  /** False until the account has been read back from the API. */
   ready: boolean;
   initials: string;
-  save: (next: CustomerProfile) => void;
+  save: (next: CustomerProfile) => Promise<void>;
 };
 
 const ProfileContext = createContext<ProfileContextValue | null>(null);
 
+/**
+ * The one copy of who the shopper is — now the account the API returns.
+ *
+ * This used to be a `localStorage` record seeded with a fixture, which is why
+ * a brand-new account opened onto "Iced_out Shopper": the browser had a profile
+ * before the shopper had one. The signed-in customer comes from
+ * `GET /auth/session` through the auth provider, and a save is a `PATCH /me`
+ * whose response becomes the new record — so what is on screen is always what
+ * the database holds.
+ */
 export function ProfileProvider({ children }: { children: ReactNode }) {
-  const profile = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getServerSnapshot);
-  const ready = useHydrated();
-  const save = useCallback((next: CustomerProfile) => store.write(next), []);
+  const { customer, sessionReady, refreshCustomer } = useAuth();
+
+  const save = useCallback(
+    async (next: CustomerProfile) => {
+      await customerClient.patch("/me", {
+        name: next.name,
+        email: next.email,
+        mobile: next.mobile,
+      });
+      await refreshCustomer();
+    },
+    [refreshCustomer],
+  );
+
+  /* A signed-out visitor sees the placeholder rather than a crash: the account
+     screens are behind a guard, and the rail renders on public pages too. */
+  const profile = customer ?? DEFAULT_PROFILE;
 
   const value = useMemo(
-    () => ({ profile, ready, initials: initialsOf(profile.name), save }),
-    [profile, ready, save],
+    () => ({ profile, ready: sessionReady, initials: initialsOf(profile.name), save }),
+    [profile, save, sessionReady],
   );
 
   return <ProfileContext.Provider value={value}>{children}</ProfileContext.Provider>;

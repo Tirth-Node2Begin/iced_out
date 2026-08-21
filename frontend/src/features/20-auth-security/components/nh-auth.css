@@ -766,3 +766,16 @@
     transition: none !important;
   }
 }
+
+/* What the server said went wrong. Shown in place rather than as a toast: the
+   answer belongs beside the fields that produced it. */
+.iox-auth__error {
+  margin: 0;
+  padding: 9px 12px;
+  border-radius: 10px;
+  color: #ffb4b4;
+  font-size: 12.5px;
+  line-height: 1.45;
+  background: rgba(255, 90, 90, 0.09);
+  box-shadow: inset 0 0 0 1px rgba(255, 90, 90, 0.22);
+}

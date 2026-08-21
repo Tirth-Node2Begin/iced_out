@@ -1,8 +1,46 @@
 import type { NextConfig } from "next";
 
+/**
+ * Where the PHP API is listening, for the dev proxy below.
+ *
+ * 127.0.0.1 rather than localhost on purpose: this hop is made by the Next dev
+ * server, and on Windows `localhost` resolves to ::1 first while PHP's built-in
+ * server is IPv4-only, so every request would wait for that to fail.
+ */
+const API_ORIGIN = process.env.API_PROXY_ORIGIN ?? "http://127.0.0.1:8000";
+
+/** `next dev` sets this; `next build` does not. */
+const isDev = process.env.NODE_ENV === "development";
+
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["127.0.0.1"],
-  output: "export",
+
+  /**
+   * A static export cannot have rewrites, so the export target is only set for
+   * a real build. Development keeps a server, which is what makes the proxy
+   * below possible.
+   */
+  ...(isDev ? {} : { output: "export" as const }),
+
+  /**
+   * The API, served from the SAME ORIGIN as the site during development.
+   *
+   * The site runs on localhost:3000 and the API on 127.0.0.1:8000. Those are
+   * different *sites* to a browser, so a SameSite=Lax session cookie is never
+   * sent across that line — the shopper would look signed out on every request
+   * no matter how correct both halves are. Proxying through Next makes the
+   * call first-party: no CORS preflight, no cross-site cookie, and the hop to
+   * PHP is server-to-server.
+   *
+   * It also matches production, where Nginx serves the export at `/` and
+   * proxies `/api/v1` to PHP-FPM (spec §3.1). One address in both places.
+   */
+  async rewrites() {
+    if (!isDev) return [];
+
+    return [{ source: "/api/v1/:path*", destination: `${API_ORIGIN}/api/v1/:path*` }];
+  },
+
   images: {
     unoptimized: true,
   },

@@ -5,6 +5,7 @@ import { useState, type FormEvent } from "react";
 
 import { AccountSection } from "@/components/account/account-section";
 import { AddressRemoveDialog } from "@/components/account/address-remove-dialog";
+import { RegionFields } from "@/components/account/region-fields";
 import { fieldsToAddress, formDataToFields } from "@/features/01-users/address-fields";
 import { useAddresses, type Address } from "@/features/01-users/addresses-context";
 
@@ -26,16 +27,38 @@ export default function AddressesPage() {
      opens — this screen used to delete on the first press, which is a years-old
      address gone to a mis-aimed tap with nothing between. */
   const [removing, setRemoving] = useState<Address | null>(null);
+  const [saving, setSaving] = useState(false);
+  /** What the server refused, and why. Cleared on the next attempt. */
+  const [error, setError] = useState("");
 
-  function add(event: FormEvent<HTMLFormElement>) {
+  /**
+   * Saves, and only then closes.
+   *
+   * The save is a request — it writes a row through `POST /me/addresses` — so this
+   * waits for it. It used to call and close in the same breath, which meant a
+   * refused address (a street line too short for a courier, a PIN that is not one)
+   * closed the form and left nothing in the book with nothing said.
+   */
+  async function add(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
 
-    /* Composed by the same helper the profile's dialog uses — the region line
-       was written out by hand in both places, which is one format and two
-       chances to change it. */
-    addAddress(fieldsToAddress(formDataToFields(form)));
-    setAdding(false);
+    setSaving(true);
+    setError("");
+
+    try {
+      /* Composed by the same helper the profile's dialog uses — the region line
+         was written out by hand in both places, which is one format and two
+         chances to change it. */
+      await addAddress(fieldsToAddress(formDataToFields(form)));
+      setAdding(false);
+    } catch (failure) {
+      setError(
+        failure instanceof Error ? failure.message : "That address could not be saved.",
+      );
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -67,7 +90,7 @@ export default function AddressesPage() {
             </div>
           </header>
 
-          <form className="io-form" onSubmit={add}>
+          <form className="io-form" onSubmit={(event) => void add(event)}>
             <div className="io-form__row">
               <label className="io-field">
                 <span>Label</span>
@@ -85,14 +108,9 @@ export default function AddressesPage() {
             </label>
 
             <div className="io-form__row">
-              <label className="io-field">
-                <span>City</span>
-                <input name="city" placeholder="Bengaluru" required />
-              </label>
-              <label className="io-field">
-                <span>State</span>
-                <input name="state" placeholder="Karnataka" required />
-              </label>
+              {/* The same dependent pair checkout uses, so an address saved here
+                  can never hold a city that is not in its state. */}
+              <RegionFields idPrefix="new-address-region" />
             </div>
 
             <div className="io-form__row">
@@ -119,12 +137,25 @@ export default function AddressesPage() {
               </label>
             </div>
 
+            {error ? (
+              <p className="io-formerror" role="alert">
+                {error}
+              </p>
+            ) : null}
+
             <div className="io-actions io-actions--end">
-              <button className="io-btn io-btn--ghost" onClick={() => setAdding(false)} type="button">
+              <button
+                className="io-btn io-btn--ghost"
+                disabled={saving}
+                onClick={() => setAdding(false)}
+                type="button"
+              >
                 Cancel
               </button>
-              <button className="io-btn io-btn--solid" type="submit">
-                Save address
+              {/* Held while the request is out, so a double-tap cannot save the
+                  same address twice. */}
+              <button className="io-btn io-btn--solid" disabled={saving} type="submit">
+                {saving ? "Saving…" : "Save address"}
               </button>
             </div>
           </form>

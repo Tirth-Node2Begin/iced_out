@@ -46,11 +46,7 @@ export const RETURN_REASONS = [
 /** Held by a return that is not an exchange, and by one still being chosen. */
 export const NO_REPLACEMENT = "";
 
-export const adminReturnFixtures = [
-  { id: "ret-072", order: "IO-2026-1027", customer: "Aarav Mehta", item: "Bone Utility Overshirt · L", reason: "Size / fit", outcome: "Exchange", amount: "11400", replacement: "Shadow Cargo 02 · L", state: "New" },
-  { id: "ret-071", order: "IO-2026-1024", customer: "Ishita Rao", item: "Shadow Cargo 02 · M", reason: "Changed mind", outcome: "Voucher", amount: "9800", replacement: NO_REPLACEMENT, state: "New" },
-  { id: "ret-069", order: "IO-2026-1018", customer: "Kabir Shah", item: "Afterdark Hoodie · M", reason: "Quality concern", outcome: "Exchange", amount: "8900", replacement: "Bone Utility Overshirt · L", state: "Approved" },
-  { id: "ret-066", order: "IO-2026-1011", customer: "Meera Nair", item: "Core Heavy Tee · S", reason: "Wrong item", outcome: "Voucher", amount: "4600", replacement: NO_REPLACEMENT, state: "Approved" },
-  { id: "ret-064", order: "IO-2026-1008", customer: "Ananya Bose", item: "Core Heavy Tee · S", reason: "Size / fit", outcome: "Exchange", amount: "4600", replacement: "Core Heavy Tee · M", state: "Completed" },
-  { id: "ret-058", order: "IO-2026-0996", customer: "Diya Kapoor", item: "Afterdark Hoodie · XL", reason: "Changed mind", outcome: "Voucher", amount: "8900", replacement: NO_REPLACEMENT, state: "Rejected" },
-];
+/* The seeded returns are gone: the register reads `/admin/returns`, and a return
+   is raised by a customer rather than written here. What stays is the vocabulary —
+   the states, the reasons, the outcomes and the two sentinel strings the screens
+   compare against. */

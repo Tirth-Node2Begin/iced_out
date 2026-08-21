@@ -12,14 +12,13 @@
  * Anything invented is marked. The rest is read from the catalogue.
  */
 
-import { type CropKey } from "@/components/gender/data";
 import {
-  MEN_PIECES,
-  frameForCrop,
-  hash,
+  BLANK_FRAME,
+  frameForPhoto,
   type Frame,
   type Piece,
 } from "@/components/new-man/data";
+import type { Product } from "@/features/02-products/types/product";
 
 /* -------------------------------------------------------------------------- */
 /* Routing                                                                    */
@@ -40,53 +39,50 @@ export function productSlug(piece: Piece) {
     .replace(/^-|-$/g, "");
 }
 
-export function pieceForSlug(slug: string) {
-  return MEN_PIECES.find((piece) => productSlug(piece) === slug);
+/**
+ * The piece a URL segment names, looked up in the catalogue handed in.
+ *
+ * The list is a parameter rather than the module's own `MEN_PIECES`, because the
+ * catalogue is the database's now and arrives over the network — see
+ * `components/gender/use-pieces.ts`. A module-level constant could only ever be
+ * the twenty pieces that were written into the source.
+ */
+export function pieceForSlug(pieces: Piece[], slug: string) {
+  return pieces.find((piece) => productSlug(piece) === slug);
 }
-
-/** Every men's piece, as a route. */
-export const PRODUCT_ROUTES = MEN_PIECES.map((piece) => productSlug(piece));
 
 /* -------------------------------------------------------------------------- */
 /* Gallery                                                                    */
 /* -------------------------------------------------------------------------- */
 
+
 /**
- * Only five photographs ship in /public/images, so a four-shot gallery is four
- * framings rather than four files — the same trick the listing tiles use.
+ * The photographs a product page pages through — and ONLY those.
  *
- * The piece's own crop leads; the other three are taken off this rotation at an
- * offset derived from the piece id, so two tiles in the same row do not open
- * onto identical galleries. Wide plates first: after the tight product crop the
- * eye wants context, not another detail.
+ * The operator's own run: the primary they chose, then every secondary shot in
+ * the order they arranged it, straight off the stock item behind the listing.
+ * That run is the whole point of the gallery field in the console — a shopper
+ * looking at a coat should be looking at THAT coat.
+ *
+ * This used to synthesise four shots for every piece, taking the other three
+ * off a rotation of the house contact sheet. It made a page that had never been
+ * shot look finished, and the price of that was three photographs of somebody
+ * else's garment presented as this one's: open a pair of jeans and views two,
+ * three and four were a hoodie, an overshirt and a tee. A gallery of one real
+ * photograph is a smaller page and a true one, so the deck is gone. Where there
+ * is nothing at all, the gallery is a single empty frame.
+ *
+ * `product` is optional because the catalogue arrives over the network, and the
+ * page renders before it lands.
  */
-const GALLERY_POOL: CropKey[] = [
-  "campWide",
-  "heroWide",
-  "stillFlat",
-  "campPair",
-  "heroPair",
-  "stillCollar",
-  "campMan",
-  "heroMan",
-  "stillHardware",
-  "campBoots",
-  "stillHoodie",
-  "stillJacket",
-];
+export function shotsFor(piece: Piece, product?: Product): Frame[] {
+  const uploaded = product?.images ?? [];
 
-export const GALLERY_LENGTH = 4;
+  if (uploaded.length > 0) return uploaded.map(frameForPhoto);
 
-export function shotsFor(piece: Piece): Frame[] {
-  const pool = GALLERY_POOL.filter((key) => key !== piece.crop);
-  const start = hash(piece.id) % pool.length;
-
-  const keys: CropKey[] = [piece.crop];
-  for (let step = 0; keys.length < GALLERY_LENGTH; step += 1) {
-    keys.push(pool[(start + step) % pool.length]);
-  }
-
-  return keys.map(frameForCrop);
+  /* Before the catalogue has landed the tile's own primary is all there is, and
+     it is already the right picture — the listing handed it over. */
+  return [piece.image ? frameForPhoto(piece.image) : BLANK_FRAME];
 }
 
 /* -------------------------------------------------------------------------- */
@@ -144,10 +140,30 @@ export const PRODUCT_COPY = {
      get back to exactly where they already were. */
   /** where "back" goes: the men's grid, scrolled to the tile that led here */
   backHref: "/new-man#edit",
-  notes: ["Free shipping over ₹4,999", "30-day returns", "Exchanges free once per order"],
+  /**
+   * The two policy lines that do NOT depend on a setting.
+   *
+   * The free-shipping line used to sit at the head of this list as the literal
+   * string "Free shipping over ₹4,999", which is a number `store_settings`
+   * owns — see `storefront-config.ts`. It is written at render now, from the
+   * threshold the store actually applies, so an operator who moves it moves it
+   * everywhere. `shippingNote` builds that line.
+   */
+  notes: ["30-day returns", "Exchanges free once per order"],
   /** the head over the related grid — SplitHeading segments, light cut second */
   relatedHeading: [{ text: "You might also " }, { text: "like", light: true }],
 } as const;
+
+/**
+ * "Free shipping over ₹4,999" — with the figure the shop is actually applying.
+ *
+ * Every surface that advertises the threshold builds its line through here, so
+ * there is one sentence and one number behind it rather than four copies of a
+ * string that were correct on the day they were typed.
+ */
+export function shippingNote(freeDeliveryOver: number) {
+  return `Free shipping over ₹${freeDeliveryOver.toLocaleString("en-IN")}`;
+}
 
 /* -------------------------------------------------------------------------- */
 /* Size guide                                                                 */
@@ -370,74 +386,23 @@ export const SIZE_GUIDE_COPY = {
 /* Reviews                                                                    */
 /* -------------------------------------------------------------------------- */
 
-/**
- * PAGE-LOCAL DEMO REVIEWS. Nothing in the repository stores customer reviews
- * yet — `features/11-reviews` is a moderation workspace over fixtures — so the
- * three below are written copy standing in for the shape the section needs, not
- * quotations from anybody. Swap the whole block for the real feed when there
- * is one; the component reads the counts, never a hardcoded average.
- */
-export type Review = {
-  id: string;
-  name: string;
-  avatar: string;
-  date: string;
-  stars: number;
-  body: string;
-};
+/* There is nothing here any more, and that is the point.
 
-export const REVIEWS: Review[] = [
-  {
-    id: "r1",
-    name: "Alex Mathio",
-    avatar: "/images/avatar-1.jpg",
-    date: "13 Oct 2025",
-    stars: 5,
-    body: "Heavier than the photographs suggest, in the best way. The shoulder sits exactly where the size chart said it would and the hardware has not loosened once in six months of daily wear.",
-  },
-  {
-    id: "r2",
-    name: "Priya Raghavan",
-    avatar: "/images/avatar-2.jpg",
-    date: "02 Oct 2025",
-    stars: 5,
-    body: "Ordered a size down on the studio's advice and it was the right call. The wash is genuinely matte — no sheen under shop lighting, which is rare at this weight.",
-  },
-  {
-    id: "r3",
-    name: "Daniel Okafor",
-    avatar: "/images/avatar-3.jpg",
-    date: "24 Sep 2025",
-    stars: 4,
-    body: "Cut and finish are excellent. Half a star off only because the dispatch ran a day past the window quoted at checkout — the piece itself I have no notes on.",
-  },
-];
+   This block held three written reviews — "Alex Mathio", "Priya Raghavan",
+   "Daniel Okafor", with avatars, dates and quotations — plus
+   `RATING_COUNTS = [36, 9, 2, 2, 1]`, from which the page derived "4.6 from
+   50 reviews", and `TILE_RATINGS`, which gave every related tile a star
+   score by hashing the piece id. Its own comment said it was demo content
+   standing in for a feed that did not exist.
 
-/** 5★ down to 1★. The average and the total are derived from these. */
-export const RATING_COUNTS = [36, 9, 2, 2, 1] as const;
+   The feed exists. `reviews` is a real table with a moderation desk behind
+   it and `GET /reviews` in front, so the product page reads what shoppers
+   actually wrote and shows nothing when they have not written yet — see
+   `product-reviews.tsx`. Ratings on a tile come off the product itself
+   (`Product.rating` / `reviewCount`), which the console maintains.
 
-export function ratingSummary() {
-  const total = RATING_COUNTS.reduce((sum, count) => sum + count, 0);
-  const points = RATING_COUNTS.reduce(
-    (sum, count, index) => sum + count * (5 - index),
-    0,
-  );
-
-  return { total, average: points / total };
-}
-
-/**
- * A tile's star rating in the related grid.
- *
- * Also demo content, and deliberately derived from the piece id so it is the
- * same number on the server, on the client, and on every reload — a rating that
- * shuffles between renders reads as broken long before it reads as fake.
- */
-const TILE_RATINGS = [3.5, 4, 4.5, 5] as const;
-
-export function ratingFor(piece: Piece) {
-  return TILE_RATINGS[hash(`${piece.id}-rating`) % TILE_RATINGS.length];
-}
+   Nothing replaces this section here because nothing belongs here: a deck
+   is authored copy, and a review is not ours to author. */
 
 /* -------------------------------------------------------------------------- */
 /* Related                                                                    */
@@ -447,8 +412,8 @@ export function ratingFor(piece: Piece) {
  * Four more pieces: same category first, then the rest of the release in
  * authored order. Never the piece being viewed.
  */
-export function relatedTo(piece: Piece, count = 4): Piece[] {
-  const others = MEN_PIECES.filter((item) => item.id !== piece.id);
+export function relatedTo(pieces: Piece[], piece: Piece, count = 4): Piece[] {
+  const others = pieces.filter((item) => item.id !== piece.id);
   const sameCategory = others.filter((item) => item.category === piece.category);
   const rest = others.filter((item) => item.category !== piece.category);
 

@@ -169,7 +169,7 @@ export type MegaMenuConfig = {
 
 const collectionLinks = COLLECTIONS.map((c) => ({
   label: c.name,
-  href: `/collections/${c.slug}`,
+  href: `/collections/view?slug=${c.slug}`,
   tag: c.state,
 }));
 
@@ -189,7 +189,7 @@ export const MEGA_MENU: Record<string, MegaMenuConfig> = {
     feature: {
       label: "Drop 001",
       tag: "Live now",
-      href: "/collections/drop-001",
+      href: "/collections/view?slug=drop-001",
       image: SHOTS.campaign,
     },
   },
@@ -208,7 +208,7 @@ export const MEGA_MENU: Record<string, MegaMenuConfig> = {
     feature: {
       label: "After Hours",
       tag: "Open archive",
-      href: "/collections/after-hours",
+      href: "/collections/view?slug=after-hours",
       image: SHOTS.still,
     },
   },
@@ -222,7 +222,7 @@ export const MEGA_MENU: Record<string, MegaMenuConfig> = {
     feature: {
       label: "Drop 001",
       tag: "320 numbered units",
-      href: "/collections/drop-001",
+      href: "/collections/view?slug=drop-001",
       image: SHOTS.drop,
     },
   },

@@ -1,85 +1,102 @@
 "use client";
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useMemo,
-  useSyncExternalStore,
-  type ReactNode,
-} from "react";
+import { createContext, useContext, useMemo, type ReactNode } from "react";
 
+import { useRegister, type Register } from "@/api/use-register";
 import type { RecordRow } from "@/components/admin/record-manager";
-import { availableUnits, stockItemFixtures } from "@/features/03-inventory/data/stock-fixtures";
-import { createLocalStore } from "@/lib/local-store";
-import { useHydrated } from "@/lib/use-hydrated";
+import { availableUnits } from "@/features/03-inventory/data/stock-fixtures";
 
 /**
- * What is actually in the warehouses.
+ * What is actually in the warehouses, read from the database.
  *
- * The stock register kept this in `useState`, which was enough while it was the
- * only screen that cared. It is not any more: a product in the catalogue is a
- * decision to sell one of these items, so the catalogue reads this register to
- * know what there is to sell and which sizes it comes in. Stock arrives here
- * first, and the catalogue lists it second — which is only true if both screens
- * are looking at the same list.
+ * This was a `localStorage` book seeded from `stock-fixtures.ts`, and the
+ * consequence reached further than the inventory screen: a product in the
+ * catalogue is a decision to sell one of these items, so the catalogue reads
+ * this register to know what there is to sell and which sizes it comes in. With
+ * both in one browser's storage the two agreed with each other and with nothing
+ * else — the API had its own `stock_items`, and a shopper's order reserved
+ * against that one.
+ *
+ * Both now read `/admin/inventory/items`. Stock arrives here first and the
+ * catalogue lists it second, which is only meaningful if "here" is the database.
  */
-/* Bumped when the shape of an item changes. A v1 record predates the
-   top/bottom split, so it carries no category and sizes drawn from a
-   vocabulary that no longer exists — reviving one would put a row on screen
-   the form cannot edit back into a valid state. */
-const STORAGE_KEY = "iced-out-stock-v2";
-
-type StockBook = { items: RecordRow[] };
-
-/** Only flat string maps survive the trip back — anything else is not a record. */
-function reviveItems(value: unknown, fallback: RecordRow[]): RecordRow[] {
-  if (!Array.isArray(value)) return fallback;
-
-  const rows: RecordRow[] = [];
-  for (const entry of value) {
-    if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
-    const row: RecordRow = {};
-    for (const [key, cell] of Object.entries(entry as Record<string, unknown>)) {
-      if (typeof cell === "string") row[key] = cell;
-    }
-    if (row.id) rows.push(row);
-  }
-
-  return rows;
-}
-
-const store = createLocalStore<StockBook>(
-  STORAGE_KEY,
-  { items: stockItemFixtures },
-  (parsed, fallback) => {
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
-    const stored = parsed as { items?: unknown };
-    /* An emptied warehouse is a legitimate state, so a missing key falls back
-       to the fixtures but a present-and-empty one is honoured. */
-    return { items: "items" in stored ? reviveItems(stored.items, []) : fallback.items };
-  },
-);
 
 export type StockContextValue = {
   items: RecordRow[];
-  /** False until the browser's copy is the one on screen. */
+  /** False until the endpoint has answered. */
   ready: boolean;
-  commit: (next: (current: RecordRow[]) => RecordRow[]) => void;
+  loading: boolean;
+  error: string | null;
+  /** The register's write verbs, to spread onto a `RecordManager`. */
+  register: Register;
 };
 
 const StockContext = createContext<StockContextValue | null>(null);
 
 export function StockProvider({ children }: { children: ReactNode }) {
-  const book = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getServerSnapshot);
-  const ready = useHydrated();
+  const items = useRegister(
+    useMemo(
+      () => ({
+        path: "/admin/inventory/items",
+        itemPath: (row: RecordRow) => `/admin/inventory/items/${encodeURIComponent(row.id)}`,
+        toCreate: (values: RecordRow) => ({
+          itemName: values.itemName,
+          category: values.category,
+          audience: values.audience ?? "Unisex",
+          itemType: values.itemType,
+          sizes: values.sizes,
+          warehouse: values.warehouse,
+          totalUnits: Number(values.totalUnits ?? 0) || 0,
+          /* The form collects a formatted price — "₹8,900" — and the API takes
+             whole rupees, exactly as the catalogue register does. */
+          price: rupees(values.price),
+          image: values.image ?? "",
+          images: values.images ?? "",
+          /**
+           * Whether this goes straight into the shop.
+           *
+           * Sent only on create, and deliberately not on update: publishing is a
+           * decision made once, at the moment the stock is taken in. A ticked box
+           * carried into every later edit would re-list the item each time
+           * somebody corrected its name.
+           */
+          publish: values.publish === "true" ? "true" : "",
+        }),
+        /**
+         * Reserved units are deliberately not sent.
+         *
+         * What is reserved is the sum of what orders are holding, which the
+         * checkout and the fulfilment screens move. An operator editing an item's
+         * name must not be able to overwrite that number with whatever the form
+         * happened to be showing when it opened.
+         */
+        toUpdate: (values: RecordRow) => ({
+          itemName: values.itemName,
+          category: values.category,
+          audience: values.audience ?? "Unisex",
+          itemType: values.itemType,
+          sizes: values.sizes,
+          warehouse: values.warehouse,
+          totalUnits: Number(values.totalUnits ?? 0) || 0,
+          price: rupees(values.price),
+          image: values.image ?? "",
+          images: values.images ?? "",
+        }),
+      }),
+      [],
+    ),
+  );
 
-  const commit = useCallback((next: (current: RecordRow[]) => RecordRow[]) => {
-    const current = store.getSnapshot();
-    store.write({ items: next(current.items) });
-  }, []);
-
-  const value = useMemo(() => ({ items: book.items, ready, commit }), [book, commit, ready]);
+  const value = useMemo<StockContextValue>(
+    () => ({
+      items: items.rows,
+      ready: items.loaded,
+      loading: items.loading,
+      error: items.error,
+      register: items,
+    }),
+    [items],
+  );
 
   return <StockContext.Provider value={value}>{children}</StockContext.Provider>;
 }
@@ -117,6 +134,11 @@ export function sizesOf(items: RecordRow[], itemId: string) {
 
 export function findStockItem(items: RecordRow[], itemId: string) {
   return items.find((entry) => entry.id === itemId);
+}
+
+/** "₹8,900" or "8900" → 8900. The API takes whole rupees as an integer. */
+function rupees(value: string | undefined) {
+  return Number((value ?? "").replace(/[^\d]/g, "")) || 0;
 }
 
 /** Pieces of an item a shopper can still buy. */

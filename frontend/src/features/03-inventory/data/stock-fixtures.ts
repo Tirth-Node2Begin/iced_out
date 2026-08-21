@@ -24,6 +24,19 @@ export type StockItem = {
 export const CATEGORIES = ["Top", "Bottom"];
 
 /**
+ * Who a garment is cut for.
+ *
+ * Kept here rather than fetched, unlike the three lists above: this one is not a
+ * settings vocabulary. `products.audience` is a CHECK-constrained column with
+ * exactly these three values, and the storefront's gender pages branch on them —
+ * adding a fourth would be a schema change and a routing change, not a setting.
+ *
+ * `Unisex` shows on both gender pages, which is why it is the default rather than
+ * a third page nobody visits.
+ */
+export const AUDIENCES = ["Men", "Women", "Unisex"];
+
+/**
  * What a garment can be, per category.
  *
  * Split rather than pooled because "Cargo" is not a thing a top can be, and a
@@ -52,13 +65,11 @@ export const WAREHOUSE_CODES = ["BLR-01", "DEL-01", "MUM-01"];
 /** At or under this many sellable pieces, an item is worth replenishing. */
 export const LOW_STOCK_AT = 4;
 
-export const stockItemFixtures: StockItem[] = [
-  { id: "ITM-001", itemName: "Afterdark Hoodie", category: "Top", itemType: "Hoodie", sizes: "S, M, L, XL", warehouse: "BLR-01", totalUnits: "48", reservedUnits: "12" },
-  { id: "ITM-002", itemName: "Bone Utility Overshirt", category: "Top", itemType: "Overshirt", sizes: "S, M, L", warehouse: "BLR-01", totalUnits: "6", reservedUnits: "6" },
-  { id: "ITM-003", itemName: "Core Heavy Tee", category: "Top", itemType: "T-shirt", sizes: "S, M, L, XL, XXL", warehouse: "BLR-01", totalUnits: "120", reservedUnits: "18" },
-  { id: "ITM-004", itemName: "Shadow Cargo 02", category: "Bottom", itemType: "Cargo", sizes: "30, 32, 34", warehouse: "DEL-01", totalUnits: "34", reservedUnits: "8" },
-  { id: "ITM-005", itemName: "Midnight Denim", category: "Bottom", itemType: "Jeans", sizes: "32, 34, 36", warehouse: "MUM-01", totalUnits: "9", reservedUnits: "6" },
-];
+/* The five ITM-* demo items that used to sit here are gone: the register reads
+   `/admin/inventory/items`, so what is on screen is what the warehouses hold.
+   What stays is the vocabulary — the categories, the types and the sizes each
+   category comes in — and `availableUnits`/`stockLevel`, which are the two rules
+   every screen applies to a stock row. */
 
 /** Pieces a shopper can still buy: everything not already spoken for. */
 export function availableUnits(item: { totalUnits: string; reservedUnits: string }) {

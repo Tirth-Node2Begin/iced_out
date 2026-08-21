@@ -32,7 +32,10 @@ export function DestinationGrid() {
               href={destination.href}
               key={destination.index}
             >
-              <ProductImage position={destination.position} />
+              {/* The sprite is the subject here, not a stand-in for a missing photo:
+                  these cards are editorial, and the quadrant each one names IS the
+                  picture. Everywhere a real product is shown, the fallback is off. */}
+              <ProductImage fallback="sprite" position={destination.position} />
               <span className="destination-card__index">{destination.index}</span>
               <div className="destination-card__footer">
                 <div>

@@ -1,7 +1,9 @@
 "use client";
 
 import { CheckCircle2, Ticket, Wallet } from "lucide-react";
+import { useMemo } from "react";
 
+import { useRegister } from "@/api/use-register";
 import { StatGrid, type Stat } from "@/components/admin/admin-stats";
 import { AdminPage, Note } from "@/components/admin/admin-ui";
 import {
@@ -12,16 +14,10 @@ import {
 } from "@/components/admin/record-manager";
 import { useCustomers } from "@/features/01-users/customers-store";
 import { formatPrice } from "@/features/02-products/utils/format-price";
-import {
-  defaultExpiryISO,
-  formatDay,
-  isClaimed,
-  todayISO,
-  voucherPurpose,
-  voucherState,
-  type Voucher,
-} from "@/features/10-coupons/vouchers";
-import { useVouchers } from "@/features/10-coupons/vouchers-context";
+/* The state, the source and the purpose are computed by the SERVER now
+   (`VoucherPresenter::consoleRow`), so the helpers that derived them here are no
+   longer read. Only the two date helpers are — the form's defaults. */
+import { defaultExpiryISO, formatDay } from "@/features/10-coupons/vouchers";
 import { useHydrated } from "@/lib/use-hydrated";
 
 /**
@@ -74,28 +70,54 @@ const COLUMNS: Column[] = [
 ];
 
 export function AdminVouchersRegister() {
-  const { vouchers, balance, commit } = useVouchers();
+  /**
+   * The voucher ledger, from `/admin/vouchers`.
+   *
+   * It used to read the same `localStorage` store the shopper's account did, which
+   * looked like one ledger and was one BROWSER's ledger: a voucher issued here
+   * reached the customer only if the customer was the operator, in the same
+   * browser. Settling a return now issues the credit server-side, and this screen
+   * reads what was actually issued.
+   *
+   * `void` rather than delete, and the endpoint says so: a voucher that was issued
+   * was issued, and the record of it is what answers "where did my credit go".
+   */
+  const register = useRegister(
+    useMemo(
+      () => ({
+        path: "/admin/vouchers",
+        itemPath: (row: RecordRow) => `/admin/vouchers/${encodeURIComponent(row.code)}`,
+        toCreate: (values: RecordRow) => ({
+          customer: values.customer,
+          amount: Number(values.amount ?? 0) || 0,
+          reason: values.reason ?? "",
+          expiresOn: values.expiresOn || defaultExpiryISO(),
+        }),
+        toUpdate: (values: RecordRow) => ({
+          amount: Number(values.amount ?? 0) || 0,
+          reason: values.reason ?? "",
+          expiresOn: values.expiresOn,
+        }),
+      }),
+      [],
+    ),
+  );
+
+  /* The API returns the console shape already — `VoucherPresenter::consoleRow`
+     adds the state, the source and the purpose the table shows — so there is no
+     mapping layer here any more. */
+  const vouchers = register.rows;
+  const balance = vouchers
+    .filter((row) => row.state === "Active")
+    .reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
+
   const { customers } = useCustomers();
   /* The two date defaults read the clock, and this page is statically
      exported — so they are only filled once the browser is driving. The form
      is opened by a click, which is always after that. */
   const hydrated = useHydrated();
 
-  const rows = vouchers.map(toRow);
-
-  const toVoucher = (row: RecordRow): Voucher => ({
-    code: row.code,
-    amount: Number(row.amount) || 0,
-    returnId: row.returnId ?? "",
-    /* Left as typed, empty included. `voucherPurpose` decides what an empty
-       one reads as, in one place, for every screen that shows it. */
-    reason: row.reason ?? "",
-    customer: row.customer,
-    issuedOn: row.issuedOn || todayISO(),
-    expiresOn: row.expiresOn || defaultExpiryISO(),
-    claimedOn: row.claimedOn ?? "",
-    claimedOrder: row.claimedOrder ?? "",
-  });
+  const rows = vouchers;
 
   const FIELDS: FormField[] = [
     {
@@ -134,12 +156,6 @@ export function AdminVouchersRegister() {
       full: true,
     },
     {
-      key: "issuedOn",
-      label: "Created on",
-      type: "date",
-      initial: hydrated ? todayISO() : "",
-    },
-    {
       key: "expiresOn",
       label: "Expires on",
       type: "date",
@@ -148,8 +164,10 @@ export function AdminVouchersRegister() {
     },
   ];
 
-  const claimed = vouchers.filter(isClaimed);
-  const redeemed = claimed.reduce((sum, voucher) => sum + voucher.amount, 0);
+  /* Claimed is a fact on the row, not a computation: the presenter fills
+     `claimedOn` when an order took the voucher. */
+  const claimed = vouchers.filter((row) => Boolean(row.claimedOn));
+  const redeemed = claimed.reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
 
   const stats: Stat[] = [
     {
@@ -187,24 +205,27 @@ export function AdminVouchersRegister() {
         fields={FIELDS}
         filterKey="state"
         filterValues={["Active", "Claimed"]}
+        error={register.error}
         icon={Ticket}
+        /* A voucher is addressed by its code, and the SERVER mints it — a code
+           minted in a browser could collide with one already issued. */
         idKey="code"
-        idPrefix="IOV"
-        onCommit={(next) => commit((current) => next(current.map(toRow)).map(toVoucher))}
+        loaded={register.loaded}
+        loading={register.loading}
+        onCreate={register.onCreate}
+        onDelete={register.onDelete}
+        onUpdate={register.onUpdate}
         rows={rows}
         searchKeys={["code", "customer", "reason", "purpose", "purposeNote", "state"]}
         singular="voucher"
         statusTone={(row) => (row.state === "Active" ? "good" : "idle")}
         tone="violet"
         /* Whether it has been claimed is not a question anyone should be asked,
-           so it is not on the form — an order claims a voucher, and nothing
-           else does. Editing one carries its claim across untouched. */
-        derive={(values, _all, previous) => ({
+           and it is not on the form — an order claims a voucher, and nothing else
+           does. The issue date is the server's too: it is the day the row was
+           written, which the browser is not the authority on. */
+        derive={(values) => ({
           ...values,
-          returnId: previous?.returnId ?? "",
-          claimedOn: previous?.claimedOn ?? "",
-          claimedOrder: previous?.claimedOrder ?? "",
-          issuedOn: values.issuedOn || todayISO(),
           expiresOn: values.expiresOn || defaultExpiryISO(),
         })}
         /* The amount is never argued with — a voucher is worth whatever the
@@ -227,23 +248,7 @@ export function AdminVouchersRegister() {
   );
 }
 
-/** A voucher as the flat string map the register reads. */
-function toRow(voucher: Voucher): RecordRow {
-  const purpose = voucherPurpose(voucher);
-
-  return {
-    code: voucher.code,
-    customer: voucher.customer,
-    reason: voucher.reason,
-    purpose: purpose.title,
-    purposeNote: purpose.note,
-    returnId: voucher.returnId,
-    amount: String(voucher.amount),
-    issuedOn: voucher.issuedOn,
-    issuedLabel: `Created ${formatDay(voucher.issuedOn)}`,
-    expiresOn: voucher.expiresOn,
-    claimedOn: voucher.claimedOn,
-    claimedOrder: voucher.claimedOrder,
-    state: voucherState(voucher),
-  };
-}
+/* `toRow` used to live here, mapping a typed `Voucher` into the flat string map
+   this register renders. It is gone: `VoucherPresenter::consoleRow` produces that
+   shape on the server, including the three derived columns — the state, where the
+   voucher came from and what it was for. One shape, computed once. */

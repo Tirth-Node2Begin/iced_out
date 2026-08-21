@@ -2,9 +2,10 @@
 
 import { Check, ImagePlus, Star } from "lucide-react";
 import { useState, type FormEvent } from "react";
+import { toast } from "sonner";
 
 import { AccountSection } from "@/components/account/account-section";
-import { orderFixtures } from "@/features/07-orders/data/order-fixtures";
+import { useOrders } from "@/features/07-orders/orders-context";
 import { useReviews } from "@/features/11-reviews/reviews-context";
 import type { ReviewState } from "@/features/11-reviews/reviews";
 
@@ -21,32 +22,37 @@ type Entry = {
   id: string;
   piece: string;
   rating: number;
-  state: "In moderation" | "Published" | "Needs an edit";
+  state: "Published" | "Taken down";
   date: string;
   note: string;
 };
 
-/** The desk's decisions, said the way a shopper would say them. */
+/**
+ * The desk's decisions, said the way a shopper would say them.
+ *
+ * There is no "In moderation" any more — a review is live when it is written.
+ * The only thing that can happen to it afterwards is being taken down.
+ */
 const STATE_WORDS: Record<ReviewState, Entry["state"]> = {
-  Pending: "In moderation",
-  Approved: "Published",
-  Rejected: "Needs an edit",
+  Published: "Published",
+  Hidden: "Taken down",
 };
 
 const STATE_BADGE: Record<Entry["state"], string> = {
   Published: "io-badge--ok",
-  "In moderation": "io-badge--live",
-  "Needs an edit": "io-badge--danger",
+  "Taken down": "io-badge--danger",
 };
 
 export function FeedbackWorkspace() {
   const { mine, submit: sendReview } = useReviews();
+  const { orders } = useOrders();
   const [writingAbout, setWritingAbout] = useState<string | null>(null);
   const [justSent, setJustSent] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
 
-  /* Read off the register rather than kept here, so an approval made on the
-     moderation desk turns this row from "In moderation" into "Published"
-     without this screen having to be told about it. */
+  /* Read off the register rather than kept here, so a review taken down on the
+     moderation desk turns this row from "Published" into "Taken down" without
+     this screen having to be told about it. */
   const entries: Entry[] = mine.map((review) => ({
     id: review.id,
     piece: review.product,
@@ -56,8 +62,11 @@ export function FeedbackWorkspace() {
     note: review.headline || review.body,
   }));
 
-  /* Delivered lines only — an order still in transit has nothing to say yet. */
-  const eligible = orderFixtures
+  /* Delivered lines only, from THIS shopper's own orders — an order still in
+     transit has nothing to say yet, and somebody else's has nothing to do with
+     them. This read `orderFixtures`, so the form offered every visitor the same
+     two demo purchases to review. */
+  const eligible = orders
     .filter((order) => order.status === "Delivered")
     .flatMap((order) =>
       order.lines.map((line) => ({
@@ -72,26 +81,41 @@ export function FeedbackWorkspace() {
 
   const target = eligible.find((line) => line.id === writingAbout);
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!target) return;
 
     const form = new FormData(event.currentTarget);
-    /* Straight onto the moderation desk, waiting on a decision. Nothing this
-       form can say puts it on the storefront — only an approval does. */
-    sendReview({
-      product: target.name,
-      rating: Number(form.get("rating") ?? 5),
-      headline: String(form.get("title") ?? "").trim(),
-      body: String(form.get("message") ?? "").trim(),
-    });
-    setJustSent(target.name);
-    setWritingAbout(null);
+    setSending(true);
+
+    try {
+      /* Straight onto the product page. The state is the server's to set —
+         `insert` hardcodes `Published` — so nothing this form sends can decide
+         it either way, which is the same guarantee it gave when the default was
+         the other one. */
+      await sendReview({
+        product: target.name,
+        rating: Number(form.get("rating") ?? 5),
+        headline: String(form.get("title") ?? "").trim(),
+        body: String(form.get("message") ?? "").trim(),
+      });
+
+      setJustSent(target.name);
+      setWritingAbout(null);
+    } catch (caught) {
+      /* Reported rather than swallowed: the form used to close on a failure and
+         the shopper believed the review had been sent. */
+      toast.error("That could not be sent", {
+        description: caught instanceof Error ? caught.message : "Try again in a moment.",
+      });
+    } finally {
+      setSending(false);
+    }
   }
 
   return (
     <AccountSection
-      copy="Only pieces that reached you can be written about. Feedback is checked before it appears on a product page, and the rating is kept with the size you actually bought."
+      copy="Only pieces that reached you can be written about. Your review goes on the product page as you wrote it, and the rating is kept with the size you actually bought."
       eyebrow="Account / Verified voices"
       title="Tell us how it wore."
       actions={
@@ -157,7 +181,11 @@ export function FeedbackWorkspace() {
         )}
 
         {target && (
-          <form className="io-form" onSubmit={submit} style={{ marginTop: 14 }}>
+          <form
+            className="io-form"
+            onSubmit={(event) => void submit(event)}
+            style={{ marginTop: 14 }}
+          >
             <fieldset className="io-field" style={{ border: 0, margin: 0, padding: 0 }}>
               <legend>
                 <span className="io-stat__label">Rating · {target.name}</span>
@@ -222,7 +250,7 @@ export function FeedbackWorkspace() {
               >
                 Discard
               </button>
-              <button className="io-btn io-btn--solid" type="submit">
+              <button className="io-btn io-btn--solid" disabled={sending} type="submit">
                 Send feedback
               </button>
             </div>

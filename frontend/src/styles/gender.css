@@ -2050,3 +2050,24 @@
     animation: none !important;
   }
 }
+
+/* A piece nobody has photographed.
+   ---------------------------------------------------------------------------
+   Deliberately not a picture. These frames used to fall back to a quadrant of
+   the house contact sheet, which advertised an unshot garment with a photograph
+   of a different one. A flat surface with a faint diagonal on it reads as
+   "no photograph yet" and cannot be mistaken for the piece. Sized exactly like
+   the image it stands in for, so a grid keeps its rhythm either way. */
+.gx-card__blank {
+  position: absolute;
+  inset: 0;
+  display: block;
+  background-color: rgba(255, 255, 255, 0.035);
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(255, 255, 255, 0.04) 0,
+    rgba(255, 255, 255, 0.04) 1px,
+    transparent 1px,
+    transparent 11px
+  );
+}

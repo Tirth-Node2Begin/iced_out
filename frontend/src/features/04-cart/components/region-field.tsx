@@ -31,25 +31,43 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
  * The trigger keeps the id, so `focusFirstError` still finds it, and buttons are
  * labelable — the field's `<span>` label stays wired to the control the same way
  * it is for every input beside it.
+ *
+ * `className` is what lets the same control stand in two places. Checkout lays
+ * its fields out in thirds (`co-field co-field--third`); the account's address
+ * form uses its own `io-field` inside an `io-form__row`. Only the wrapper differs
+ * — the trigger and the panel keep the `co-combo` styling either way, which is
+ * loaded for the whole customer-session group.
  */
 export function RegionField({
+  className = "co-field co-field--third",
   disabled,
   emptyLabel,
   error,
   id,
   label,
+  name,
   onChange,
   options,
   placeholder,
   searchPlaceholder,
   value,
 }: {
+  className?: string;
   disabled?: boolean;
   /** What the list says when the search matches nothing. */
   emptyLabel: string;
   error?: string;
   id: string;
   label: string;
+  /**
+   * Submits the chosen value with the surrounding form.
+   *
+   * The control is a `<button>`, which browsers never submit a value for, so a
+   * form that reads itself with `FormData` needs the hidden input below. Checkout
+   * drives its own state and passes no name; the address forms are uncontrolled
+   * and do.
+   */
+  name?: string;
   onChange: (value: string) => void;
   options: string[];
   placeholder: string;
@@ -75,8 +93,10 @@ export function RegionField({
   }, []);
 
   return (
-    <label className="co-field co-field--third" htmlFor={id} ref={measure}>
+    <label className={className} htmlFor={id} ref={measure}>
       <span>{label}</span>
+
+      {name ? <input name={name} type="hidden" value={value} /> : null}
 
       <Popover onOpenChange={setOpen} open={open}>
         <PopoverTrigger asChild>

@@ -14,28 +14,19 @@ import { toast } from "sonner";
 
 import { StatGrid, type Stat } from "@/components/admin/admin-stats";
 import { AdminPage, Note, type StatusTone } from "@/components/admin/admin-ui";
-import {
-  RecordManager,
-  type Column,
-  type FormField,
-  type RecordRow,
-} from "@/components/admin/record-manager";
+import { RecordManager, type Column, type RecordRow } from "@/components/admin/record-manager";
 import { formatPrice } from "@/features/02-products/utils/format-price";
+/* `NO_REPLACEMENT`, `RETURN_REASONS` and `VOUCHER` went with the create form —
+   an operator no longer types a return, so nothing here needs the vocabularies a
+   form would have offered. */
 import {
   AWAITING_PAYMENT,
   EXCHANGE,
-  NO_REPLACEMENT,
-  RETURN_REASONS,
   RETURN_STATES,
-  VOUCHER,
 } from "@/features/18-returns/data/admin-return-fixtures";
-import { mintReturnId, useReturnsRegister } from "@/features/18-returns/data/returns-store";
-import {
-  EXCHANGE_OPTIONS,
-  balanceOf,
-  replacementPrice,
-} from "@/features/18-returns/utils/exchange";
-import { useVouchers } from "@/features/10-coupons/vouchers-context";
+import { useReturnsRegister } from "@/features/18-returns/data/returns-store";
+import { balanceOf, replacementPrice } from "@/features/18-returns/utils/exchange";
+import { useCatalog, type Product } from "@/features/02-products";
 
 /**
  * The returns screens — two of them, and a record is only ever on one.
@@ -45,16 +36,16 @@ import { useVouchers } from "@/features/10-coupons/vouchers-context";
  * register read through the one question the customer already answered, so
  * nobody has to filter an exchange out of a list of refunds to see either.
  *
- * Because the tab decides the outcome, the form never asks for it: a record
- * raised on Returns is a voucher return and a record raised on Exchanges is an
- * exchange, and there is no combination of answers that can put one on the
- * wrong screen.
+ * Both are READ-ONLY registers. A return is raised by a customer against
+ * something they bought; there is no form for inventing one, and the API offers
+ * no endpoint for it. What an operator does is decide, and each decision is its
+ * own endpoint — see `returns-store`.
  *
- * Nothing about the money is typed in either. Every figure below — what is
- * collected, what is credited, what is settled — is worked out from the two
- * prices by `balanceOf` and acted on by the buttons themselves. The operator
- * says only whether the return is genuine; the arithmetic and its consequences
- * are the screen's job.
+ * Nothing about the money is typed. Every figure below — what is collected, what
+ * is credited, what is settled — is worked out from the two prices by
+ * `balanceOf`, and the server does the same arithmetic when it acts on the verb
+ * (`ReturnPresenter::balance`). The operator says only whether the return is
+ * genuine.
  */
 
 export type ReturnsView = "requests" | "exchanges";
@@ -73,19 +64,19 @@ const OPEN = new Set(["New", AWAITING_PAYMENT, "Approved"]);
  * difference, and only when the difference runs their way — a pricier
  * replacement is money coming IN, which is not a credit at all.
  */
-function creditFor(row: RecordRow) {
+function creditFor(row: RecordRow, catalogue: Product[]) {
   if (row.outcome !== EXCHANGE) return Number(row.amount) || 0;
   if (!row.replacement) return 0;
 
-  const balance = balanceOf(row.amount, row.replacement);
+  const balance = balanceOf(row.amount, row.replacement, catalogue);
   return balance.direction === "credit" ? Math.abs(balance.difference) : 0;
 }
 
 /** What the customer has to pay before a pricier swap can ship, in rupees. */
-function dueFor(row: RecordRow) {
+function dueFor(row: RecordRow, catalogue: Product[]) {
   if (row.outcome !== EXCHANGE || !row.replacement) return 0;
 
-  const balance = balanceOf(row.amount, row.replacement);
+  const balance = balanceOf(row.amount, row.replacement, catalogue);
   return balance.direction === "collect" ? balance.difference : 0;
 }
 
@@ -136,43 +127,52 @@ const RETURN_COLUMNS: Column[] = [
 
 /* ===================================================== exchanges columns */
 
-const EXCHANGE_COLUMNS: Column[] = [
-  { key: "id", label: "Return", primary: true, sub: "customer" },
-  {
-    key: "item",
-    label: "Sending back",
-    render: (row) => stacked(row.item, money(row.amount)),
-    exportValue: (row) => `${row.item} (${money(row.amount)})`,
-  },
-  {
-    key: "replacement",
-    label: "In exchange for",
-    render: (row) =>
-      row.replacement
-        ? stacked(row.replacement, money(replacementPrice(row.replacement)))
-        : stacked("Not chosen yet", "Waiting on the customer"),
-    exportValue: (row) =>
-      row.replacement ? `${row.replacement} (${money(replacementPrice(row.replacement))})` : "",
-  },
-  {
-    key: "balance",
-    label: "Difference",
-    align: "right",
-    numeric: true,
-    /* The figure, and what has already been done about it — a swap sitting in
-       `Awaiting payment` has had its request raised, and one that is past it
-       has been paid. The column therefore reads as a running account of the
-       money rather than a sum anyone still has to act on. */
-    render: (row) => {
-      if (!row.replacement) return "—";
-      const balance = balanceOf(row.amount, row.replacement);
-      return stacked(balance.short, settlementNote(row, balance.direction));
+/**
+ * A factory rather than a constant: two of these columns price the replacement
+ * from the live catalogue, which now arrives over the network. Built from
+ * whatever the screen currently holds.
+ */
+function exchangeColumns(catalogue: Product[]): Column[] {
+  return [
+    { key: "id", label: "Return", primary: true, sub: "customer" },
+    {
+      key: "item",
+      label: "Sending back",
+      render: (row) => stacked(row.item, money(row.amount)),
+      exportValue: (row) => `${row.item} (${money(row.amount)})`,
     },
-    exportValue: (row) =>
-      row.replacement ? `${balanceOf(row.amount, row.replacement).short}` : "",
-  },
-  { key: "state", label: "Status", status: true },
-];
+    {
+      key: "replacement",
+      label: "In exchange for",
+      render: (row) =>
+        row.replacement
+          ? stacked(row.replacement, money(replacementPrice(row.replacement, catalogue)))
+          : stacked("Not chosen yet", "Waiting on the customer"),
+      exportValue: (row) =>
+        row.replacement
+          ? `${row.replacement} (${money(replacementPrice(row.replacement, catalogue))})`
+          : "",
+    },
+    {
+      key: "balance",
+      label: "Difference",
+      align: "right",
+      numeric: true,
+      /* The figure, and what has already been done about it — a swap sitting in
+         `Awaiting payment` has had its request raised, and one that is past it
+         has been paid. The column therefore reads as a running account of the
+         money rather than a sum anyone still has to act on. */
+      render: (row) => {
+        if (!row.replacement) return "—";
+        const balance = balanceOf(row.amount, row.replacement, catalogue);
+        return stacked(balance.short, settlementNote(row, balance.direction));
+      },
+      exportValue: (row) =>
+        row.replacement ? `${balanceOf(row.amount, row.replacement, catalogue).short}` : "",
+    },
+    { key: "state", label: "Status", status: true },
+  ];
+}
 
 /** Where the price difference has got to, for the row it sits on. */
 function settlementNote(row: RecordRow, direction: "collect" | "credit" | "even") {
@@ -188,54 +188,22 @@ function settlementNote(row: RecordRow, direction: "collect" | "credit" | "even"
   return row.state === "Completed" ? "Credited as a voucher" : "Credited on settlement";
 }
 
-/* ================================================================= form */
-
-/**
- * Five questions on Returns, six on Exchanges, and none of them is about money
- * moving or about state.
- *
- * The id is minted rather than asked for — nobody types a return number. The
- * outcome is not asked for because the tab is the answer. The status is not
- * asked for because the buttons on the row move a return along, and a dropdown
- * that could do the same thing is a second way to do one job. What is left is
- * only the facts of the return itself.
- */
-function fieldsFor(view: ReturnsView): FormField[] {
-  const shared: FormField[] = [
-    { key: "order", label: "Order number", placeholder: "IO-2026-1049", required: true },
-    { key: "customer", label: "Customer", placeholder: "Aarav Mehta", required: true },
-    { key: "item", label: "Item coming back", placeholder: "Afterdark Hoodie · M", required: true },
-    { key: "amount", label: "What they paid (₹)", type: "number", placeholder: "11400" },
-    { key: "reason", label: "Why is it coming back?", type: "select", options: RETURN_REASONS },
-  ];
-
-  if (view !== "exchanges") return shared;
-
-  return [
-    ...shared,
-    {
-      key: "replacement",
-      label: "Item going out instead",
-      type: "select",
-      /* Sold-out sizes are not on the list, so nobody can promise a
-         replacement that is not on the shelf. */
-      options: EXCHANGE_OPTIONS.map((option) => ({
-        value: option.value,
-        label: `${option.value} — ${formatPrice(option.price)}`,
-      })),
-      required: true,
-      help: "The price difference is worked out from this and settled by itself — nothing to calculate.",
-      full: true,
-    },
-  ];
-}
-
 /* =============================================================== screen */
 
 export function AdminReturnsWorkspace({ view = "requests" }: { view?: ReturnsView }) {
   const exchanges = view === "exchanges";
-  const { returns: all, commit, patch } = useReturnsRegister();
-  const { issue } = useVouchers();
+  const {
+    returns: all,
+    ready,
+    loading,
+    error,
+    approve,
+    reject,
+    collectPayment,
+    settle: settleReturn,
+  } = useReturnsRegister();
+  /* The replacement prices come from the live catalogue — see `exchangeColumns`. */
+  const { data: catalogue } = useCatalog();
 
   /**
    * Closing a return: the state moves on, the replacement goes out, and any
@@ -249,10 +217,15 @@ export function AdminReturnsWorkspace({ view = "requests" }: { view?: ReturnsVie
    * one either.
    */
   const settle = useCallback(
-    (row: RecordRow) => {
-      patch(row.id, { state: "Completed" });
+    async (row: RecordRow) => {
+      /* The SERVER settles it — closing the return, releasing the replacement and
+         issuing the voucher in one transaction, and idempotently, so a second
+         press cannot mint a second voucher. This used to patch the row here and
+         mint the credit through the vouchers store, which meant the two could be
+         seen disagreeing: a settled return whose voucher had not been issued. */
+      await settleReturn(row.id);
 
-      const credit = creditFor(row);
+      const credit = creditFor(row, catalogue);
       const swap = row.outcome === EXCHANGE;
 
       if (credit <= 0) {
@@ -264,27 +237,13 @@ export function AdminReturnsWorkspace({ view = "requests" }: { view?: ReturnsVie
         return;
       }
 
-      const voucher = issue({
-        returnId: row.id,
-        customer: row.customer,
-        amount: credit,
-        reason: swap ? `Price difference · ${row.item} → ${row.replacement}` : row.item,
-      });
-
-      if (!voucher) {
-        toast.info("Already settled", {
-          description: `${row.id} has had its voucher issued once already.`,
-        });
-        return;
-      }
-
-      toast.success(`Voucher ${voucher.code} issued`, {
+      toast.success("Voucher issued", {
         description: `${money(credit)} is on ${row.customer}'s account${
           swap ? `, and ${row.replacement} is on its way` : ""
         }. They can spend it at checkout.`,
       });
     },
-    [issue, patch],
+    [catalogue, settleReturn],
   );
 
   /* The tab is the filter. A record answers to exactly one of these two
@@ -335,9 +294,9 @@ export function AdminReturnsWorkspace({ view = "requests" }: { view?: ReturnsVie
 
     const toCollect = open
       .filter((row) => row.state === "New" || row.state === AWAITING_PAYMENT)
-      .reduce((sum, row) => sum + dueFor(row), 0);
+      .reduce((sum, row) => sum + dueFor(row, catalogue), 0);
 
-    const toCredit = open.reduce((sum, row) => sum + creditFor(row), 0);
+    const toCredit = open.reduce((sum, row) => sum + creditFor(row, catalogue), 0);
 
     return [
       waiting,
@@ -356,7 +315,7 @@ export function AdminReturnsWorkspace({ view = "requests" }: { view?: ReturnsVie
         note: "Issued automatically on settlement",
       },
     ];
-  }, [exchanges, rows]);
+  }, [catalogue, exchanges, rows]);
 
   return (
     /* One band of numbers, not two — the head carries the words and the cards
@@ -384,13 +343,14 @@ export function AdminReturnsWorkspace({ view = "requests" }: { view?: ReturnsVie
       <StatGrid stats={stats} />
 
       <RecordManager
-        columns={exchanges ? EXCHANGE_COLUMNS : RETURN_COLUMNS}
+        columns={exchanges ? exchangeColumns(catalogue) : RETURN_COLUMNS}
         emptyHint={
           exchanges
             ? "No customer has asked to swap an item yet. Exchanges show up here the moment one does."
-            : "No returns yet. Add one here, or wait for a customer to raise it from their account."
+            : "No returns yet. They arrive here when a customer raises one from their account."
         }
-        fields={fieldsFor(view)}
+        error={error}
+        fields={[]}
         filterKey="state"
         /* The one state only an exchange can reach is only offered where an
            exchange can be — a chip that could never read anything but zero is
@@ -399,39 +359,19 @@ export function AdminReturnsWorkspace({ view = "requests" }: { view?: ReturnsVie
           exchanges ? RETURN_STATES : RETURN_STATES.filter((state) => state !== AWAITING_PAYMENT)
         }
         icon={exchanges ? ArrowLeftRight : RotateCcw}
-        idPrefix="ret"
-        onCommit={commit}
-        rowHref={(row) => `/admin/returns/${row.id}`}
+        loaded={ready}
+        loading={loading}
+        readOnly
+        rowHref={(row) => `/admin/returns/detail?id=${encodeURIComponent(row.id)}`}
         rows={rows}
         searchKeys={["id", "order", "customer", "item", "replacement", "reason", "state"]}
         singular={exchanges ? "exchange" : "return"}
         statusTone={(row) => STATE_TONE[row.state]}
         tone="violet"
-        /* Fills in what the form deliberately does not ask for. A new return
-           starts `New`; an edited one keeps the state its buttons put it in,
-           which is what lets the status question stay off the form entirely.
-
-           The outcome comes from the tab, and a replacement only means
-           something on an exchange — so a voucher return cannot walk away
-           carrying an item it was never going to send, and neither record can
-           end up on the screen it does not belong to.
-
-           The id is minted here rather than left to the register, because the
-           register can only see the tab it is on: asked for a free number while
-           showing the exchanges, it would hand out one a voucher return already
-           holds. `all` is the whole register, which is the only list an id can
-           honestly be called free against. */
-        derive={(values, _rows, previous) => ({
-          ...values,
-          id: previous?.id ?? mintReturnId(all),
-          state: previous?.state ?? "New",
-          outcome: exchanges ? EXCHANGE : VOUCHER,
-          replacement: exchanges ? values.replacement : NO_REPLACEMENT,
-        })}
         rowAction={(row) => {
           const swap = row.outcome === EXCHANGE;
-          const due = dueFor(row);
-          const credit = creditFor(row);
+          const due = dueFor(row, catalogue);
+          const credit = creditFor(row, catalogue);
 
           /* Approving is the only judgement anyone makes on an exchange. What
              it does about the money follows from the two prices with no second
@@ -444,14 +384,18 @@ export function AdminReturnsWorkspace({ view = "requests" }: { view?: ReturnsVie
                 icon: CheckCircle2,
                 tone: "good" as const,
                 label: due > 0 ? `Approve ${row.id} and request ${money(due)}` : `Approve ${row.id}`,
-                patch: { state: due > 0 ? AWAITING_PAYMENT : "Approved" },
+                /* The server decides whether approving parks the row in
+                   `Awaiting payment` or moves it straight on — it does the same
+                   balance arithmetic. Sending the state from here would be this
+                   screen's guess at it. */
+                onSelect: () => approve(row.id),
                 toast: {
                   title: due > 0 ? `${money(due)} requested` : "Return approved",
                   description:
                     due > 0
                       ? `${row.id} · ${row.replacement} is reserved, and ${row.customer} has been asked for the ${money(due)} difference. It ships once that is paid.`
                       : swap
-                        ? `${row.id} · ${row.replacement} is reserved. ${balanceOf(row.amount, row.replacement).sentence}`
+                        ? `${row.id} · ${row.replacement} is reserved. ${balanceOf(row.amount, row.replacement, catalogue).sentence}`
                         : `${row.id} · the customer can send ${row.item} back.`,
                 },
               },
@@ -459,7 +403,7 @@ export function AdminReturnsWorkspace({ view = "requests" }: { view?: ReturnsVie
                 icon: X,
                 tone: "danger" as const,
                 label: `Reject ${row.id}`,
-                patch: { state: "Rejected" },
+                onSelect: () => reject(row.id),
                 toast: {
                   title: "Return rejected",
                   description: `${row.id} was closed. Open it to write the customer a reason.`,
@@ -475,7 +419,9 @@ export function AdminReturnsWorkspace({ view = "requests" }: { view?: ReturnsVie
               icon: BadgeIndianRupee,
               tone: "good" as const,
               label: `${money(due)} received from ${row.customer}`,
-              patch: { state: "Approved" },
+              /* Replay-safe: taking the difference is a money movement, so a
+                 retried request must not book it twice. */
+              onSelect: () => collectPayment(row.id),
               toast: {
                 title: "Difference collected",
                 description: `${money(due)} is in against ${row.id}. ${row.replacement} can go out now.`,

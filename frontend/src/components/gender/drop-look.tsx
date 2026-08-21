@@ -49,7 +49,7 @@ export function DropLook({ content }: { content: AudienceContent }) {
                 <Link
                   aria-label={`${look.label} — ${look.title}`}
                   className="gxd-pick__frame"
-                  href={`/product/${look.pins[0].slug}`}
+                  href={`/product?slug=${look.pins[0].slug}`}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img

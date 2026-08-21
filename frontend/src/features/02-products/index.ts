@@ -1,6 +1,24 @@
-export { getProduct, listProducts } from "./api/product-repository";
-export { productFixtures } from "./api/product-fixtures";
-export { productKeys, useProduct, useProducts } from "./hooks/use-products";
+export {
+  filterProducts,
+  getProduct,
+  listProducts,
+  matchesDestination,
+} from "./api/product-repository";
+export {
+  catalogStore,
+  fetchProduct,
+  heldProducts,
+  loadCatalog,
+} from "./catalog-store";
+export {
+  productKeys,
+  useCatalog,
+  useCatalogQuery,
+  useCatalogVersion,
+  useProduct,
+  useProducts,
+  type CatalogQuery,
+} from "./hooks/use-products";
 export type {
   Product,
   ProductDestination,

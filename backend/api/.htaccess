@@ -1,0 +1,25 @@
+# Apache / XAMPP. Production runs Nginx → PHP-FPM; see backend/README.md for the
+# equivalent location blocks.
+
+Options -Indexes -MultiViews
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # /auth/login  →  auth/login.php   (the endpoint file that names the route)
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME}.php -f
+    RewriteRule ^(.*)$ $1.php [L]
+
+    # Anything left — parameterised paths such as /orders/ord-local-07 — goes to
+    # the front controller, which matches it against the same route table.
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^ index.php [QSA,L]
+</IfModule>
+
+# bootstrap.php is required by the endpoint files, never requested directly.
+<Files "bootstrap.php">
+    Require all denied
+</Files>

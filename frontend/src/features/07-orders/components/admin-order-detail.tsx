@@ -14,13 +14,33 @@ import {
   Section,
   Timeline,
 } from "@/components/admin/admin-ui";
+import { useAdminRecord } from "@/api/use-register";
 import { formatPrice } from "@/features/02-products/utils/format-price";
-import {
-  lineTotal,
-  orderLines,
-  orderPlacedAt,
-} from "@/features/07-orders/data/admin-order-fixtures";
 import { shipmentForOrder, useFulfilment } from "@/features/07-orders/fulfilment-context";
+
+/** One line of the bag, as `OrderPresenter::lines` returns it. */
+type OrderLine = {
+  productId: string;
+  name: string;
+  size: string;
+  qty: number;
+  price: number;
+};
+
+/** One entry of the order's own history, from `order_status_history`. */
+type TimelineEntry = { label: string; at: string; actor: string; note: string };
+
+/** What `GET /admin/orders/{number}` answers with. */
+type OrderDetail = {
+  row: Record<string, string>;
+  lines: OrderLine[];
+  timeline: TimelineEntry[];
+};
+
+/** What one line came to: quantity times the price of one. */
+function lineTotal(line: OrderLine) {
+  return line.qty * line.price;
+}
 
 /**
  * One order, and only what a person actually needs from it: what was bought,
@@ -31,14 +51,41 @@ import { shipmentForOrder, useFulfilment } from "@/features/07-orders/fulfilment
  * numbers at the top are the four questions, and the timeline underneath is
  * read from the order and its parcel rather than typed out, so it is never a
  * story about a state the record is not in.
+ *
+ * The lines are read from `GET /admin/orders/{number}`, which returns what was
+ * actually bought at the prices it was bought at. They used to come from a
+ * fixture keyed by order number, so an order placed through checkout — a real one
+ * — opened here with an empty bag and a total of zero.
  */
 export function AdminOrderDetail({ orderId }: { orderId: string }) {
-  const { orders, shipments, commitOrders, cancelOrder } = useFulfilment();
+  const { shipments, confirmOrder, cancelOrder } = useFulfilment();
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
 
-  const order = orders.find((entry) => entry.id === orderId);
+  const detail = useAdminRecord<OrderDetail>(`/admin/orders/${encodeURIComponent(orderId)}`);
+  const order = detail.data?.row;
+  const lines = detail.data?.lines ?? [];
+  const history = detail.data?.timeline ?? [];
   const shipment = shipmentForOrder(shipments, orderId);
-  const lines = orderLines(orderId);
+
+  /* "Reading it" is not "there is no such order". Without this the screen said
+     "Not found" for as long as the request took. */
+  if (!order && !detail.loaded) {
+    return (
+      <AdminPage
+        back={{ href: "/admin/orders", label: "Orders" }}
+        eyebrow="Order"
+        icon={ShoppingBag}
+        title={
+          <>
+            Order <em>{orderId}</em>
+          </>
+        }
+      >
+        <Empty copy="Reading this order…" icon={ShoppingBag} title="Loading" />
+      </AdminPage>
+    );
+  }
 
   if (!order) {
     return (
@@ -53,9 +100,9 @@ export function AdminOrderDetail({ orderId }: { orderId: string }) {
         }
       >
         <Empty
-          copy="No order with this number is in the register."
+          copy={detail.error ?? "No order with this number is in the register."}
           icon={ShoppingBag}
-          title="Not found"
+          title={detail.error ? "Could not be read" : "Not found"}
         />
       </AdminPage>
     );
@@ -104,22 +151,34 @@ export function AdminOrderDetail({ orderId }: { orderId: string }) {
         <>
           {order.status === "Placed" && (
             <Btn
-              disabled={order.payment === "Failed"}
+              disabled={busy || order.payment === "Failed"}
               onClick={() => {
-                commitOrders((current) =>
-                  current.map((entry) =>
-                    entry.id === orderId ? { ...entry, status: "Confirmed" } : entry,
-                  ),
-                );
-                toast.success("Order confirmed", { description: `${orderId} is ready to dispatch.` });
+                setBusy(true);
+                confirmOrder(orderId)
+                  .then(() => detail.reload())
+                  .then(() =>
+                    toast.success("Order confirmed", {
+                      description: `${orderId} is ready to dispatch.`,
+                    }),
+                  )
+                  .catch((caught: unknown) =>
+                    toast.error("That could not be confirmed", {
+                      description:
+                        caught instanceof Error
+                          ? caught.message
+                          : "The server refused the change.",
+                    }),
+                  )
+                  .finally(() => setBusy(false));
               }}
               variant="solid"
             >
-              <CheckCircle2 aria-hidden size={15} strokeWidth={1.8} /> Confirm order
+              <CheckCircle2 aria-hidden size={15} strokeWidth={1.8} />{" "}
+              {busy ? "Working…" : "Confirm order"}
             </Btn>
           )}
           {!cancelled && (
-            <Btn onClick={() => setCancelOpen(true)} variant="danger">
+            <Btn disabled={busy} onClick={() => setCancelOpen(true)} variant="danger">
               <Ban aria-hidden size={15} strokeWidth={1.8} /> Cancel order
             </Btn>
           )}
@@ -189,7 +248,7 @@ export function AdminOrderDetail({ orderId }: { orderId: string }) {
 
         <Section eyebrow="Progress" title="Where it is">
           <Panel>
-            <Timeline steps={progress(order, shipment, orderId)} />
+            <Timeline steps={progress(order, shipment, history)} />
           </Panel>
         </Section>
       </div>
@@ -202,12 +261,23 @@ export function AdminOrderDetail({ orderId }: { orderId: string }) {
             : `${orderId} will be cancelled and the stock reservation released.`
         }
         onConfirm={() => {
-          cancelOrder(orderId, "Store");
-          toast.success("Order cancelled", {
-            description: shipment
-              ? `${orderId} and ${shipment.id} were called off.`
-              : `${orderId} was called off by the store.`,
-          });
+          setBusy(true);
+          cancelOrder(orderId, "Store")
+            .then(() => detail.reload())
+            .then(() =>
+              toast.success("Order cancelled", {
+                description: shipment
+                  ? `${orderId} and ${shipment.id} were called off.`
+                  : `${orderId} was called off by the store.`,
+              }),
+            )
+            .catch((caught: unknown) =>
+              toast.error("That could not be cancelled", {
+                description:
+                  caught instanceof Error ? caught.message : "The server refused the change.",
+              }),
+            )
+            .finally(() => setBusy(false));
         }}
         onOpenChange={setCancelOpen}
         open={cancelOpen}
@@ -227,7 +297,7 @@ export function AdminOrderDetail({ orderId }: { orderId: string }) {
 function progress(
   order: Record<string, string>,
   shipment: Record<string, string> | undefined,
-  orderId: string,
+  history: TimelineEntry[],
 ) {
   const cancelled = order.status === "Cancelled";
   const confirmed = order.status === "Confirmed";
@@ -236,7 +306,9 @@ function progress(
   const steps = [
     {
       title: "Placed",
-      detail: orderPlacedAt(orderId) ?? "Created in this session",
+      /* The order's own first history entry, rather than a lookup in a fixture
+         table that only knew about the seeded order numbers. */
+      detail: history[0]?.at || order.age ? `${order.age} ago` : "When it arrived",
       done: true,
     },
     {

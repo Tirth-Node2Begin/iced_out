@@ -14,6 +14,7 @@ import {
   chartIdFor,
   type SizeChartId,
 } from "@/components/new-man/product-deck";
+import { useCatalog } from "@/features/02-products";
 import { lockScroll } from "@/lib/scroll-lock";
 
 type Unit = "cm" | "in";
@@ -77,7 +78,10 @@ function SizeGuidePanel({
   const dialog = useRef<HTMLDivElement>(null);
   const reduce = useReducedMotion();
 
-  const sizes = useMemo(() => sizesFor(piece), [piece]);
+  /* The catalogue arrives over the network, so these lookups take it as an
+     argument and re-run when it lands. */
+  const { data: catalogue } = useCatalog();
+  const sizes = useMemo(() => sizesFor(piece, catalogue), [catalogue, piece]);
   /** the chart this piece is graded on, or null for the ungraded categories */
   const own = useMemo(() => chartIdFor(piece), [piece]);
 

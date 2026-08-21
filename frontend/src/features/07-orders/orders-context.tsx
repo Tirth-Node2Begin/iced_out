@@ -11,19 +11,14 @@ import {
   type ReactNode,
 } from "react";
 
-import { formatPrice } from "@/features/02-products";
+import { customerClient } from "@/api/clients";
+import { createIdempotencyKey } from "@/api/request-context";
 import type { CartLine } from "@/types/commerce";
 import {
-  orderFixtures,
   type OrderFixture,
-  type OrderLineFixture,
   type OrderPaymentStatus,
 } from "@/features/07-orders/data/order-fixtures";
-import {
-  reservedOrderSlots,
-  trackingTokenForSlot,
-} from "@/features/07-orders/data/order-slots";
-import { recordCheckoutPayment } from "@/features/09-payment/payment-store";
+import { useAuth } from "@/features/20-auth-security/auth-context";
 
 /**
  * Every order the app can show, from both directions.
@@ -58,58 +53,10 @@ export type OrderRecord = OrderFixture & {
   };
 };
 
-const ORDERS_KEY = "iced-out.orders";
-
-/** The seeded orders, lifted into the shape the store hands out. */
-const seeded: OrderRecord[] = orderFixtures.map((order) => ({
-  ...order,
-  placedAt: 0,
-  local: false,
-}));
-
-function readOrders(): OrderRecord[] {
-  let raw: string | null = null;
-  try {
-    raw = window.localStorage.getItem(ORDERS_KEY);
-  } catch {
-    return [];
-  }
-  if (!raw) return [];
-
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-
-    return parsed.flatMap((entry): OrderRecord[] => {
-      const order = entry as Partial<OrderRecord>;
-      // The three fields every surface addresses an order by. A half-written
-      // record drops out rather than reaching a screen as a hole.
-      if (typeof order.id !== "string") return [];
-      if (typeof order.number !== "string") return [];
-      if (!Array.isArray(order.lines)) return [];
-      return [{ ...(order as OrderRecord), local: true }];
-    });
-  } catch {
-    return [];
-  }
-}
-
-function writeOrders(orders: OrderRecord[]) {
-  try {
-    window.localStorage.setItem(ORDERS_KEY, JSON.stringify(orders));
-  } catch {
-    /* the order still shows for this tab; only the archive is lost */
-  }
-}
-
-/** `04 Aug 2026` — the format the fixtures already print. */
-function formatOrderDate(value: Date) {
-  return new Intl.DateTimeFormat("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(value);
-}
+/* The seeded fixtures and the localStorage archive that used to back this store
+   are gone. Orders belong to an account, not to a browser: they are read from
+   `GET /me/orders`, so a new account has none and two people on the same
+   machine never see each other's purchases. */
 
 /**
  * How an order was paid for, in the three states checkout can produce.
@@ -142,7 +89,7 @@ type OrdersContextValue = {
   /** false until storage has been read — see the write effect */
   restored: boolean;
   findOrder: (idOrNumber: string) => OrderRecord | undefined;
-  placeOrder: (input: PlaceOrderInput) => OrderRecord;
+  placeOrder: (input: PlaceOrderInput) => Promise<OrderRecord>;
   /** A second attempt at a payment that failed, settled onto the same order. */
   settlePayment: (
     orderId: string,
@@ -153,6 +100,7 @@ type OrdersContextValue = {
 const OrdersContext = createContext<OrdersContextValue | null>(null);
 
 export function OrdersProvider({ children }: { children: ReactNode }) {
+  const { isAuthenticated, sessionReady } = useAuth();
   const [placed, setPlaced] = useState<OrderRecord[]>([]);
   const [restored, setRestored] = useState(false);
 
@@ -164,26 +112,54 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
      `placeOrder`), never during a render. */
   const archive = useRef<OrderRecord[]>([]);
 
-  /* Read after mount, never during render: the markup React hydrates was
-     exported with no local orders in it, and seeding from storage during the
-     first render makes the two disagree. */
-  useEffect(() => {
-    const stored = readOrders();
-    archive.current = stored;
-    setPlaced(stored);
-    setRestored(true);
-  }, []);
+  /**
+   * The account's real orders, read from the API.
+   *
+   * They used to come from `localStorage` seeded with two demo orders, so every
+   * browser — including one that had just registered — opened onto somebody
+   * else's purchase history. Orders belong to an account: a new one has none,
+   * and what shows here is what the database holds for whoever is signed in.
+   */
+  const [mine, setMine] = useState<OrderRecord[]>([]);
 
-  /* `restored` is load-bearing — without it the first render writes its empty
-     initial state straight over the stored archive. */
   useEffect(() => {
-    if (!restored) return;
-    writeOrders(placed);
-  }, [placed, restored]);
+    if (!sessionReady) return;
 
+    let live = true;
+
+    async function load() {
+      if (!isAuthenticated) {
+        if (live) {
+          setMine([]);
+          setRestored(true);
+        }
+
+        return;
+      }
+
+      try {
+        const response = await customerClient.get<{ data: OrderRecord[] }>("/me/orders");
+        if (live) setMine(response.data.data);
+      } catch {
+        if (live) setMine([]);
+      } finally {
+        if (live) setRestored(true);
+      }
+    }
+
+    void load();
+
+    return () => {
+      live = false;
+    };
+  }, [isAuthenticated, sessionReady]);
+
+  /* An order placed in this tab is shown immediately so the confirmation screen
+     has something to open, and the server's copy replaces it on the next read.
+     Nothing is written to storage: an order is not a fact about a browser. */
   const orders = useMemo(
-    () => [...placed].sort((a, b) => b.placedAt - a.placedAt).concat(seeded),
-    [placed],
+    () => [...placed].sort((a, b) => b.placedAt - a.placedAt).concat(mine),
+    [mine, placed],
   );
 
   const findOrder = useCallback(
@@ -192,98 +168,56 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
     [orders],
   );
 
-  const placeOrder = useCallback((input: PlaceOrderInput) => {
+  /**
+   * Places the order on the SERVER, and returns what the server wrote.
+   *
+   * Everything that decides whether the order may exist — the prices, the
+   * stock, the coupon, the id and the order number — is the API's to compute.
+   * This used to mint all of it in the browser, which is why an order a shopper
+   * could see in their account never appeared in the console: it had never
+   * existed anywhere but this tab.
+   *
+   * The idempotency key is what makes a double-tap on a slow connection safe:
+   * the second request replays the first order rather than buying the bag twice.
+   */
+  const placeOrder = useCallback(async (input: PlaceOrderInput): Promise<OrderRecord> => {
     const { lines, contact, address, delivery, payment, money } = input;
-    const now = new Date();
 
-    const orderLines: OrderLineFixture[] = lines.map((line, index) => ({
-      id: `line-${now.getTime()}-${index}`,
-      name: line.product.name,
-      variant: `${line.product.color} / ${line.size}`,
-      quantity: line.quantity,
-      price: formatPrice(line.product.price * line.quantity),
-      // A return is opened against a delivered piece; nothing is returnable
-      // the minute it is bought, and saying otherwise offers a door that
-      // leads nowhere.
-      returnEligible: false,
-    }));
-
-    /* Ids and numbers both come off the existing archive so two orders placed
-       in the same second can never collide. */
-    const current = archive.current;
-    const taken = new Set(current.map((order) => order.id));
-    const freeSlot = reservedOrderSlots.find((slot) => !taken.has(slot));
-
-    // Every slot spoken for: the oldest local order gives its id back. The pool
-    // is exactly what the static export can address, so it cannot simply grow.
-    const oldest = [...current].sort((a, b) => a.placedAt - b.placedAt)[0];
-    const id = freeSlot ?? oldest?.id ?? reservedOrderSlots[0];
-    const kept = freeSlot ? current : current.filter((order) => order.id !== id);
-
-    const highest = [...kept, ...seeded].reduce((running, order) => {
-      const serial = Number(order.number.split("-").at(-1));
-      return Number.isFinite(serial) && serial > running ? serial : running;
-    }, 1048);
-
-    const failed = payment.outcome === "failed";
+    const response = await customerClient.post<{ data: OrderFixture }>(
+      "/checkout/orders",
+      {
+        lines: lines.map((line) => ({
+          productId: line.product.id,
+          size: line.size,
+          quantity: line.quantity,
+        })),
+        contact,
+        address,
+        delivery: {
+          id: /express/i.test(delivery.label) ? "express" : "standard",
+          label: delivery.label,
+          estimate: delivery.estimate,
+          fee: delivery.fee,
+        },
+        payment,
+        money,
+      },
+      { headers: { "Idempotency-Key": createIdempotencyKey("place-order") } },
+    );
 
     const order: OrderRecord = {
-      id,
-      number: `IO-${now.getFullYear()}-${highest + 1}`,
-      date: formatOrderDate(now),
-      total: formatPrice(money.total),
-      // An order whose payment bounced is not "Processing" — nothing is being
-      // processed until the money is there, and saying otherwise is what makes
-      // a shopper stop checking their card.
-      status: failed ? "Payment failed" : "Processing",
-      items: orderLines.map((line) => line.name).join(" · "),
-      lines: orderLines,
-      payment: {
-        method: payment.method,
-        // Cash on delivery is a real order with no money taken yet, and the
-        // receipt has to say which of the three it is.
-        status: PAYMENT_STATUS[payment.outcome],
-        reference: payment.reference,
-        note: payment.note,
-      },
-      shipment: {
-        // Paired with the slot, so the public tracking page for this order is
-        // one the static export has already written out.
-        token: trackingTokenForSlot(id),
-        service: delivery.label,
-        awb: failed
-          ? "Held until payment clears"
-          : payment.outcome === "captured"
-            ? "Assigned at dispatch"
-            : "Assigned on confirmation",
-        destination: `${address.city}, ${address.state}`,
-        estimate: delivery.estimate,
-      },
-      cancellationEligible: true,
-      placedAt: now.getTime(),
+      ...response.data.data,
+      placedAt: Date.now(),
       local: true,
       contact,
       address,
       money: { ...money, delivery: delivery.fee },
     };
 
-    archive.current = [order, ...kept];
+    /* Shown at once so the confirmation screen has something to open; the
+       server's copy replaces it on the next read of /me/orders. */
+    archive.current = [order, ...archive.current];
     setPlaced(archive.current);
-
-    /* And into the console's ledger, so the back office sees the money the
-       moment the shopper does. A payment nobody there can see is not a payment
-       that happened: support cannot answer for it and nothing will reconcile
-       it. Cash on delivery records nothing — the writer knows which outcomes
-       are money, so neither caller has to. */
-    recordCheckoutPayment({
-      order: order.number,
-      customer: contact.name,
-      amount: money.total,
-      method: payment.method,
-      reference: payment.reference,
-      outcome: payment.outcome,
-      note: payment.note,
-    });
 
     return order;
   }, []);
@@ -327,20 +261,16 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
       archive.current = next;
       setPlaced(next);
 
-      /* A second attempt is a second entry in the ledger, never an edit of the
-         first: what the gateway did on Tuesday is still what it did on Tuesday
-         once Wednesday's attempt succeeds. */
-      if (settles && before.money) {
-        recordCheckoutPayment({
-          order: before.number,
-          customer: before.contact?.name ?? "",
-          amount: before.money.total,
-          method: payment.method,
-          reference: payment.reference,
-          outcome: payment.outcome,
-          note: payment.note,
-        });
-      }
+      /* No ledger write here any more, and its absence is the point: the payment
+         row is inserted by the SERVER, in the same transaction as the order (see
+         `PlaceOrderService`). This used to also write a copy into a localStorage
+         ledger, so every purchase was recorded twice — once where the console
+         could not see it and once where nobody else could.
+
+         `settles` and `before` are still read above, because the rule they encode
+         still holds: a retry landing on an already-captured order changes nothing. */
+      void settles;
+      void before;
     },
     [],
   );

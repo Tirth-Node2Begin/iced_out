@@ -1,78 +1,43 @@
 "use client";
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useMemo,
-  useSyncExternalStore,
-  type ReactNode,
-} from "react";
+import { createContext, useCallback, useContext, useMemo, type ReactNode } from "react";
 
+import { useRegisterList } from "@/api/use-register";
+import { adminClient } from "@/api/clients";
+import { createIdempotencyKey } from "@/api/request-context";
 import type { RecordRow } from "@/components/admin/record-manager";
-import { adminOrderFixtures } from "@/features/07-orders/data/admin-order-fixtures";
-import { shipmentFixtures } from "@/features/17-shipping/data/shipment-fixtures";
-import { createLocalStore } from "@/lib/local-store";
-import { useHydrated } from "@/lib/use-hydrated";
+import { refreshQueues } from "@/features/15-dashboard/dashboard-api";
 
 /**
  * Orders and shipments, in one place, because they are one thing.
  *
- * They were two registers with two `useState` copies, which made the rules
- * between them unwritable: cancelling an order could not stop the parcel that
- * order had already put on a van, and the shipments screen had no way to know
- * which confirmed orders were still waiting to go out. Both screens read this
- * store now, so those rules live here — once — instead of being restated on
- * each screen and drifting apart.
+ * They used to be two `localStorage` registers seeded from fixtures, which made
+ * the rules between them unwritable in the only place they matter: cancelling an
+ * order could not stop the parcel that order had already put on a van, because
+ * the van was a fact about a browser. Worse, the whole register was fiction — a
+ * shopper placing a real order through checkout wrote a row to `orders` that this
+ * screen never showed, and an operator "confirming" an order confirmed nothing.
  *
- * Records are flat string maps, the shape every register in this console uses,
- * so they drop straight into `RecordManager` without a mapping layer.
+ * Both lists are now read from the API, and every verb is one of its endpoints.
+ * The rules live on the SERVER, where they belong and where they are safe:
+ *
+ *   cancel   → cancels any open parcel for that order AND releases the stock it
+ *              was holding, in one transaction (`OrderConsoleService::cancel`)
+ *   dispatch → refuses an unconfirmed order, refuses a second live parcel, and
+ *              mints the shipment itself
+ *
+ * None of those are re-implemented here. A browser cannot hold a transaction
+ * open, so a browser cannot be the thing that guarantees an order and its parcel
+ * agree.
+ *
+ * Records stay flat string maps — the shape every register in this console uses —
+ * because that is exactly what the console presenters return.
  */
 
-type Fulfilment = { orders: RecordRow[]; shipments: RecordRow[] };
-
-const STORAGE_KEY = "iced-out-fulfilment-v1";
-
-const SEEDED: Fulfilment = {
-  orders: adminOrderFixtures,
-  shipments: shipmentFixtures,
-};
-
-/** Only flat string maps survive the trip back — anything else is not a record. */
-function reviveList(value: unknown, fallback: RecordRow[]): RecordRow[] {
-  if (!Array.isArray(value)) return fallback;
-
-  const rows: RecordRow[] = [];
-  for (const entry of value) {
-    if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
-    const row: RecordRow = {};
-    for (const [key, cell] of Object.entries(entry as Record<string, unknown>)) {
-      if (typeof cell === "string") row[key] = cell;
-    }
-    if (row.id) rows.push(row);
-  }
-
-  return rows;
-}
-
-const store = createLocalStore<Fulfilment>(STORAGE_KEY, SEEDED, (parsed, fallback) => {
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
-  const stored = parsed as Partial<Record<keyof Fulfilment, unknown>>;
-
-  /* An emptied register is a legitimate state, so a missing key falls back to
-     the seed but a present-and-empty one is honoured. */
-  return {
-    orders: "orders" in stored ? reviveList(stored.orders, []) : fallback.orders,
-    shipments: "shipments" in stored ? reviveList(stored.shipments, []) : fallback.shipments,
-  };
-});
+const ORDERS = "/admin/orders";
+const SHIPMENTS = "/admin/shipments";
 
 /* ------------------------------------------------------------ the rules */
-
-/** A shipment that has already arrived or already failed is history. */
-function isOpen(shipment: RecordRow) {
-  return shipment.status !== "Delivered" && shipment.status !== "Cancelled";
-}
 
 /**
  * The parcel actually carrying an order.
@@ -97,6 +62,10 @@ function carrying(shipments: RecordRow[], orderId: string) {
  * Confirmed orders that nothing is carrying yet — the work the shipments
  * screen offers to dispatch. An order whose parcel was called off is back in
  * this list, because it is still a confirmed order with nothing on the way.
+ *
+ * Kept as a client-side derivation rather than an endpoint because it is a
+ * question about two lists this screen is already holding, and the server
+ * re-checks it anyway when the dispatch is actually attempted.
  */
 export function awaitingDispatch(orders: RecordRow[], shipments: RecordRow[]) {
   return orders.filter(
@@ -109,102 +78,128 @@ export function awaitingDispatch(orders: RecordRow[], shipments: RecordRow[]) {
 export type FulfilmentValue = {
   orders: RecordRow[];
   shipments: RecordRow[];
-  /** False until the browser's copy is the one on screen. */
+  /** False until both lists have been read once. */
   ready: boolean;
-  commitOrders: (next: (current: RecordRow[]) => RecordRow[]) => void;
-  commitShipments: (next: (current: RecordRow[]) => RecordRow[]) => void;
+  loading: boolean;
+  error: string | null;
+  /** Re-reads both. Every verb below does this for itself. */
+  refresh: () => Promise<void>;
+  /** Agrees an order is real. Rejected by the server if payment failed. */
+  confirmOrder: (orderId: string) => Promise<void>;
   /**
-   * Calls an order off, whoever asked. A cancelled order cannot leave, so any
-   * parcel still out for it is cancelled in the same write — the two can never
-   * be seen disagreeing because they are never stored apart.
+   * Calls an order off, whoever asked. The server cancels any parcel still out
+   * for it and releases its stock in the same transaction.
    */
-  cancelOrder: (orderId: string, by: "Store" | "Customer") => void;
-  /** Puts a confirmed order on a van, on the day the operator chose. */
+  cancelOrder: (orderId: string, by: "Store" | "Customer") => Promise<void>;
+  /** Puts a confirmed order on a van. The server mints the shipment. */
   dispatchOrder: (input: {
     orderId: string;
     provider: string;
-    dispatched: string;
     destination?: string;
-  }) => void;
+  }) => Promise<void>;
+  /** Moves a parcel on — `POST /admin/shipments/{id}/transition`. */
+  transitionShipment: (
+    shipmentId: string,
+    status: string,
+    extra?: Record<string, unknown>,
+  ) => Promise<void>;
+  /** Any other shipment verb: resend, return-to-store, arrived-back, refresh. */
+  shipmentAction: (
+    shipmentId: string,
+    action: string,
+    body?: Record<string, unknown>,
+  ) => Promise<void>;
 };
 
 const FulfilmentContext = createContext<FulfilmentValue | null>(null);
 
 export function FulfilmentProvider({ children }: { children: ReactNode }) {
-  const state = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getServerSnapshot);
-  const ready = useHydrated();
+  const orders = useRegisterList(ORDERS);
+  const shipments = useRegisterList(SHIPMENTS);
 
-  const commitOrders = useCallback((next: (current: RecordRow[]) => RecordRow[]) => {
-    const current = store.getSnapshot();
-    store.write({ ...current, orders: next(current.orders) });
-  }, []);
+  /* Both, after every verb. A cancel changes an order AND a shipment; a dispatch
+     creates a shipment and moves an order out of the queue. Re-reading one would
+     leave the other screen showing the state before the change. */
+  const refresh = useCallback(async () => {
+    /* The queue counts too, because they are what the rail's badges read: an
+       order confirmed here leaves `ordersToConfirm` and joins `readyToDispatch`,
+       and a badge that only updates on a reload is a badge nobody trusts. */
+    await Promise.all([orders.refresh(), shipments.refresh(), refreshQueues()]);
+  }, [orders, shipments]);
 
-  const commitShipments = useCallback((next: (current: RecordRow[]) => RecordRow[]) => {
-    const current = store.getSnapshot();
-    store.write({ ...current, shipments: next(current.shipments) });
-  }, []);
-
-  const cancelOrder = useCallback((orderId: string, by: "Store" | "Customer") => {
-    const current = store.getSnapshot();
-    store.write({
-      orders: current.orders.map((order) =>
-        order.id === orderId ? { ...order, status: "Cancelled", cancelledBy: by } : order,
-      ),
-      shipments: current.shipments.map((shipment) =>
-        shipment.order === orderId && isOpen(shipment)
-          ? { ...shipment, status: "Cancelled" }
-          : shipment,
-      ),
-    });
-  }, []);
-
-  const dispatchOrder = useCallback(
-    ({ orderId, provider, dispatched, destination }: Parameters<FulfilmentValue["dispatchOrder"]>[0]) => {
-      const current = store.getSnapshot();
-      /* Only a LIVE parcel blocks a second one. An order whose first parcel
-         was called off has to be sendable again, or it sits confirmed forever
-         with nothing on the way to the customer. */
-      if (carrying(current.shipments, orderId)) return;
-
-      /* Where it is going is a fact about the ORDER, so the dispatch dialog
-         does not ask for it a second time. */
-      const order = current.orders.find((entry) => entry.id === orderId);
-
-      /* The order's own number is what a person searches for, so the parcel is
-         filed under it rather than under a counter nobody can join back — and
-         a re-send takes the next free form of that number rather than
-         colliding with the attempt it is replacing. */
-      const base = `shp-${orderId.split("-").pop() ?? orderId}`;
-      const taken = new Set(current.shipments.map((entry) => entry.id));
-      let id = base;
-      for (let attempt = 2; taken.has(id); attempt += 1) id = `${base}-${attempt}`;
-
-      const shipment: RecordRow = {
-        id,
-        order: orderId,
-        provider,
-        awb: `••••${orderId.slice(-4)}`,
-        destination: destination ?? order?.destination ?? "—",
-        dispatched,
-        status: "Dispatched",
-      };
-
-      store.write({ ...current, shipments: [shipment, ...current.shipments] });
+  const post = useCallback(
+    async (path: string, body?: Record<string, unknown>, idempotent = false) => {
+      await adminClient.post(
+        path,
+        body ?? {},
+        idempotent
+          ? { headers: { "Idempotency-Key": createIdempotencyKey(path) } }
+          : undefined,
+      );
+      await refresh();
     },
-    [],
+    [refresh],
   );
 
-  const value = useMemo(
+  const confirmOrder = useCallback(
+    (orderId: string) => post(`${ORDERS}/${encodeURIComponent(orderId)}/confirm`),
+    [post],
+  );
+
+  const cancelOrder = useCallback(
+    (orderId: string, by: "Store" | "Customer") =>
+      post(`${ORDERS}/${encodeURIComponent(orderId)}/cancel`, { by }),
+    [post],
+  );
+
+  const dispatchOrder = useCallback(
+    ({ orderId, provider, destination }: Parameters<FulfilmentValue["dispatchOrder"]>[0]) =>
+      /* No client-side "is a parcel already out" check. The server refuses a
+         second live parcel inside the transaction that would create it, which is
+         the only place the answer cannot have changed since it was asked. */
+      post(`${ORDERS}/${encodeURIComponent(orderId)}/dispatch`, {
+        provider,
+        ...(destination ? { destination } : {}),
+      }),
+    [post],
+  );
+
+  const transitionShipment = useCallback(
+    (shipmentId: string, status: string, extra?: Record<string, unknown>) =>
+      post(`${SHIPMENTS}/${encodeURIComponent(shipmentId)}/transition`, { status, ...extra }),
+    [post],
+  );
+
+  const shipmentAction = useCallback(
+    (shipmentId: string, action: string, body?: Record<string, unknown>) =>
+      post(`${SHIPMENTS}/${encodeURIComponent(shipmentId)}/${action}`, body),
+    [post],
+  );
+
+  const value = useMemo<FulfilmentValue>(
     () => ({
-      orders: state.orders,
-      shipments: state.shipments,
-      ready,
-      commitOrders,
-      commitShipments,
+      orders: orders.rows,
+      shipments: shipments.rows,
+      ready: orders.loaded && shipments.loaded,
+      loading: orders.loading || shipments.loading,
+      error: orders.error ?? shipments.error,
+      refresh,
+      confirmOrder,
       cancelOrder,
       dispatchOrder,
+      transitionShipment,
+      shipmentAction,
     }),
-    [cancelOrder, commitOrders, commitShipments, dispatchOrder, ready, state],
+    [
+      cancelOrder,
+      confirmOrder,
+      dispatchOrder,
+      orders,
+      refresh,
+      shipmentAction,
+      shipments,
+      transitionShipment,
+    ],
   );
 
   return <FulfilmentContext.Provider value={value}>{children}</FulfilmentContext.Provider>;

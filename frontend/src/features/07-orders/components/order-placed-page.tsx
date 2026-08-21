@@ -390,7 +390,7 @@ export function OrderPlacedPage({ orderId }: { orderId: string }) {
             order.shipment.token && (
               <Link
                 className="io-btn io-btn--ghost io-btn--sm"
-                href={`/track/${order.shipment.token}`}
+                href={`/track?token=${order.shipment.token}`}
               >
                 <Truck aria-hidden size={14} strokeWidth={1.7} />
                 Track

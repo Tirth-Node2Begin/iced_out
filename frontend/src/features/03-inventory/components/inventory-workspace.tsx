@@ -12,15 +12,11 @@ import {
   type FormField,
   type RecordRow,
 } from "@/components/admin/record-manager";
+import { useRegisterList } from "@/api/use-register";
 import { InventoryTabs } from "@/features/03-inventory/components/inventory-tabs";
-import {
-  availableUnits,
-  CATEGORIES,
-  SIZES_BY_CATEGORY,
-  TYPES_BY_CATEGORY,
-  WAREHOUSE_CODES,
-} from "@/features/03-inventory/data/stock-fixtures";
+import { AUDIENCES, availableUnits } from "@/features/03-inventory/data/stock-fixtures";
 import { useStock } from "@/features/03-inventory/stock-context";
+import { useInventoryVocabularies } from "@/features/03-inventory/vocabularies";
 
 /**
  * The stock register — one row per item, and only four things to say about it:
@@ -35,7 +31,24 @@ import { useStock } from "@/features/03-inventory/stock-context";
  */
 
 const COLUMNS: Column[] = [
-  { key: "itemName", label: "Item", primary: true, sub: "sizes" },
+  {
+    key: "itemName",
+    label: "Item",
+    primary: true,
+    sub: "sizes",
+    render: (item) => (
+      <span className="aui-cellmedia">
+        {item.image ? (
+          /* A runtime API URL, which the static export's image optimiser has no
+             build-time way to resolve. */
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img alt="" className="aui-cellmedia__img" src={item.image} />
+        ) : null}
+        <span>{item.itemName}</span>
+      </span>
+    ),
+    exportValue: (item) => item.itemName ?? "",
+  },
   {
     key: "itemType",
     label: "Type",
@@ -43,6 +56,10 @@ const COLUMNS: Column[] = [
     render: (item) => typeLabel(item),
     exportValue: (item) => typeLabel(item),
   },
+  /* Who the garment is cut for — which decides whether a product listed from it
+     appears on /new-drop, on /women, or on both. */
+  { key: "audience", label: "Audience", hideSmall: true },
+  { key: "price", label: "Price", align: "right", numeric: true },
   { key: "warehouse", label: "Warehouse" },
   { key: "totalUnits", label: "Total pieces", align: "right", numeric: true },
   { key: "reservedUnits", label: "Reserved", align: "right", numeric: true },
@@ -64,19 +81,154 @@ const COLUMNS: Column[] = [
  */
 const FIELDS: FormField[] = [
   { key: "itemName", label: "Item name", placeholder: "Afterdark Hoodie", full: true, required: true },
-  { key: "category", label: "Category", type: "select", options: CATEGORIES, help: "Sets the sizes below." },
-  { key: "itemType", label: "Type", type: "select", optionsFor: (item) => TYPES_BY_CATEGORY[item.category] ?? [] },
-  { key: "sizes", label: "Sizes", type: "chips", optionsFor: (item) => SIZES_BY_CATEGORY[item.category] ?? [], required: true, full: true, help: "Pick every size this item is stocked in." },
-  { key: "warehouse", label: "Warehouse", type: "select", options: WAREHOUSE_CODES },
+  /**
+   * What the piece sells for.
+   *
+   * Asked here rather than only on the listing form, for the same reason the
+   * audience is: it is a fact about the garment, decided when the stock is
+   * priced, and a product listed from this item inherits it. Before this, the
+   * number was first typed on a different screen, days later, from memory.
+   *
+   * Formatted the way the catalogue register shows it — the register strips it
+   * back to whole rupees on the way out, so "₹8,900" and "8900" both work.
+   */
+  {
+    key: "price",
+    label: "Price",
+    placeholder: "₹8,900",
+    initial: "",
+    help: "What one piece sells for. A listing made from this item starts here.",
+  },
   { key: "totalUnits", label: "Total pieces", type: "number", initial: "0", required: true, help: "How many pieces are physically in that warehouse." },
 ];
 
 export function InventoryWorkspace() {
-  /* Held in a store rather than on this screen: the catalogue lists what is in
-     here, so stock has to outlive the tab it was typed into. */
-  const { items, commit } = useStock();
+  /* Read from the database rather than from this screen's state: the catalogue
+     lists what is in here and a shopper's order reserves against it, so stock has
+     to be the same fact for every surface — not just outlive the tab. */
+  const { items, register, loading, error, ready } = useStock();
+  /**
+   * The warehouses, as the vocabulary for the item form's warehouse field.
+   *
+   * It was a hardcoded list of three codes, so a warehouse added on the
+   * warehouses screen could never have stock filed into it — and the API rejects
+   * a code it has no row for, which the form had no way of knowing.
+   */
+  const warehouses = useRegisterList("/admin/inventory/warehouses");
+  /* Categories, sizes and types come from `store_settings`, not from a list in
+     the frontend — see `vocabularies.ts` for what a stale copy cost. */
+  const { categories, sizesByCategory, typesByCategory } = useInventoryVocabularies();
+  const warehouseCodes = useMemo(
+    () => warehouses.rows.map((row) => row.id).filter(Boolean),
+    [warehouses.rows],
+  );
+
+  const fields = useMemo<FormField[]>(
+    () => [
+      ...FIELDS,
+      /* Category first, because the two below are answers to it. */
+      {
+        key: "category",
+        label: "Category",
+        type: "select",
+        options: categories,
+        help: "Sets the type and sizes below.",
+      },
+      {
+        key: "itemType",
+        label: "Type",
+        type: "select",
+        optionsFor: (item) => typesByCategory[item.category] ?? [],
+      },
+      /**
+       * Who it is cut for.
+       *
+       * Asked here rather than on the listing form because it is a fact about the
+       * GARMENT, not about the decision to sell it — and a product listed from
+       * this item inherits it. Every product created through the console used to
+       * come out `unisex`, so a women's coat appeared on the men's page too.
+       *
+       * `Unisex` is the default and shows on both pages, which is the widest and
+       * safest reading for an item nobody has decided about yet.
+       */
+      {
+        key: "audience",
+        label: "Audience",
+        type: "select",
+        options: AUDIENCES,
+        initial: "Unisex",
+        help: "Which gender page a product listed from this item appears on. Unisex shows on both.",
+      },
+      {
+        key: "warehouse",
+        label: "Warehouse",
+        type: "select",
+        options: warehouseCodes,
+        required: true,
+        help: "Where these pieces physically are.",
+      },
+      {
+        key: "sizes",
+        label: "Sizes",
+        type: "chips",
+        optionsFor: (item) => sizesByCategory[item.category] ?? [],
+        required: true,
+        full: true,
+        help: "Pick every size this item is stocked in.",
+      },
+      /* Optional on purpose: an item that has arrived in the warehouse is worth
+         recording before anyone has photographed it, and a form that refuses the
+         record until there is a picture is a form people work around. */
+      {
+        key: "image",
+        label: "Primary photo",
+        type: "image",
+        full: true,
+        help: "The one frame that stands for this piece — on its card, in the bag and in this register.",
+      },
+      /**
+       * Everything else the piece was shot from.
+       *
+       * Not per size: a coat photographs the same whichever waist it is cut to,
+       * so these hang off the ITEM, and every listing made from it shows the
+       * same run. The primary above leads; these follow it, in this order.
+       */
+      {
+        key: "images",
+        label: "More photos",
+        type: "gallery",
+        full: true,
+        help: "The rest of the gallery — other angles, details, on a body. This is what the product page pages through.",
+      },
+      /**
+       * Take the stock in and put it in the shop, in one gesture.
+       *
+       * Last on the form because it is the only field that is not a fact about
+       * the garment — it is a decision about it, and it can only be made once
+       * everything above has been answered. Off by default: publishing is a
+       * decision somebody makes, not one that happens because nobody looked.
+       *
+       * Ticked, the server lists this item as a Published product with a variant
+       * for every size it is stocked in, so a shopper can open its page and pick
+       * a size straight away. Left alone, everything above is still stored — the
+       * catalogue's own form offers the item in its dropdown and fills itself in
+       * from what is recorded here.
+       */
+      {
+        key: "publish",
+        label: "Publish to the storefront now",
+        type: "checkbox",
+        full: true,
+        createOnly: true,
+        help: "Lists this straight away as a published product, sized as stocked. Leave it off to keep the details and list it from the Catalog screen later.",
+      },
+    ],
+    [categories, sizesByCategory, typesByCategory, warehouseCodes],
+  );
+
   /** The item whose reservation is being set, or nothing if the dialog is shut. */
   const [reservingItem, setReservingItem] = useState<RecordRow | undefined>(undefined);
+  const [reserving, setReserving] = useState(false);
 
   const totals = useMemo(() => {
     const pieces = items.reduce((sum, item) => sum + Number(item.totalUnits || 0), 0);
@@ -91,8 +243,16 @@ export function InventoryWorkspace() {
     { label: "Available", value: totals.available.toLocaleString("en-IN"), icon: PackageCheck, tone: "mint", note: "Free to sell" },
   ];
 
-  /** Saves a new reservation for the item the dialog was opened on. */
-  function saveReservation(event: FormEvent<HTMLFormElement>) {
+  /**
+   * Saves a new reservation for the item the dialog was opened on.
+   *
+   * Its own endpoint — `POST /admin/inventory/items/{id}/reserve` — rather than a
+   * field on the item PATCH. Reserved units are what orders are holding, and the
+   * server writes a movement row for the change; letting the item form carry the
+   * number would mean an operator editing a name could silently release stock an
+   * order was depending on.
+   */
+  async function saveReservation(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!reservingItem) return;
 
@@ -101,16 +261,25 @@ export function InventoryWorkspace() {
        and refusing the form over a typo is worse than holding it at the ceiling. */
     const reserved = Math.min(Math.max(0, Math.round(typed)), Number(reservingItem.totalUnits || 0));
 
-    commit((current) =>
-      current.map((item) =>
-        item.id === reservingItem.id ? { ...item, reservedUnits: String(reserved) } : item,
-      ),
-    );
+    setReserving(true);
 
-    toast.success(`${reservingItem.itemName} · ${reserved} reserved`, {
-      description: `${Number(reservingItem.totalUnits || 0) - reserved} pieces left to sell.`,
-    });
-    setReservingItem(undefined);
+    try {
+      await register.act(
+        `/admin/inventory/items/${encodeURIComponent(reservingItem.id)}/reserve`,
+        { reservedUnits: reserved },
+      );
+
+      toast.success(`${reservingItem.itemName} · ${reserved} reserved`, {
+        description: `${Number(reservingItem.totalUnits || 0) - reserved} pieces left to sell.`,
+      });
+      setReservingItem(undefined);
+    } catch (caught) {
+      toast.error("That reservation could not be saved", {
+        description: caught instanceof Error ? caught.message : "The server refused the change.",
+      });
+    } finally {
+      setReserving(false);
+    }
   }
 
   return (
@@ -133,21 +302,19 @@ export function InventoryWorkspace() {
 
       <RecordManager
         columns={COLUMNS}
-        /* The item form never asks about reservations, so a new item starts at
-           zero reserved and an edited one keeps whatever it was already
-           holding — editing a name must not quietly release stock. */
-        derive={(values, _rows, previous) => ({
-          ...values,
-          reservedUnits: previous?.reservedUnits ?? "0",
-        })}
         emptyHint="Add your first item — a name, its sizes, a warehouse and how many pieces are there."
-        fields={FIELDS}
+        error={error ?? warehouses.error}
+        fields={fields}
         filterKey="warehouse"
         filtersBelow
-        filterValues={WAREHOUSE_CODES}
+        filterValues={warehouseCodes}
         icon={Boxes}
-        idPrefix="ITM"
-        onCommit={commit}
+        /* The server mints the ITM-* code, so nothing here needs an id prefix. */
+        loaded={ready}
+        loading={loading}
+        onCreate={register.onCreate}
+        onDelete={register.onDelete}
+        onUpdate={register.onUpdate}
         rowAction={(item) => ({
           icon: BookmarkCheck,
           label: `Reserve pieces of ${item.itemName}`,
@@ -166,9 +333,11 @@ export function InventoryWorkspace() {
         description="Reserved pieces are held for orders and drop straight out of what the storefront can sell."
         footer={
           <>
-            <Btn onClick={() => setReservingItem(undefined)}>Cancel</Btn>
-            <Btn form="reserve-form" type="submit" variant="solid">
-              Save reservation
+            <Btn disabled={reserving} onClick={() => setReservingItem(undefined)}>
+              Cancel
+            </Btn>
+            <Btn disabled={reserving} form="reserve-form" type="submit" variant="solid">
+              {reserving ? "Saving…" : "Save reservation"}
             </Btn>
           </>
         }
@@ -184,7 +353,7 @@ export function InventoryWorkspace() {
             className="aui-form"
             id="reserve-form"
             key={reservingItem.id}
-            onSubmit={saveReservation}
+            onSubmit={(event) => void saveReservation(event)}
           >
             <Field
               help={`${reservingItem.totalUnits} pieces in ${reservingItem.warehouse} · ${availableUnits(asStockItem(reservingItem))} available right now.`}

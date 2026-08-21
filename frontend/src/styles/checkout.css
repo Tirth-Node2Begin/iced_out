@@ -24,12 +24,26 @@
    most of them (chrome.css §8.14) — these are the ones checkout uses and that
    block does not have, and without them the chip counters lose their fill and
    every colour transition falls back to `ease`. */
+/* Doubled class on purpose, and it is load-bearing.
+ *
+ * `.io-modal` (chrome.css) sets `width: min(540px, …)`. A single-class modifier
+ * ties it on specificity, so which one wins comes down to which stylesheet the
+ * bundler happened to emit last — and chrome.css won. Checkout then painted at
+ * the 540px account-modal width, which left its two-column grid with a 372px
+ * summary and a 98px column for the form: the fields were crushed into a strip
+ * beside the summary, and it read as two overlapping dialogs.
+ *
+ * `.io-modal.io-modal--checkout` is 0,2,0 and beats the base rule whatever the
+ * emit order turns out to be.
+ */
 .io-modal--checkout {
   --nh-ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
   --nh-chip-bg: rgba(22, 25, 27, 0.72);
   --nh-chip-fg: #eef0f0;
   --nh-surface-3: #0a0b0c;
+}
 
+.io-modal.io-modal--checkout {
   width: min(1180px, calc(100vw - 32px));
   max-height: min(880px, calc(100vh - 40px));
 }
@@ -1330,7 +1344,9 @@
    one long list, which is the entire reason it exists — the summary already
    had a list, and the complaint about it was the scrolling. A normal bag lands
    as two or three columns of cards with nothing to reach for. */
-.io-modal--wide {
+/* Doubled for the same reason as `.io-modal--checkout` above: a single-class
+   modifier cannot reliably beat `.io-modal`'s own width. */
+.io-modal.io-modal--wide {
   width: min(900px, calc(100vw - 32px));
 }
 

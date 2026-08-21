@@ -10,8 +10,8 @@ import {
   type FormField,
   type RecordRow,
 } from "@/components/admin/record-manager";
-import { useCatalog } from "@/features/02-products/catalog-context";
-import { COLLECTION_STATES, mintSlug } from "@/features/02-products/catalog-seed";
+import { useCatalogRegisters } from "@/features/02-products/catalog-context";
+import { COLLECTION_STATES } from "@/features/02-products/catalog-seed";
 import { CatalogTabs } from "@/features/02-products/components/catalog-tabs";
 
 export type CatalogOperationsView = "categories" | "collections";
@@ -23,9 +23,11 @@ const CATEGORY_COLUMNS: Column[] = [
   { key: "products", label: "Products", align: "right", numeric: true },
 ];
 
+/* Just the name. "Products" is a COUNT the server derives from what is actually
+   filed under this category — it was a number field an operator could type, which
+   meant the register could claim fourteen products in a category holding none. */
 const CATEGORY_FIELDS: FormField[] = [
   { key: "name", label: "Category name", placeholder: "Outerwear", required: true },
-  { key: "products", label: "Products", type: "number", initial: "0" },
 ];
 
 /* ---- collections --------------------------------------------------------- */
@@ -36,22 +38,12 @@ const COLLECTION_COLUMNS: Column[] = [
   { key: "status", label: "State", status: true },
 ];
 
+/* "Pieces" is derived, like a category's product count — see CATEGORY_FIELDS. */
 const COLLECTION_FIELDS: FormField[] = [
   { key: "name", label: "Collection name", placeholder: "After Hours", required: true },
-  { key: "pieces", label: "Pieces", type: "number", initial: "0" },
   /* Draft first, for the same reason a product starts as one. */
   { key: "status", label: "State", type: "select", options: COLLECTION_STATES, initial: "Draft" },
 ];
-
-/**
- * The slug is minted from the name and then held: it is what a product's
- * category and a collection's page are filed under, so a rename must not
- * quietly re-file everything pointing at it.
- */
-function deriveSlug(values: RecordRow, rows: RecordRow[], previous?: RecordRow): RecordRow {
-  if (previous) return values;
-  return { ...values, id: mintSlug(values.name, rows.map((row) => row.id)) };
-}
 
 function tally(rows: RecordRow[], key: string) {
   const total = rows.reduce((sum, row) => sum + (Number.parseInt(row[key] ?? "", 10) || 0), 0);
@@ -63,7 +55,12 @@ function count(rows: RecordRow[], status: string) {
 }
 
 export function CatalogOperations({ view }: { view: CatalogOperationsView }) {
-  const { categories, collections, commit } = useCatalog();
+  /* The slug each of these is filed under is minted by the server from the name,
+     and then held — it is what a product's category and a collection's page point
+     at, so a rename must not quietly re-file everything pointing at it. */
+  const { categories, collections, register, error } = useCatalogRegisters();
+  const categoryRegister = register("categories");
+  const collectionRegister = register("collections");
 
   if (view === "categories") {
     const stats: Stat[] = [
@@ -89,14 +86,18 @@ export function CatalogOperations({ view }: { view: CatalogOperationsView }) {
         <StatGrid stats={stats} />
         <RecordManager
           columns={CATEGORY_COLUMNS}
-          derive={deriveSlug}
+          error={error}
           fields={CATEGORY_FIELDS}
           /* No state to be in, so the one chip is the whole register — kept
              rather than dropped so the row of controls does not change shape
              between the three catalogue screens. */
           filterValues={[]}
           icon={Tags}
-          onCommit={(next) => commit("categories", next)}
+          loaded={categoryRegister.loaded}
+          loading={categoryRegister.loading}
+          onCreate={categoryRegister.onCreate}
+          onDelete={categoryRegister.onDelete}
+          onUpdate={categoryRegister.onUpdate}
           plural="categories"
           rows={categories}
           searchKeys={["name", "id", "products"]}
@@ -109,7 +110,7 @@ export function CatalogOperations({ view }: { view: CatalogOperationsView }) {
   }
 
   const stats: Stat[] = [
-    { label: "Published", value: count(collections, "Published"), icon: CheckCircle2, tone: "mint", note: "Live on the storefront" },
+    { label: "Live", value: count(collections, "Live"), icon: CheckCircle2, tone: "mint", note: "Live on the storefront" },
     { label: "Scheduled", value: count(collections, "Scheduled"), icon: Clock3, tone: "amber", note: "Waiting on a release" },
     { label: "Draft", value: count(collections, "Draft"), icon: FileEdit, tone: "violet", note: "Not visible to shoppers" },
     { label: "Pieces", value: tally(collections, "pieces"), icon: Layers3, tone: "sky", note: "Across every collection" },
@@ -122,7 +123,7 @@ export function CatalogOperations({ view }: { view: CatalogOperationsView }) {
       lede="Product order, campaign content and the customer-facing story, in one versioned surface per collection."
       spec={[
         { label: "Collections", value: String(collections.length).padStart(2, "0") },
-        { label: "Published", value: count(collections, "Published") },
+        { label: "Live", value: count(collections, "Live") },
         { label: "Pieces", value: tally(collections, "pieces") },
       ]}
       title={
@@ -134,12 +135,16 @@ export function CatalogOperations({ view }: { view: CatalogOperationsView }) {
       <StatGrid stats={stats} />
       <RecordManager
         columns={COLLECTION_COLUMNS}
-        derive={deriveSlug}
+        error={error}
         fields={COLLECTION_FIELDS}
         filterKey="status"
         filterValues={COLLECTION_STATES}
         icon={FolderKanban}
-        onCommit={(next) => commit("collections", next)}
+        loaded={collectionRegister.loaded}
+        loading={collectionRegister.loading}
+        onCreate={collectionRegister.onCreate}
+        onDelete={collectionRegister.onDelete}
+        onUpdate={collectionRegister.onUpdate}
         rows={collections}
         searchKeys={["name", "id", "pieces", "status"]}
         singular="collection"

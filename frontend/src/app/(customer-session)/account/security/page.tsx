@@ -12,7 +12,7 @@ import {
 import { useState, type FormEvent } from "react";
 
 import { AccountSection } from "@/components/account/account-section";
-import { orderFixtures } from "@/features/07-orders/data/order-fixtures";
+import { useOrders } from "@/features/07-orders/orders-context";
 
 /**
  * Security.
@@ -86,11 +86,16 @@ export default function SecurityPage() {
   const [code, setCode] = useState("");
   const [codeError, setCodeError] = useState<string | null>(null);
 
+  const { orders } = useOrders();
+
   const [deleting, setDeleting] = useState(false);
   const [deleteWord, setDeleteWord] = useState("");
   const [deleteRequested, setDeleteRequested] = useState(false);
 
-  const openOrder = orderFixtures.find((order) => order.status !== "Delivered");
+  /* This shopper's own order still in flight, if any — the one deleting the
+     account would strand. It read `orderFixtures`, so the warning named a demo
+     order to everybody, including someone with nothing outstanding. */
+  const openOrder = orders.find((order) => order.status !== "Delivered");
   const score = scorePassword(next);
   const otherSessions = sessions.filter((session) => !session.current);
 

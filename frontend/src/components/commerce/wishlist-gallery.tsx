@@ -2,11 +2,11 @@
 
 import { ArrowRight, Check, Heart, ShoppingBag, X } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { SavedImage } from "@/components/commerce/saved-image";
 import { PageFrame } from "@/components/layout/page-frame";
-import { formatPrice } from "@/features/02-products";
+import { formatPrice, useCatalog } from "@/features/02-products";
 import { useCart } from "@/features/04-cart/cart-context";
 import { useCheckoutModal } from "@/features/04-cart/checkout-modal-context";
 import { resolveSavedItems, type SavedItem } from "@/features/05-wishlist/saved-items";
@@ -37,7 +37,14 @@ export function WishlistGallery() {
 
      The order pieces were saved in is preserved rather than the catalogue's:
      the list reads as a history, and re-sorting it silently loses that. */
-  const saved = resolveSavedItems(productIds);
+  /* `resolveSavedItems` resolves ids against the catalogue, so this screen has to
+     be subscribed to it: reading a stale empty catalogue would say "nothing saved
+     yet" over a full wishlist. */
+  const { data: catalogue } = useCatalog();
+  const saved = useMemo(
+    () => resolveSavedItems(productIds, catalogue),
+    [catalogue, productIds],
+  );
 
   /* What the list is worth at today's prices, not what it would cost to buy —
      nothing here has a quantity, and a piece saved twice is still one row. */

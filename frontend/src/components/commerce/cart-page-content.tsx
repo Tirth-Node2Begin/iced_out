@@ -9,12 +9,15 @@ import { PageFrame } from "@/components/layout/page-frame";
 import { formatPrice } from "@/features/02-products";
 import { useCart } from "@/features/04-cart/cart-context";
 import { useCheckoutModal } from "@/features/04-cart/checkout-modal-context";
-
-/** The threshold the footer already advertises — quoted, not re-invented. */
-const FREE_DELIVERY_OVER = 4999;
+import { useStorefrontConfig } from "@/features/04-cart/storefront-config";
 
 export function CartPageContent() {
   const { openCheckout } = useCheckoutModal();
+  /* The threshold the store actually applies, not a copy of it. This page held
+     its own `const FREE_DELIVERY_OVER = 4999`, so the line under the summary
+     advertised a rule the server had stopped following the moment somebody
+     edited it in settings. */
+  const { freeDeliveryOver } = useStorefrontConfig();
   const { lines, itemCount, subtotal, coupon, discount, total, setQuantity, removeItem } =
     useCart();
 
@@ -69,14 +72,18 @@ export function CartPageContent() {
                 <Link
                   aria-label={`View ${line.product.name}`}
                   className="io-line__media"
-                  href={`/product/${line.product.slug}`}
+                  href={`/product?slug=${line.product.slug}`}
                 >
-                  <ProductImage position={line.product.imagePosition} />
+                  <ProductImage
+                    alt={line.product.name}
+                    position={line.product.imagePosition}
+                    src={line.product.image}
+                  />
                 </Link>
 
                 <div className="io-line__body">
                   <h2 className="io-line__name">
-                    <Link href={`/product/${line.product.slug}`}>{line.product.name}</Link>
+                    <Link href={`/product?slug=${line.product.slug}`}>{line.product.name}</Link>
                   </h2>
 
                   <p className="io-line__meta">
@@ -156,7 +163,7 @@ export function CartPageContent() {
                     whether the order has cleared the advertised threshold.
                     Read off the merchandise subtotal, which is what the footer
                     advertises — a coupon does not un-qualify a bag. */}
-                <dd>{subtotal >= FREE_DELIVERY_OVER ? "Free" : "At checkout"}</dd>
+                <dd>{subtotal >= freeDeliveryOver ? "Free" : "At checkout"}</dd>
               </div>
 
               <div className="io-summary__total">
@@ -176,7 +183,7 @@ export function CartPageContent() {
 
             <p className="io-summary__note">
               Taxes and delivery are calculated against the verified address at checkout.
-              Free delivery over {formatPrice(FREE_DELIVERY_OVER)}.
+              Free delivery over {formatPrice(freeDeliveryOver)}.
             </p>
           </aside>
         </div>

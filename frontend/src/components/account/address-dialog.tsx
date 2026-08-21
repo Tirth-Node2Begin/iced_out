@@ -2,7 +2,7 @@
 
 import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
-import { useId, type FormEvent } from "react";
+import { useId, useState, type FormEvent } from "react";
 
 import {
   addressToFields,
@@ -10,6 +10,7 @@ import {
   fieldsToAddress,
   formDataToFields,
 } from "@/features/01-users/address-fields";
+import { RegionFields } from "@/components/account/region-fields";
 import { useAddresses, type Address } from "@/features/01-users/addresses-context";
 import { useProfile } from "@/features/01-users/profile-context";
 
@@ -28,6 +29,10 @@ import { useProfile } from "@/features/01-users/profile-context";
  *
  * The recipient and phone are seeded from the profile because that is who they
  * almost always are, and they stay editable because sometimes they are not.
+ *
+ * City and state are the dependent dropdowns checkout has always used, not two
+ * free-text boxes — see `RegionFields` for why that pairing has to be checked
+ * here as well as there.
  */
 export function AddressDialog({
   open,
@@ -44,6 +49,9 @@ export function AddressDialog({
   const { addresses, defaultId, add, update } = useAddresses();
   const { profile } = useProfile();
   const formId = useId();
+  /** What the server refused, and why. Cleared on the next attempt. */
+  const [error, setError] = useState("");
+  const [pending, setPending] = useState(false);
 
   const editing = address !== null;
   const fields = address ? addressToFields(address) : EMPTY_ADDRESS_FIELDS;
@@ -56,18 +64,42 @@ export function AddressDialog({
   const isDefault = editing && address.id === defaultId;
   const defaultIsFixed = isFirst || isDefault;
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  /**
+   * Saves, and only then says so.
+   *
+   * The save is a request now, so the dialog waits for it. It used to close and
+   * announce success in the same breath as calling it, which meant a refused
+   * address — a street line too short for a courier to find, a PIN that is not
+   * one — left a "saved" toast on screen and nothing in the book.
+   */
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const next = fieldsToAddress(formDataToFields(form));
     const makeDefault = defaultIsFixed || form.get("makeDefault") === "on";
 
-    if (editing) {
-      update(address.id, next, { makeDefault });
-    } else {
-      add(next, { makeDefault });
+    setPending(true);
+    setError("");
+
+    try {
+      if (editing) {
+        await update(address.id, next, { makeDefault });
+      } else {
+        await add(next, { makeDefault });
+      }
+    } catch (failure) {
+      /* The server names the field it refused and why, in a sentence written to
+         be read, so it is shown here rather than replaced with something vague
+         that leaves the shopper guessing which box to fix. */
+      setError(
+        failure instanceof Error ? failure.message : "That address could not be saved.",
+      );
+      setPending(false);
+
+      return;
     }
 
+    setPending(false);
     onOpenChange(false);
     onSaved?.(next, editing ? "updated" : "added");
   }
@@ -124,19 +156,12 @@ export function AddressDialog({
               </label>
 
               <div className="io-form__row">
-                <label className="io-field">
-                  <span>City</span>
-                  <input defaultValue={fields.city} name="city" placeholder="Bengaluru" required />
-                </label>
-                <label className="io-field">
-                  <span>State</span>
-                  <input
-                    defaultValue={fields.state}
-                    name="state"
-                    placeholder="Karnataka"
-                    required
-                  />
-                </label>
+                {/* State first, because the city list is an answer to it. */}
+                <RegionFields
+                  city={fields.city}
+                  idPrefix={`${formId}-region`}
+                  state={fields.state}
+                />
               </div>
 
               <div className="io-form__row">
@@ -178,12 +203,18 @@ export function AddressDialog({
                 </span>
               </label>
             </form>
+
+            {error ? (
+              <p className="io-formerror" role="alert">
+                {error}
+              </p>
+            ) : null}
           </div>
 
           <div className="io-modal__foot">
             <Dialog.Close className="io-btn io-btn--ghost">Cancel</Dialog.Close>
-            <button className="io-btn io-btn--solid" form={formId} type="submit">
-              {editing ? "Save changes" : "Save address"}
+            <button className="io-btn io-btn--solid" disabled={pending} form={formId} type="submit">
+              {pending ? "Saving…" : editing ? "Save changes" : "Save address"}
             </button>
           </div>
         </Dialog.Content>

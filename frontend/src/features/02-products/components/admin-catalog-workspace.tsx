@@ -12,8 +12,8 @@ import {
   type FormField,
   type RecordRow,
 } from "@/components/admin/record-manager";
-import { useCatalog } from "@/features/02-products/catalog-context";
-import { PRODUCT_STATES, mintSku, mintSlug } from "@/features/02-products/catalog-seed";
+import { useCatalogRegisters } from "@/features/02-products/catalog-context";
+import { PRODUCT_STATES } from "@/features/02-products/catalog-seed";
 import { CatalogTabs } from "@/features/02-products/components/catalog-tabs";
 import {
   listableItems,
@@ -37,7 +37,9 @@ import { available, findStockItem, useStock } from "@/features/03-inventory/stoc
  * one is already showing the smaller number.
  */
 const FIELDS_BASE: FormField[] = [
-  { key: "price", label: "Price", placeholder: "₹8,900", required: true },
+  /* Filled in from the chosen stock item — see `autofill` — and editable, because
+     a launch price that differs from the warehouse price is a real decision. */
+  { key: "price", label: "Price", placeholder: "₹8,900", required: true, help: "Starts at the stock item's price. Change it here to list at something else." },
   /* A new product starts as a draft — publishing is a decision, not a default
      nobody made. */
   { key: "status", label: "State", type: "select", options: PRODUCT_STATES, initial: "Draft" },
@@ -48,8 +50,20 @@ function count(rows: RecordRow[], status: string) {
 }
 
 export function AdminCatalogWorkspace() {
-  const { products, commit } = useCatalog();
+  const { products, categories, collections, register, error } = useCatalogRegisters();
+  const productRegister = register("products");
   const { items } = useStock();
+
+  /* The live registers, not lists written out here: a category that only exists
+     in this file is a product filed under nothing. */
+  const categoryNames = useMemo(
+    () => categories.map((row) => row.name).filter(Boolean),
+    [categories],
+  );
+  const collectionNames = useMemo(
+    () => collections.map((row) => row.name).filter(Boolean),
+    [collections],
+  );
 
   /* The item's choices carry its available count, and the size's choices are a
      question about whichever item is currently picked — see `optionsFor`. */
@@ -76,13 +90,72 @@ export function AdminCatalogWorkspace() {
         help: "The sizes this item is stocked in and has not been listed in yet.",
       },
       ...FIELDS_BASE,
+      /**
+       * Where it is filed, and what it is.
+       *
+       * These were not on the form at all, so a product created here had no
+       * category — which meant it appeared under none of the storefront's filter
+       * pills — and no description, which meant its product page opened with an
+       * empty paragraph. Both vocabularies are the console's own registers, so a
+       * category added on the Categories tab is on offer here immediately.
+       */
+      {
+        key: "category",
+        label: "Category",
+        type: "select",
+        options: categoryNames,
+        help: "What the storefront's filter pills group it under.",
+      },
+      {
+        key: "collection",
+        label: "Collection",
+        type: "select",
+        options: collectionNames,
+      },
+      {
+        key: "image",
+        label: "Photo",
+        type: "image",
+        full: true,
+        help: "Filled in from the stock item, and replaceable here. Shown on the card, the product page and the bag — a product without one falls back to the house sprite.",
+      },
+      {
+        key: "description",
+        label: "Short description",
+        type: "textarea",
+        full: true,
+        placeholder: "A dense, garment-washed hoodie cut with a dropped shoulder…",
+        help: "The paragraph under the price on the product page.",
+      },
     ],
-    [items, products],
+    [categoryNames, collectionNames, items, products],
   );
 
   const columns: Column[] = useMemo(
     () => [
-      { key: "name", label: "Product", primary: true, sub: "sku" },
+      {
+        key: "name",
+        label: "Product",
+        primary: true,
+        sub: "sku",
+        /* The photo beside the name, the way the inventory register shows its
+           items — a catalogue you cannot see is a list of words. */
+        render: (row) => (
+          <span className="aui-cellmedia">
+            {row.image ? (
+              /* A runtime API URL, which the static export's image optimiser has
+                 no build-time way to resolve. */
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img alt="" className="aui-cellmedia__img" src={row.image} />
+            ) : null}
+            <span className="aui-table__primary">
+              <strong>{row.name || "—"}</strong>
+              {row.sku && <small>{row.sku}</small>}
+            </span>
+          </span>
+        ),
+        exportValue: (row) => row.name ?? "",
+      },
       { key: "size", label: "Size", align: "center" },
       {
         key: "available",
@@ -99,36 +172,79 @@ export function AdminCatalogWorkspace() {
   );
 
   /**
-   * The name, slug and stock code all follow from the item that was chosen.
+   * The name follows from the item that was chosen.
    *
-   * The slug and code are minted once and then held — a slug is a URL someone
-   * may hold and the code is stamped on every SKU beneath it — but the name
-   * tracks the item, so re-pointing a listing at a different stock record does
-   * not leave the old item's name on the row.
+   * The slug and the stock code no longer do: those are minted by the SERVER
+   * (`SkuMinter`), because a slug is a URL somebody may keep and the code is
+   * stamped on every SKU beneath it — both have to be unique against the whole
+   * database, which is a question only the database can answer. Two operators
+   * listing "Afterdark Hoodie" at the same moment used to mint the same slug in
+   * two browsers and neither would have known.
+   *
+   * The name still tracks the item, so re-pointing a listing at a different
+   * stock record does not leave the old item's name on the row.
    */
   const derive = useMemo(
-    () => (values: RecordRow, rows: RecordRow[], previous?: RecordRow) => {
-      const name = findStockItem(items, values.item ?? "")?.itemName ?? previous?.name ?? "";
-      if (previous) return { ...values, name };
-
-      return {
-        ...values,
-        name,
-        id: mintSlug(name, rows.map((row) => row.id)),
-        sku: mintSku(name, rows.map((row) => row.sku).filter(Boolean)),
-      };
-    },
+    () => (values: RecordRow, _rows: RecordRow[], previous?: RecordRow) => ({
+      ...values,
+      name: findStockItem(items, values.item ?? "")?.itemName ?? previous?.name ?? "",
+    }),
     [items],
   );
 
   /**
-   * The wall behind the disabled options.
+   * The item answers the rest of the form.
    *
-   * The form already refuses to offer an exhausted item or a size that is
-   * spoken for, so nothing reachable through it should land here. What can is
-   * a dialog that was opened while there was still room and submitted after
-   * another tab — or the inventory screen, reserving pieces — took the last of
-   * it. The rule is checked against the register as it stands at submit.
+   * A listing is a decision to sell a garment that has already been described:
+   * what it costs and what it looks like were recorded when the stock was taken
+   * in, so asking for them again here was asking an operator to copy two facts
+   * off another screen — and to be the reason the two ever disagreed.
+   *
+   * Everything filled in is still editable. This is a starting point, not a
+   * lock: a launch price that differs from the warehouse price is a real thing,
+   * and typing over the box is how you say so.
+   *
+   * `derive` cannot do this — it runs at submit, on values nobody can still see.
+   */
+  const autofill = useMemo(
+    () => (changed: string | null, values: RecordRow) => {
+      /* `null` is the dialog opening on whichever item the dropdown starts on —
+         see `autofill` on the register. */
+      if (changed !== null && changed !== "item") return null;
+
+      const item = findStockItem(items, values.item ?? "");
+      if (!item) return null;
+
+      const filled: RecordRow = {};
+
+      /* Only where the box is empty or still holds the LAST item's answer. An
+         operator who has typed a price and then corrected the item they picked
+         must not watch their number be overwritten. */
+      if (item.price) filled.price = item.price;
+      if (item.image) filled.image = item.image;
+
+      /* The item's garment type — "Jeans", "Hoodie" — where the catalogue has a
+         category by that name. It usually does; where it does not, the field is
+         left for the operator rather than filled with something that is not on
+         the list. */
+      const match = categoryNames.find(
+        (name) => name.toLowerCase() === (item.itemType ?? "").toLowerCase(),
+      );
+      if (match) filled.category = match;
+
+      return filled;
+    },
+    [categoryNames, items],
+  );
+
+  /**
+   * A first answer, ahead of the server's.
+   *
+   * The API enforces all of this itself — it re-checks the listing room inside
+   * the transaction that would create the product, which is the only place the
+   * check is actually safe. This is here so the common refusals are instant and
+   * land next to the field that has to change, rather than after a round trip.
+   * The server is the wall; this is the sign on it.
    */
   const validate = useMemo(
     () => (values: RecordRow, rows: RecordRow[], previous?: RecordRow) => {
@@ -183,14 +299,20 @@ export function AdminCatalogWorkspace() {
       <StatGrid stats={stats} />
 
       <RecordManager
+        autofill={autofill}
         columns={columns}
         derive={derive}
         emptyHint="Nothing is listed yet. Add a product to put one of your stock items in front of shoppers."
         fields={fields}
+        error={error}
         filterKey="status"
         filterValues={PRODUCT_STATES}
         icon={Package}
-        onCommit={(next) => commit("products", next)}
+        loaded={productRegister.loaded}
+        loading={productRegister.loading}
+        onCreate={productRegister.onCreate}
+        onDelete={productRegister.onDelete}
+        onUpdate={productRegister.onUpdate}
         rowHref={(row) => `/admin/catalog/products/edit?id=${encodeURIComponent(row.id)}`}
         rows={products}
         searchKeys={["name", "sku", "id", "size", "price", "status"]}

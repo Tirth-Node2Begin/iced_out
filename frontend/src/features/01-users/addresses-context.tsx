@@ -4,27 +4,29 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
-  useSyncExternalStore,
+  useState,
   type ReactNode,
 } from "react";
 
-import { createLocalStore } from "@/lib/local-store";
-import { useHydrated } from "@/lib/use-hydrated";
+import { customerClient } from "@/api/clients";
+import { useAuth } from "@/features/20-auth-security/auth-context";
 
 /**
- * The address book.
+ * The address book, held by the account rather than by the browser.
  *
- * It lived in `useState` on the Addresses screen, which was fine while that
- * screen was the only thing that knew about it. The profile now shows the
- * default one, so which address is default has to be a fact about the account
- * rather than a fact about a mounted component — pick a new default on the
- * Addresses tab and the Profile tab is already showing it.
+ * It used to be a `localStorage` record seeded with two sample addresses, so
+ * every visitor — including one who had just registered — opened onto the same
+ * Home and Studio cards. The book belongs to a user now: `GET /me/addresses`
+ * returns theirs, a new account's is empty, and which one is default is a fact
+ * the server keeps rather than a field two tabs can disagree about.
  */
 export type Address = {
   id: string;
   label: string;
   name: string;
+  /** [street, "City, State 560001"] — what the card prints, built by the API. */
   lines: string[];
   phone: string;
 };
@@ -34,29 +36,30 @@ type AddressBook = {
   defaultId: string;
 };
 
-const SEEDED: AddressBook = {
-  addresses: [
-    {
-      id: "addr-home",
-      label: "Home",
-      name: "Iced_out Shopper",
-      lines: ["12 Preview Street", "Bengaluru, Karnataka 560001"],
-      phone: "+91 ••••• 43210",
-    },
-    {
-      id: "addr-work",
-      label: "Studio",
-      name: "Iced_out Shopper",
-      lines: ["4th Floor, Block C", "New Delhi, Delhi 110001"],
-      phone: "+91 ••••• 43210",
-    },
-  ],
-  defaultId: "addr-home",
-};
+const EMPTY: AddressBook = { addresses: [], defaultId: "" };
 
-const STORAGE_KEY = "iced-out-addresses-v1";
+/**
+ * The form speaks in printed lines; the API speaks in fields.
+ *
+ * The region line has one shape everywhere in this app — `City, State 560001` —
+ * so it is split back into the three columns the address is actually stored in.
+ * Anything that does not match is sent as the city, which keeps a hand-typed
+ * address saveable instead of rejecting it over punctuation.
+ */
+function toFields(address: Omit<Address, "id">) {
+  const [street = "", region = ""] = address.lines;
+  const match = /^(.*?),\s*(.*?)\s+(\d{6})$/.exec(region.trim());
 
-const store = createLocalStore<AddressBook>(STORAGE_KEY, SEEDED);
+  return {
+    label: address.label,
+    name: address.name,
+    street,
+    city: match?.[1]?.trim() ?? region.trim(),
+    state: match?.[2]?.trim() ?? "",
+    pincode: match?.[3] ?? "",
+    phone: address.phone,
+  };
+}
 
 type AddressesContextValue = {
   addresses: Address[];
@@ -64,76 +67,116 @@ type AddressesContextValue = {
   /** The one the checkout pre-selects, or null once the book is empty. */
   defaultAddress: Address | null;
   ready: boolean;
-  add: (address: Omit<Address, "id">, options?: { makeDefault?: boolean }) => void;
+  add: (address: Omit<Address, "id">, options?: { makeDefault?: boolean }) => Promise<void>;
   /** Replace a saved address in place — the id, and so the default, survives. */
-  update: (id: string, address: Omit<Address, "id">, options?: { makeDefault?: boolean }) => void;
-  remove: (id: string) => void;
-  setDefault: (id: string) => void;
+  update: (
+    id: string,
+    address: Omit<Address, "id">,
+    options?: { makeDefault?: boolean },
+  ) => Promise<void>;
+  remove: (id: string) => Promise<void>;
+  setDefault: (id: string) => Promise<void>;
 };
 
 const AddressesContext = createContext<AddressesContextValue | null>(null);
 
 export function AddressesProvider({ children }: { children: ReactNode }) {
-  const book = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getServerSnapshot);
-  const ready = useHydrated();
+  const { isAuthenticated, sessionReady } = useAuth();
+  const [book, setBook] = useState<AddressBook>(EMPTY);
+  const [ready, setReady] = useState(false);
 
-  const add = useCallback((address: Omit<Address, "id">, options?: { makeDefault?: boolean }) => {
-    /* Off the clock rather than off the list length: `addr-${length + 1}`
-       re-issues an id that a removal freed, and the new address then inherits
-       whatever the old one was pointed at. */
-    const id = `addr-${Date.now().toString(36)}`;
-    const current = store.getSnapshot();
+  /** Re-reads the book. Awaited by every mutation, so the list is never guessed at. */
+  const reload = useCallback(async () => {
+    if (!isAuthenticated) {
+      setBook(EMPTY);
 
-    /* An empty book takes the new address as its default whatever was asked
-       for — otherwise saving into an emptied book leaves an account holding a
-       destination that nothing is pointing at. */
-    const claimsDefault =
-      options?.makeDefault === true ||
-      current.addresses.length === 0 ||
-      current.defaultId === "";
+      return;
+    }
 
-    store.write({
-      addresses: [...current.addresses, { ...address, id }],
-      defaultId: claimsDefault ? id : current.defaultId,
-    });
-  }, []);
+    try {
+      const response = await customerClient.get<{ data: AddressBook }>("/me/addresses");
+      setBook(response.data.data);
+    } catch {
+      setBook(EMPTY);
+    }
+  }, [isAuthenticated]);
 
-  const update = useCallback(
-    (id: string, address: Omit<Address, "id">, options?: { makeDefault?: boolean }) => {
-      const current = store.getSnapshot();
-      /* Edited in place rather than removed-and-re-added: the id is what the
-         default points at, and what a checkout draft remembers picking. A new
-         id for a corrected pincode would silently move the default elsewhere. */
-      const addresses = current.addresses.map((entry) =>
-        entry.id === id ? { ...address, id } : entry,
-      );
+  /* Nothing is written while the effect body runs: the request is awaited
+     first, and a provider unmounted mid-flight writes nothing at all. */
+  useEffect(() => {
+    if (!sessionReady) return;
 
-      store.write({
-        addresses,
-        /* Un-ticking the box on the address that IS the default cannot clear
-           it — something has to be the destination — so only the ticking is
-           acted on. Moving the default off this one is done by making another
-           one default. */
-        defaultId: options?.makeDefault ? id : current.defaultId,
+    let live = true;
+
+    async function load() {
+      if (!isAuthenticated) {
+        if (live) {
+          setBook(EMPTY);
+          setReady(true);
+        }
+
+        return;
+      }
+
+      try {
+        const response = await customerClient.get<{ data: AddressBook }>("/me/addresses");
+        if (live) setBook(response.data.data);
+      } catch {
+        if (live) setBook(EMPTY);
+      } finally {
+        if (live) setReady(true);
+      }
+    }
+
+    void load();
+
+    return () => {
+      live = false;
+    };
+  }, [isAuthenticated, sessionReady]);
+
+  const add = useCallback(
+    async (address: Omit<Address, "id">, options?: { makeDefault?: boolean }) => {
+      /* The server decides the id and whether an empty book takes this as its
+         default — the two rules that used to live in this file and could drift
+         from what checkout actually reads. */
+      await customerClient.post("/me/addresses", {
+        ...toFields(address),
+        makeDefault: options?.makeDefault ?? false,
       });
+      await reload();
     },
-    [],
+    [reload],
   );
 
-  const remove = useCallback((id: string) => {
-    const current = store.getSnapshot();
-    const addresses = current.addresses.filter((address) => address.id !== id);
-    /* Removing the default has to hand the title to something, or the account
-       is left with a book full of addresses and no destination. */
-    const defaultId =
-      id === current.defaultId ? (addresses[0]?.id ?? "") : current.defaultId;
+  const update = useCallback(
+    async (id: string, address: Omit<Address, "id">, options?: { makeDefault?: boolean }) => {
+      /* Patched in place rather than removed-and-re-added: the id is what the
+         default points at, and what a checkout draft remembers picking. */
+      await customerClient.patch(`/me/addresses/${id}`, {
+        ...toFields(address),
+        makeDefault: options?.makeDefault ?? false,
+      });
+      await reload();
+    },
+    [reload],
+  );
 
-    store.write({ addresses, defaultId });
-  }, []);
+  const remove = useCallback(
+    async (id: string) => {
+      await customerClient.delete(`/me/addresses/${id}`);
+      await reload();
+    },
+    [reload],
+  );
 
-  const setDefault = useCallback((id: string) => {
-    store.write({ ...store.getSnapshot(), defaultId: id });
-  }, []);
+  const setDefault = useCallback(
+    async (id: string) => {
+      await customerClient.post(`/me/addresses/${id}/default`);
+      await reload();
+    },
+    [reload],
+  );
 
   const value = useMemo(() => {
     const defaultAddress =

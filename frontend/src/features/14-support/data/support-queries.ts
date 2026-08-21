@@ -23,6 +23,13 @@ export type SupportQuery = {
   status: "Open" | "Resolved";
   /** What the admin wrote back. Empty until someone answers. */
   reply: string;
+  /**
+   * When that answer was written, or empty while there is none.
+   *
+   * Not the same as `sentAt`, which is when the shopper asked. The inbox needs
+   * this one: a reply dated by the question it answers is dated wrong.
+   */
+  answeredAt: string;
 };
 
 /** The five things a query can be about. Both sides read this one list. */
@@ -37,46 +44,7 @@ export const SUPPORT_TOPICS = [
 /** The value a query carries when it is not about any particular order. */
 export const NO_ORDER = "No order";
 
-/**
- * What a fresh device is shown, so the console is never an empty screen you
- * cannot tell apart from a broken one.
- */
-export const supportQuerySeed: SupportQuery[] = [
-  {
-    reference: "IO-Q-1003",
-    customer: "Riya S.",
-    email: "riya@example.com",
-    topic: "Payment or refund",
-    order: "IO-2026-1047",
-    message:
-      "I paid by UPI and the money has left my account, but the order still says it is waiting for confirmation. I do not want to pay twice.",
-    sentAt: "04 Aug 2026 · 14:18",
-    status: "Open",
-    reply: "",
-  },
-  {
-    reference: "IO-Q-1002",
-    customer: "Maya P.",
-    email: "maya@example.com",
-    topic: "Delivery",
-    order: "IO-2026-1046",
-    message:
-      "The courier has marked me as unavailable, but nobody came to the address. Can it be sent out again this week?",
-    sentAt: "04 Aug 2026 · 11:05",
-    status: "Open",
-    reply: "",
-  },
-  {
-    reference: "IO-Q-1001",
-    customer: "Aarav K.",
-    email: "aarav@example.com",
-    topic: "Product and fit",
-    order: NO_ORDER,
-    message:
-      "I am between sizes on the utility overshirt. Which size should I take if I usually wear a medium?",
-    sentAt: "03 Aug 2026 · 17:40",
-    status: "Resolved",
-    reply:
-      "The overshirt is cut loose, so a medium is the right call — take the large only if you plan to layer a hoodie under it.",
-  },
-];
+/* The seeded queries are gone: both sides of support read `support_queries`
+   through the API (see `support-store`). What stays is the shape both sides render
+   and the two constants they share — the fallback topic list, used only until the
+   server's own vocabulary arrives, and the word for "no order". */

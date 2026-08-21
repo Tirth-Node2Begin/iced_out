@@ -15,13 +15,20 @@ import { CollectionIntro } from "@/components/gender/intro";
 import { LifestyleBanner } from "@/components/gender/lifestyle-banner";
 import { Lookbook } from "@/components/gender/lookbook";
 import { ProductShelf } from "@/components/gender/product-grid";
+import { useGenderPieces } from "@/components/gender/use-pieces";
 import { SiteFooter } from "@/components/layout/site-footer";
 
 /**
  * The /new-drop and /women experience. Both routes render this with a different
- * `content` deck — every string, crop and piece comes from
- * `@/components/gender/data`, so the two surfaces stay structurally identical
- * and diverge only in what they say.
+ * `content` deck — every string and editorial crop comes from
+ * `@/components/gender/data`, so the two surfaces stay structurally identical and
+ * diverge only in what they say.
+ *
+ * The PIECES do not. They are the published catalogue for this audience, read from
+ * the database (`useGenderPieces`). They used to be twenty hardcoded objects per
+ * page, thirty-six of the forty standing for products that did not exist — every
+ * one of them linking to one of four real slugs, so a tile could advertise a price
+ * the page it opened disagreed with.
  *
  * The section order is the brief, and the grids are deliberately interleaved
  * with the editorial blocks rather than stacked:
@@ -42,8 +49,11 @@ export function GenderPage({ content }: { content: AudienceContent }) {
   const [inStockOnly, setInStockOnly] = useState(false);
   const [newOnly, setNewOnly] = useState(false);
 
+  /* The catalogue, narrowed to this page's audience. `unisex` counts as both. */
+  const { pieces, loading, error, loaded } = useGenderPieces(content.audience);
+
   const visible = useMemo(() => {
-    const filtered = content.pieces.filter((piece) => {
+    const filtered = pieces.filter((piece) => {
       if (category !== "all" && piece.category !== category) return false;
       if (inStockOnly && piece.soldOut) return false;
       if (newOnly && !piece.isNew) return false;
@@ -58,7 +68,7 @@ export function GenderPage({ content }: { content: AudienceContent }) {
       if (sort === "price-high") return b.price - a.price;
       return Number(Boolean(b.isNew)) - Number(Boolean(a.isNew));
     });
-  }, [content.pieces, category, sort, inStockOnly, newOnly]);
+  }, [pieces, category, sort, inStockOnly, newOnly]);
 
   /**
    * The three shelves split whatever the filter left rather than each querying
@@ -75,7 +85,7 @@ export function GenderPage({ content }: { content: AudienceContent }) {
         <GenderHero content={content} />
 
         {/* 02 ------------------------------------ collection introduction */}
-        <CollectionIntro content={content} />
+        <CollectionIntro content={content} count={pieces.length} />
 
         {/* 03–08 ------- the edit: sticky filter rail beside the grids ---- */}
         <div className="gx-edit">
@@ -95,11 +105,26 @@ export function GenderPage({ content }: { content: AudienceContent }) {
             onSort={setSort}
             shown={visible.length}
             sort={sort}
-            total={content.pieces.length}
+            total={pieces.length}
           />
 
-          {/* premium 4-column grid */}
-          <ProductShelf {...content.shelves[0]} columns={4} pieces={shelves[0]} />
+          {/* premium 4-column grid. The first shelf carries the read's state, so a
+              page with nothing on it says whether that is a quiet catalogue, a
+              request still in flight, or one that failed. */}
+          <ProductShelf
+            {...content.shelves[0]}
+            columns={4}
+            emptyNote={
+              error
+                ? error
+                : loading && !loaded
+                  ? "Reading the release…"
+                  : pieces.length === 0
+                    ? "Nothing is published for this release yet."
+                    : undefined
+            }
+            pieces={shelves[0]}
+          />
 
           {/* the two editorial blocks break the rail's column to run full width */}
           <LifestyleBanner content={content} />

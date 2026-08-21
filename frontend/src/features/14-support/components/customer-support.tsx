@@ -1,17 +1,18 @@
 "use client";
 
-import { Check, LifeBuoy, MessageSquareText, Search, Send } from "lucide-react";
+import { Check, ChevronDown, LifeBuoy, MessageSquareText, Search, Send } from "lucide-react";
 import { useState, type FormEvent } from "react";
 
 import { AccountSection } from "@/components/account/account-section";
 import { useProfile } from "@/features/01-users/profile-context";
-import { orderFixtures } from "@/features/07-orders/data/order-fixtures";
+import { useOrders } from "@/features/07-orders/orders-context";
 import {
   NO_ORDER,
   SUPPORT_TOPICS,
   type SupportQuery,
 } from "@/features/14-support/data/support-queries";
-import { sendSupportQuery, useSupportQueries } from "@/features/14-support/support-store";
+import { useSupportInbox } from "@/features/14-support/support-store";
+import { useAuth } from "@/features/20-auth-security/auth-context";
 
 /**
  * Support.
@@ -23,8 +24,13 @@ import { sendSupportQuery, useSupportQueries } from "@/features/14-support/suppo
  *
  * A sent query lands in the table below it rather than vanishing behind a
  * notice: what was asked, about which order, and what state it is in. It also
- * lands in the console's support inbox, and the reply written there comes back
- * to that same table — one list, read from both ends.
+ * lands in the console's support inbox — the same `support_queries` row — and the
+ * reply written there comes back to this table. One record, read from both ends,
+ * which is what it only appeared to be while both ends were `localStorage`.
+ *
+ * The orders in the dropdown are this shopper's own, from `/me/orders`. They used
+ * to be `orderFixtures`, so the query could be filed against somebody else's
+ * order number.
  */
 const FAQS = [
   {
@@ -50,13 +56,20 @@ const FAQS = [
 ];
 
 export function CustomerSupport() {
+  const { isAuthenticated } = useAuth();
   const { profile } = useProfile();
+  const { orders } = useOrders();
   const [search, setSearch] = useState("");
   const [sent, setSent] = useState<SupportQuery | null>(null);
+  const [sending, setSending] = useState(false);
+  /** The last refusal from the server, cleared by the next attempt. */
+  const [error, setError] = useState<string | null>(null);
 
-  /* The store holds every query the demo knows about; this page is only ever
-     about the one shopper signed in on this device. */
-  const queries = useSupportQueries().filter((query) => query.email === profile.email);
+  /* Only this shopper's threads, and the server decides which those are — it
+     matches on the account rather than on an email the page passed in. The topics
+     come with them, because they are the console's vocabulary. */
+  const { queries, topics, send } = useSupportInbox(isAuthenticated);
+  const topicOptions = topics.length > 0 ? topics : SUPPORT_TOPICS;
 
   const term = search.trim().toLowerCase();
   const visibleFaqs = FAQS.filter(
@@ -64,22 +77,38 @@ export function CustomerSupport() {
       question.toLowerCase().includes(term) || answer.toLowerCase().includes(term),
   );
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
+    /* Read before the await: React clears the pooled event's target, and the form
+       is reset below only once the send has actually succeeded. */
+    const element = event.currentTarget;
 
-    setSent(
-      sendSupportQuery({
-        customer: profile.name,
-        /* The profile's address, not a typed one — it is what both this list
-           and the console read a query back by. */
-        email: profile.email,
-        topic: String(form.get("topic") ?? SUPPORT_TOPICS[0]),
-        order: String(form.get("order") ?? NO_ORDER),
+    const order = String(form.get("order") ?? NO_ORDER);
+
+    setSending(true);
+    setError(null);
+
+    try {
+      /* The name and email are NOT sent. The server takes both from the account —
+         a byline supplied by the request would let a query be filed under
+         somebody else's name. */
+      const query = await send({
+        topic: String(form.get("topic") ?? topicOptions[0]),
+        order: order === NO_ORDER ? "" : order,
         message: String(form.get("message") ?? ""),
-      }),
-    );
-    event.currentTarget.reset();
+      });
+
+      setSent(query);
+      element.reset();
+    } catch (caught) {
+      /* Reported on the page rather than swallowed: without this the form simply
+         cleared and the shopper believed a question had been asked. */
+      setSent(null);
+      setError(caught instanceof Error ? caught.message : "That could not be sent just now.");
+    } finally {
+      setSending(false);
+    }
   }
 
   return (
@@ -169,12 +198,20 @@ export function CustomerSupport() {
             </div>
           </>
         ) : (
-          <form className="io-form" onSubmit={submit}>
+          <form className="io-form" onSubmit={(event) => void submit(event)}>
+            {/* Said out loud. Without it the form cleared on a failure and the
+                shopper believed the question had been asked. */}
+            {error && (
+              <p className="io-field__error" role="status">
+                {error}
+              </p>
+            )}
+
             <div className="io-form__row">
               <label className="io-field">
                 <span>Topic</span>
-                <select defaultValue={SUPPORT_TOPICS[0]} name="topic">
-                  {SUPPORT_TOPICS.map((topic) => (
+                <select defaultValue={topicOptions[0]} name="topic">
+                  {topicOptions.map((topic) => (
                     <option key={topic}>{topic}</option>
                   ))}
                 </select>
@@ -183,11 +220,13 @@ export function CustomerSupport() {
                 <span>
                   Related order <em>optional</em>
                 </span>
-                <select defaultValue={orderFixtures[0]?.number ?? NO_ORDER} name="order">
-                  {orderFixtures.map((order) => (
+                {/* This shopper's own orders. "No order" is the default rather
+                    than the first order in a list they may not have placed. */}
+                <select defaultValue={NO_ORDER} name="order">
+                  <option>{NO_ORDER}</option>
+                  {orders.map((order) => (
                     <option key={order.id}>{order.number}</option>
                   ))}
-                  <option>{NO_ORDER}</option>
                 </select>
               </label>
             </div>
@@ -219,9 +258,11 @@ export function CustomerSupport() {
             </label>
 
             <div className="io-actions io-actions--end">
-              <button className="io-btn io-btn--solid" type="submit">
+              {/* Held while the request is out: a double-tap on a slow connection
+                  would otherwise file the same question twice. */}
+              <button className="io-btn io-btn--solid" disabled={sending} type="submit">
                 <Send aria-hidden size={15} strokeWidth={1.7} />
-                Send query
+                {sending ? "Sending…" : "Send query"}
               </button>
             </div>
           </form>
@@ -235,7 +276,7 @@ export function CustomerSupport() {
             <p className="io-panel__note">
               {queries.length === 0
                 ? "Nothing open. Sent queries appear here with their reference."
-                : `${queries.length} sent from this device. An answer appears under the query it replies to.`}
+                : `${queries.length} sent. Open one to read the whole exchange.`}
             </p>
           </div>
         </header>
@@ -246,38 +287,71 @@ export function CustomerSupport() {
             Answers above solve most of it — send one if they do not.
           </div>
         ) : (
-          <div className="io-tablewrap">
-            <table className="io-table">
-              <thead>
-                <tr>
-                  <th scope="col">Reference</th>
-                  <th scope="col">Topic</th>
-                  <th scope="col">Order</th>
-                  <th scope="col">State</th>
-                </tr>
-              </thead>
-              <tbody>
-                {queries.map((query) => (
-                  <tr key={query.reference}>
-                    <th scope="row">
-                      <span className="io-table__primary">{query.reference}</span>
-                      <span className="io-table__sub">
-                        {query.reply === ""
-                          ? `${query.message.slice(0, 60)}…`
-                          : `Answered: ${query.reply}`}
-                      </span>
-                    </th>
-                    <td>{query.topic}</td>
-                    <td className="io-table__num">{query.order}</td>
-                    <td>
-                      <span className="io-badge io-badge--live">
-                        {query.status === "Resolved" ? "Answered" : "Awaiting reply"}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          /* A thread each, not a table row each.
+
+             The reply used to be squeezed into a cell as "Answered: …" beside
+             the reference, which meant the one thing the shopper came back for
+             was the one thing they could not read — a paragraph of support
+             clipped to whatever the column happened to be wide enough for, with
+             no way to open it. A query is a short conversation, so it is drawn
+             as one: what they asked, then what was written back, under a
+             summary they can open. */
+          <div className="io-threads">
+            {queries.map((query) => {
+              const answered = query.status === "Resolved" && query.reply !== "";
+
+              return (
+                /* `<details>` rather than a dialog or a route: the exchange is
+                   two paragraphs, the page is already showing its FAQ list the
+                   same way, and it works before hydration. Answered threads
+                   start OPEN — a shopper who came back for the reply should not
+                   have to find it twice. */
+                <details className="io-thread" key={query.reference} open={answered}>
+                  <summary className="io-thread__head">
+                    <span className="io-thread__id">
+                      <strong>{query.reference}</strong>
+                      <small>
+                        {query.topic}
+                        {query.order && query.order !== NO_ORDER ? ` · ${query.order}` : ""}
+                      </small>
+                    </span>
+
+                    <span
+                      className={`io-badge ${answered ? "io-badge--ok" : "io-badge--live"}`}
+                    >
+                      {answered ? "Answered" : "Awaiting reply"}
+                    </span>
+
+                    <ChevronDown aria-hidden className="io-thread__chev" size={16} />
+                  </summary>
+
+                  <div className="io-thread__body">
+                    <div className="io-thread__turn">
+                      <p className="io-thread__who">
+                        You <span>{query.sentAt}</span>
+                      </p>
+                      {/* `pre-wrap`, so the paragraphs they typed survive. */}
+                      <p className="io-thread__text">{query.message}</p>
+                    </div>
+
+                    {answered ? (
+                      <div className="io-thread__turn io-thread__turn--reply">
+                        <p className="io-thread__who">
+                          Iced_out support
+                          {query.answeredAt && <span>{query.answeredAt}</span>}
+                        </p>
+                        <p className="io-thread__text">{query.reply}</p>
+                      </div>
+                    ) : (
+                      <p className="io-thread__waiting">
+                        No reply yet. Support answers within two working days, and it
+                        appears here and in your notifications.
+                      </p>
+                    )}
+                  </div>
+                </details>
+              );
+            })}
           </div>
         )}
       </section>

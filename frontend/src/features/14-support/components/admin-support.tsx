@@ -16,9 +16,7 @@ import {
 } from "@/components/admin/admin-ui";
 import { NO_ORDER, type SupportQuery } from "@/features/14-support/data/support-queries";
 import {
-  reopenSupportQuery,
-  resolveSupportQuery,
-  useSupportQueries,
+  useSupportDesk,
 } from "@/features/14-support/support-store";
 
 /**
@@ -39,7 +37,7 @@ function preview(message: string) {
 }
 
 export function AdminSupport() {
-  const queries = useSupportQueries();
+  const { queries, ready, loading, error, resolve, reopen } = useSupportDesk();
   const [filter, setFilter] = useState<Filter>("Open");
   /* The row being answered. Null is the table on its own. */
   const [opened, setOpened] = useState<string | null>(null);
@@ -49,6 +47,14 @@ export function AdminSupport() {
 
   const visible = filter === "All" ? queries : queries.filter((query) => query.status === filter);
   const answering = queries.find((query) => query.reference === opened) ?? null;
+
+  /* Three nothings, told apart. An empty table under "Support" reads as broken;
+     on a store nobody has written to it is just the truth. */
+  const emptyNote = error
+    ? error
+    : loading && !ready
+      ? "Reading the queue…"
+      : "Nothing has been asked yet. Queries arrive here from the shopper's support page.";
 
   return (
     <AdminPage
@@ -89,13 +95,17 @@ export function AdminSupport() {
       >
         {visible.length === 0 ? (
           <Empty
-            copy={
-              queries.length === 0
-                ? "Anything a customer writes on their support page shows up here straight away."
-                : `Nothing is ${filter.toLowerCase()} right now.`
-            }
+            copy={queries.length === 0 ? emptyNote : `Nothing is ${filter.toLowerCase()} right now.`}
             icon={MessageSquareText}
-            title={queries.length === 0 ? "No queries yet" : `No ${filter.toLowerCase()} queries`}
+            title={
+              queries.length === 0
+                ? error
+                  ? "Queue unavailable"
+                  : loading && !ready
+                    ? "Loading queries"
+                    : "No queries yet"
+                : `No ${filter.toLowerCase()} queries`
+            }
           />
         ) : (
           <div className="aui-tablewrap">
@@ -152,6 +162,8 @@ export function AdminSupport() {
         <ResolveDialog
           key={answering.reference}
           onClose={() => setOpened(null)}
+          onReopen={reopen}
+          onResolve={resolve}
           query={answering}
         />
       )}
@@ -165,21 +177,43 @@ export function AdminSupport() {
  * Keyed on the reference by its parent, so opening a different row starts with
  * an empty reply box rather than someone else's half-written one.
  */
-function ResolveDialog({ query, onClose }: { query: SupportQuery; onClose: () => void }) {
+function ResolveDialog({
+  query,
+  onClose,
+  onResolve,
+  onReopen,
+}: {
+  query: SupportQuery;
+  onClose: () => void;
+  onResolve: (reference: string, reply: string) => Promise<void>;
+  onReopen: (reference: string) => Promise<void>;
+}) {
   const [reply, setReply] = useState(query.reply);
+  /* Held while the reply is in flight, so a second click cannot send it twice. */
+  const [busy, setBusy] = useState(false);
 
-  function send() {
+  async function send() {
     const text = reply.trim();
     if (text === "") {
       toast.error("Write a reply first", { description: "An empty reply resolves nothing." });
       return;
     }
 
-    resolveSupportQuery(query.reference, text);
-    toast.success("Reply sent", {
-      description: `${query.reference} is resolved and ${query.customer} can read your answer.`,
-    });
-    onClose();
+    setBusy(true);
+
+    try {
+      await onResolve(query.reference, text);
+      toast.success("Reply sent", {
+        description: `${query.reference} is resolved and ${query.customer} can read your answer.`,
+      });
+      onClose();
+    } catch (caught) {
+      toast.error("That reply could not be sent", {
+        description: caught instanceof Error ? caught.message : "The server refused the change.",
+      });
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -194,20 +228,37 @@ function ResolveDialog({ query, onClose }: { query: SupportQuery; onClose: () =>
         <>
           {query.status === "Resolved" && (
             <Btn
+              disabled={busy}
               onClick={() => {
-                reopenSupportQuery(query.reference);
-                toast.info("Reopened", {
-                  description: `${query.reference} is back in the open list.`,
-                });
-                onClose();
+                setBusy(true);
+                onReopen(query.reference)
+                  .then(() => {
+                    toast.info("Reopened", {
+                      description: `${query.reference} is back in the open list.`,
+                    });
+                    onClose();
+                  })
+                  .catch((caught: unknown) =>
+                    toast.error("That could not be reopened", {
+                      description:
+                        caught instanceof Error
+                          ? caught.message
+                          : "The server refused the change.",
+                    }),
+                  )
+                  .finally(() => setBusy(false));
               }}
             >
               Reopen
             </Btn>
           )}
-          <Btn onClick={send} variant="solid">
+          <Btn disabled={busy} onClick={() => void send()} variant="solid">
             <Send aria-hidden size={15} strokeWidth={1.7} />
-            {query.status === "Resolved" ? "Send the updated reply" : "Send reply and resolve"}
+            {busy
+              ? "Sending…"
+              : query.status === "Resolved"
+                ? "Send the updated reply"
+                : "Send reply and resolve"}
           </Btn>
         </>
       }

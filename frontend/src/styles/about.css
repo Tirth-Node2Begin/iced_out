@@ -202,6 +202,16 @@
   visibility: hidden;
 }
 
+/* The statement panel is borrowed from the site root, where it is a full
+   screen that a visitor meets on its own. Here it is followed immediately by
+   the story chapter and its section padding, so the viewport-height field left
+   half a screen of dead ground under a three-line sentence. Sized to its
+   content on this route; the rails still centre on it, and the word-by-word
+   scrub measures the paragraph, not the section, so neither is disturbed. */
+.nh-about-root .hv2-manifesto {
+  min-height: 0;
+}
+
 .nh-about-hero__mediaParallax {
   position: absolute;
   z-index: 8;
@@ -284,10 +294,12 @@
   line-height: 1.6;
 }
 
+/* No top margin: the section head this used to clear is no longer rendered,
+   so anything here stacks straight onto `.nh-section`'s own padding and reads
+   as a hole between the statement panel and the first frame. */
 .nh-about-story__stage {
   position: relative;
   min-height: 720px;
-  margin-top: clamp(4.5rem, 9vw, 9rem);
   isolation: isolate;
 }
 
@@ -414,6 +426,17 @@
   font-weight: 300;
   line-height: 1.5;
   letter-spacing: -0.02em;
+}
+
+/* The craft chapter runs on the site root too, where the surrounding scope is
+   `.hv2` and the `--nh-*` tokens this section is drawn from do not exist.
+   `.nh-root` carries them, so the chapter travels wrapped in one — but that
+   class is written for a page root and brings a page's assumptions with it.
+   The one that matters mid-document is the viewport floor: a 100vh minimum on
+   a block that is only a section leaves a screen of ground under short
+   content. */
+.nh-root.nh-about-embed {
+  min-height: 0;
 }
 
 /* ------------------------------------------------------------------- craft */

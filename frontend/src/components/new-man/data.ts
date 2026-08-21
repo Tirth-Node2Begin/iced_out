@@ -13,7 +13,7 @@
  */
 
 import { CROPS, MEN, type CropKey, type Piece } from "@/components/gender/data";
-import { productFixtures } from "@/features/02-products/api/product-fixtures";
+import type { Product } from "@/features/02-products/types/product";
 
 export {
   CATEGORIES,
@@ -30,8 +30,8 @@ export {
 /** The men's release, in authored order — this is what `featured` sorts to. */
 export const MEN_PIECES = MEN.pieces;
 
-/** How many tiles the grid opens with, and how many each "Load more" adds. */
-export const PAGE_SIZE = 12;
+/** How many tiles one page of the grid holds. */
+export const PAGE_SIZE = 8;
 
 /* -------------------------------------------------------------------------- */
 /* Pricing                                                                    */
@@ -39,25 +39,16 @@ export const PAGE_SIZE = 12;
 
 export type Pricing = {
   price: number;
-  /** the struck-through reference price */
-  mrp: number;
-  /** whole percent off, for the badge */
-  off: number;
+  /**
+   * The struck-through reference price, or `null` where the catalogue has none.
+   *
+   * Null is the common case and every caller has to render it: a piece is sold
+   * at one price unless somebody has recorded what it was reduced from.
+   */
+  mrp: number | null;
+  /** Whole percent off, for the badge — null whenever `mrp` is. */
+  off: number | null;
 };
-
-/**
- * The price block a tile shows: selling price, MRP, and the percentage
- * between them.
- *
- * Two of the twenty pieces carry a real `compareAt` in the catalogue; for the
- * rest an MRP is derived here so the card's price treatment is not a layout
- * that only appears twice in a grid of twenty. THIS IS PAGE-LOCAL DEMO
- * PRICING, not a claim about anything — it is generated from the piece's id so
- * it is stable across a reload and identical on the server and the client,
- * and it lives here rather than in the catalogue so no other surface can pick
- * it up. Swap `DISCOUNTS` for real reference prices when there are any.
- */
-const DISCOUNTS = [30, 40, 45, 50, 55, 60];
 
 /**
  * A stable, SSR-safe hash of an id.
@@ -74,33 +65,56 @@ export function hash(value: string) {
   return total;
 }
 
+/**
+ * The price block a tile shows: what the piece costs, and — only where the
+ * catalogue records one — what it was reduced from.
+ *
+ * This used to INVENT the reference price. Where `compare_at_price` was unset,
+ * it picked a discount out of `[30, 40, 45, 50, 55, 60]` by hashing the piece's
+ * id and worked an MRP backwards from the selling price, so that the card's
+ * price treatment would not be a layout that only appeared twice in a grid of
+ * twenty. The comment above it said, correctly, that it was demo pricing and
+ * not a claim about anything — but it was rendered as `MRP ₹8,330  40% off`
+ * beside a real product at a real price, which is precisely a claim, and on 25
+ * of the shop's 28 products it was one nobody had made. Two pieces at the same
+ * ₹5,000 showed different MRPs and different discounts because their slugs
+ * hashed differently.
+ *
+ * A struck-through MRP is a regulated declaration here, not decoration. So it
+ * is now shown when there is one to show and omitted when there is not, and the
+ * callers each say what an omitted one looks like.
+ *
+ * A compare-at at or below the selling price is treated as absent: it is either
+ * a typo or a price that has gone up, and "-0% off" is not the way to report
+ * either.
+ */
 export function pricingFor(piece: Piece): Pricing {
-  if (piece.compareAt) {
-    return {
-      price: piece.price,
-      mrp: piece.compareAt,
-      off: Math.round((1 - piece.price / piece.compareAt) * 100),
-    };
+  if (!piece.compareAt || piece.compareAt <= piece.price) {
+    return { price: piece.price, mrp: null, off: null };
   }
 
-  const off = DISCOUNTS[hash(piece.id) % DISCOUNTS.length];
-  // rounded to the nearest ten so the MRP reads like a price rather than the
-  // output of a division
-  const mrp = Math.round(piece.price / (1 - off / 100) / 10) * 10;
-
-  return { price: piece.price, mrp, off };
+  return {
+    price: piece.price,
+    mrp: piece.compareAt,
+    off: Math.round((1 - piece.price / piece.compareAt) * 100),
+  };
 }
 
 /**
  * The catalogue product a tile stands for.
  *
- * The twenty tiles are a display layer over the four real fixtures — that is
- * already true of the link each one carries and of the size run it shows, and
- * it is what lets the quick-add put a genuine line in the shared cart rather
- * than a mock of one.
+ * The tiles are a display layer over the real catalogue — that is already true of
+ * the link each one carries and of the size run it shows, and it is what lets the
+ * quick-add put a genuine line in the shared cart rather than a mock of one.
+ *
+ * The catalogue is PASSED IN rather than read from the store here. It arrives over
+ * the network now (`GET /catalog/products`), so a caller has to be subscribed to
+ * it for this to be able to answer at all — taking it as an argument is what makes
+ * that visible at every call site instead of hiding a hook dependency inside a
+ * plain function.
  */
-export function productFor(piece: Piece) {
-  return productFixtures.find((product) => product.slug === piece.slug);
+export function productFor(piece: Piece, catalogue: Product[]) {
+  return catalogue.find((product) => product.slug === piece.slug);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -110,7 +124,19 @@ export function productFor(piece: Piece) {
 export type Frame =
   | { mode: "crop"; src: string; op: string; zoom: number }
   /** one cell of a 2×2 contact sheet, addressed by column and row */
-  | { mode: "quad"; src: string; qx: 0 | 1; qy: 0 | 1; zoom: number };
+  | { mode: "quad"; src: string; qx: 0 | 1; qy: 0 | 1; zoom: number }
+  /**
+   * No photograph. Drawn as an empty frame, never as a stand-in picture.
+   *
+   * The alternative — which is what this used to do — was to fall back to a
+   * quadrant of the house contact sheet, so a piece nobody had shot was
+   * advertised with a photograph of a different garment. It looked like a
+   * finished shop and it was telling shoppers something untrue.
+   */
+  | { mode: "none" };
+
+/** The one frame that means "there is no photograph". */
+export const BLANK_FRAME: Frame = { mode: "none" };
 
 /**
  * `drop-001-products.webp` is a 2×2 contact sheet, and the shared crop library
@@ -162,8 +188,31 @@ export function frameForCrop(key: CropKey): Frame {
   return { mode: "crop", src: crop.src, op: crop.op, zoom: crop.z ?? 1 };
 }
 
+/**
+ * An uploaded photograph, as a frame.
+ *
+ * A real photo needs no crop arithmetic — it was shot for this and the server
+ * has already capped its longest edge — so it is a plain centred `cover`, which
+ * is exactly what `mode: "crop"` resolves to at the identity origin and zoom.
+ * Reusing that mode rather than adding a third means every stylesheet already
+ * knows how to draw one.
+ */
+export function frameForPhoto(src: string): Frame {
+  return { mode: "crop", src, op: "50% 50%", zoom: 1 };
+}
+
+/**
+ * The one frame that stands for a piece.
+ *
+ * The operator's photograph, or nothing. `piece.image` has carried the uploaded
+ * primary since the tiles started reading the live catalogue (`use-pieces.ts`),
+ * but this went on framing the sprite regardless — so a piece somebody HAD
+ * photographed still showed the house contact sheet on every card in the shop,
+ * and a piece nobody had photographed showed somebody else's garment. The first
+ * was a bug; the second was the design, and it was worse.
+ */
 export function frameFor(piece: Piece): Frame {
-  return frameForCrop(piece.crop);
+  return piece.image ? frameForPhoto(piece.image) : BLANK_FRAME;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -188,11 +237,21 @@ const ONE_SIZE: SizeOption[] = [{ label: "One size", state: "in" }];
  *
  * Accessories are not graded, so they collapse to one size.
  */
-export function sizesFor(piece: Piece): SizeOption[] {
-  if (piece.category === "accessories") return ONE_SIZE;
+export function sizesFor(piece: Piece, catalogue: Product[]): SizeOption[] {
+  const product = catalogue.find((item) => item.slug === piece.slug);
 
-  const product = productFixtures.find((item) => item.slug === piece.slug);
-  if (!product) return ONE_SIZE;
+  /* The variants ARE the size run, so a product that has them shows them —
+     whatever it is filed under.
+
+     This used to return "One size" for anything in the accessories category,
+     which is true of a chain or a pouch but is a guess, not a fact. It reached
+     past the accessories: a product with no console category at all is mapped to
+     accessories by `use-pieces`, so a pair of jeans published straight from the
+     stock screen — stocked in 30, 32, 34 and 36, with a variant for each —
+     opened a page offering a single size nobody could buy the others in. The
+     honest rule is the narrower one: one size is what a piece with no sized
+     variants has. */
+  if (!product || product.variants.length === 0) return ONE_SIZE;
 
   return product.variants.map((variant) => ({
     label: variant.size,
@@ -210,9 +269,11 @@ export function sizesFor(piece: Piece): SizeOption[] {
 
 export const CATALOGUE_COPY = {
   eyebrow: "The men's edit",
-  /** the head runs as SplitHeading segments — the second is the light cut */
+  /** `{count}` is filled in by the catalogue — the release is whatever is
+   * published, not the twenty tiles this file used to hold.
+   * The head runs as SplitHeading segments — the second is the light cut */
   heading: [
-    { text: "Twenty pieces cut for " },
+    { text: "{count} pieces cut for " },
     { text: "weight\nand ", light: true },
     { text: "movement" },
   ],
@@ -222,7 +283,10 @@ export const CATALOGUE_COPY = {
     // the run quoted here has to match what the tiles actually offer, which
     // comes from the product fixtures — see `sizesFor`
     { key: "01", title: "Sized XS — XL", body: "Graded on a real curve, with the fit noted on every product page." },
-    { key: "02", title: "Free shipping over ₹4,999", body: "Dispatched from the Bengaluru studio within two working days." },
+    /* The title is written at render from the store's own threshold — see
+       `shippingNote` and `catalogue.tsx`. It was the literal "Free shipping
+       over ₹4,999", which is a figure `store_settings` owns. */
+    { key: "02", title: "", body: "Dispatched from the Bengaluru studio within two working days." },
     { key: "03", title: "30-day returns", body: "Unworn, tags on. Exchanges are free once per order." },
   ],
 } as const;

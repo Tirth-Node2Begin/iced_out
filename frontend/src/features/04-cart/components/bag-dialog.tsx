@@ -57,7 +57,11 @@ export function BagDialog({
             {lines.map((line) => (
               <article className="co-bag__line" key={`${line.product.id}-${line.size}`}>
                 <span className="co-summary__media">
-                  <ProductImage position={line.product.imagePosition} />
+                  <ProductImage
+                    alt={line.product.name}
+                    position={line.product.imagePosition}
+                    src={line.product.image}
+                  />
                   <i>{line.quantity}</i>
                 </span>
                 <span className="co-bag__body">

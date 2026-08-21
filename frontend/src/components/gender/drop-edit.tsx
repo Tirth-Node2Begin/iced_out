@@ -7,13 +7,13 @@ import { useCallback, useMemo, useState } from "react";
 
 import {
   CATEGORIES,
-  CROPS,
   formatPrice,
   type AudienceContent,
   type Category,
   type Piece,
 } from "@/components/gender/data";
 import { EASE_OUT, Reveal } from "@/components/gender/motion";
+import { useGenderPieces } from "@/components/gender/use-pieces";
 import { useWishlist } from "@/features/05-wishlist/wishlist-context";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -21,9 +21,15 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 /**
  * 01 — THE RELEASE. `#gx-edit`, the hero's primary CTA target.
  *
- * A category rail and eight products. Eight is the cut-off because the page is
- * meant to be read, not scrolled — the foot pill carries anyone who wants the
- * other twelve to the full collection.
+ * A category rail and eight products, read from the published catalogue for this
+ * page's audience. Eight is the cut-off because the page is meant to be read, not
+ * scrolled — the foot pill carries anyone who wants the rest to the full
+ * collection.
+ *
+ * The pieces used to be twenty hardcoded objects per audience, and the prices on
+ * them disagreed with the database: this grid showed "Core Heavy Tee · ₹4,200"
+ * while the product it linked to was ₹4,600, and sixteen of its twenty tiles named
+ * garments that did not exist as products at all. See `use-pieces.ts`.
  *
  * The shadcn primitives carry the semantics: ToggleGroup gives the rail its
  * roving focus and single-selection, Button the save toggle and the foot pill.
@@ -38,16 +44,26 @@ const CATEGORY_LABEL = new Map(
 
 export function DropEdit({ content }: { content: AudienceContent }) {
   const [category, setCategory] = useState<Category | "all">("all");
+  const { pieces, loading, error, loaded } = useGenderPieces(content.audience);
 
   const matches = useMemo(
     () =>
       category === "all"
-        ? content.pieces
-        : content.pieces.filter((piece) => piece.category === category),
-    [content.pieces, category],
+        ? pieces
+        : pieces.filter((piece) => piece.category === category),
+    [pieces, category],
   );
 
   const visible = matches.slice(0, SHOWN);
+
+  /* An empty grid has three possible causes and only one of them is the rail. */
+  const note = error
+    ? error
+    : loading && !loaded
+      ? "Reading the release…"
+      : pieces.length === 0
+        ? "Nothing is published for this release yet."
+        : null;
 
   return (
     <section aria-labelledby="gx-edit-title" className="gxd-section" id="gx-edit">
@@ -84,8 +100,8 @@ export function DropEdit({ content }: { content: AudienceContent }) {
 
         {visible.length === 0 ? (
           <div className="gxd-empty">
-            <h3>Nothing in this filter.</h3>
-            <p>Clear the category to see the rest of the release.</p>
+            <h3>{note ?? "Nothing in this filter."}</h3>
+            {note ? null : <p>Clear the category to see the rest of the release.</p>}
           </div>
         ) : (
           <div className="gxd-grid">
@@ -97,8 +113,8 @@ export function DropEdit({ content }: { content: AudienceContent }) {
 
         <div className="gxd-foot">
           <Button asChild className="gxd-pill" variant="ghost">
-            <Link href="/collections/drop-001">
-              View all {content.pieces.length} pieces
+            <Link href="/collections/view?slug=drop-001">
+              View all {pieces.length} pieces
               <span aria-hidden className="gxd-pill__dot">
                 <ArrowUpRight size={15} />
               </span>
@@ -126,7 +142,6 @@ export function DropEdit({ content }: { content: AudienceContent }) {
  */
 function ProductCard({ piece, index }: { piece: Piece; index: number }) {
   const reduce = useReducedMotion();
-  const crop = CROPS[piece.crop];
 
   /* the shared wishlist rather than a local flag — a heart that only fills in
      until the next navigation is a heart that saves nothing */
@@ -149,19 +164,19 @@ function ProductCard({ piece, index }: { piece: Piece; index: number }) {
       whileInView={{ opacity: 1, y: 0 }}
     >
       <div className="gxd-card__frame">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          alt=""
-          decoding="async"
-          loading="lazy"
-          src={crop.src}
-          style={{ "--op": crop.op, "--z": crop.z ?? 1 } as React.CSSProperties}
-        />
+        {/* The piece's own photo, or an empty frame — never a crop of another
+            garment standing in for one that has not been shot. */}
+        {piece.image ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img alt="" decoding="async" loading="lazy" src={piece.image} />
+        ) : (
+          <span aria-hidden className="gxd-card__blank" />
+        )}
 
         <Link
           aria-label={`${piece.name} — ${formatPrice(piece.price)}`}
           className="gxd-card__hit"
-          href={`/product/${piece.slug}`}
+          href={`/product?slug=${piece.slug}`}
         />
 
         <span className="gxd-card__chip" data-new={piece.isNew ? "true" : undefined}>

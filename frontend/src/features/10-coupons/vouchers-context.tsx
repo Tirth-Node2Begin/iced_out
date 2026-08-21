@@ -4,23 +4,25 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useSyncExternalStore,
   type ReactNode,
 } from "react";
 
+import { customerClient } from "@/api/clients";
 import type { Coupon } from "@/features/10-coupons/coupons";
 import {
   VOUCHERS_KEY,
   defaultExpiryISO,
   redeemableCoupons,
   reviveVouchers,
-  seededVouchers,
   todayISO,
   voucherBalance,
   voucherCodeFor,
   type Voucher,
 } from "@/features/10-coupons/vouchers";
+import { useAuth } from "@/features/20-auth-security/auth-context";
 import { createLocalStore } from "@/lib/local-store";
 
 /**
@@ -54,7 +56,12 @@ import { createLocalStore } from "@/lib/local-store";
  * list. Deleting every voucher from the register is a thing an operator can
  * mean, so it is honoured rather than reseeded on the next reload.
  */
-const store = createLocalStore<Voucher[]>(VOUCHERS_KEY, seededVouchers, (parsed) =>
+/* Starts EMPTY, not seeded: the credit belongs to an account and arrives from
+   `GET /me/vouchers`. Seeding a voucher into the browser is what showed every
+   new visitor ₹4,600 of somebody else's store credit. The local store stays as
+   the cross-tab channel — an operator settling a return in the console tab
+   still lands the credit in the account tab without a reload. */
+const store = createLocalStore<Voucher[]>(VOUCHERS_KEY, [], (parsed) =>
   Array.isArray(parsed) ? reviveVouchers(parsed) : null,
 );
 
@@ -102,15 +109,53 @@ type VouchersContextValue = {
 const VouchersContext = createContext<VouchersContextValue | null>(null);
 
 export function VouchersProvider({ children }: { children: ReactNode }) {
+  const { isAuthenticated, sessionReady } = useAuth();
+
   /* The store IS the state. The console and the storefront are two routes in
      one app, and an operator settling a return in one tab should not have to
      reload the other to see the credit land — the store listens for `storage`
      itself, so that comes free rather than as a fourth effect here. */
-  const vouchers = useSyncExternalStore(
+  const stored = useSyncExternalStore(
     store.subscribe,
     store.getSnapshot,
     store.getServerSnapshot,
   );
+
+  /**
+   * The account's own credit, read from the API.
+   *
+   * The seeded voucher used to be written into every browser, so a brand-new
+   * account opened onto ₹4,600 of somebody else's store credit. A voucher is
+   * money owed to a person: it belongs to their account, and a new one has none.
+   */
+  useEffect(() => {
+    if (!sessionReady) return;
+
+    let live = true;
+
+    async function load() {
+      if (!isAuthenticated) {
+        if (live) store.write([]);
+
+        return;
+      }
+
+      try {
+        const response = await customerClient.get<{ data: { vouchers: Voucher[] } }>("/me/vouchers");
+        if (live) store.write(response.data.data.vouchers);
+      } catch {
+        if (live) store.write([]);
+      }
+    }
+
+    void load();
+
+    return () => {
+      live = false;
+    };
+  }, [isAuthenticated, sessionReady]);
+
+  const vouchers = stored;
 
   /* Every writer reads the store rather than a closure or a mirror ref, so each
      one stays identity-stable AND always sees what is current — including a

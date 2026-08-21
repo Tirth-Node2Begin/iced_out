@@ -68,7 +68,11 @@ export function CartDrawer() {
                   {lines.map((line) => (
                     <article className="io-line" key={`${line.product.id}-${line.size}`}>
                       <span className="io-line__media">
-                        <ProductImage position={line.product.imagePosition} />
+                        <ProductImage
+                          alt={line.product.name}
+                          position={line.product.imagePosition}
+                          src={line.product.image}
+                        />
                       </span>
 
                       <div className="io-line__body">

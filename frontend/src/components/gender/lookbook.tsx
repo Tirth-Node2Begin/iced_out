@@ -122,7 +122,7 @@ export function Lookbook({ content }: { content: AudienceContent }) {
                   <Link
                     className="gx-look__item"
                     data-active={active === pin.id}
-                    href={`/product/${pin.slug}`}
+                    href={`/product?slug=${pin.slug}`}
                     key={`${current.id}-row-${pin.id}`}
                     onBlur={() => setActive(null)}
                     onFocus={() => setActive(pin.id)}
@@ -157,7 +157,7 @@ export function Lookbook({ content }: { content: AudienceContent }) {
 
             <Link
               className="gx-pill gx-pill--solid gx-pill--foot"
-              href="/collections/drop-001"
+              href="/collections/view?slug=drop-001"
               style={{ alignSelf: "flex-start" }}
             >
               Shop the whole look
@@ -256,7 +256,7 @@ function Pin({
       </PopoverTrigger>
 
       <PopoverContent align="center" className="gx-look__pop" side="right" sideOffset={12}>
-        <Link className="flex items-center gap-3" href={`/product/${pin.slug}`}>
+        <Link className="flex items-center gap-3" href={`/product?slug=${pin.slug}`}>
           <span className="gx-look__thumb">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img

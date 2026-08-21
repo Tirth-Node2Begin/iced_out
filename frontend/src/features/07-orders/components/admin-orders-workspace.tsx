@@ -4,13 +4,9 @@ import { Ban, CheckCircle2, IndianRupee, ShoppingBag } from "lucide-react";
 
 import { StatGrid, type Stat } from "@/components/admin/admin-stats";
 import { AdminPage } from "@/components/admin/admin-ui";
-import { RecordManager, type Column, type FormField } from "@/components/admin/record-manager";
+import { RecordManager, type Column } from "@/components/admin/record-manager";
 import { formatPrice } from "@/features/02-products/utils/format-price";
-import {
-  ORDER_STATES,
-  PAYMENT_METHODS,
-  PAYMENT_STATES,
-} from "@/features/07-orders/data/admin-order-fixtures";
+import { ORDER_STATES } from "@/features/07-orders/order-states";
 import { useFulfilment } from "@/features/07-orders/fulfilment-context";
 
 /**
@@ -21,8 +17,16 @@ import { useFulfilment } from "@/features/07-orders/fulfilment-context";
  * business; keeping "dispatched" out of here is what stops one order having
  * two answers to "what state is it in".
  *
- * Both verbs are on the row: confirm it, or call it off. Cancelling from here
- * also cancels anything already out for that order — see the store.
+ * Both verbs are on the row: confirm it, or call it off. Each is one endpoint —
+ * `POST /admin/orders/{number}/confirm` and `.../cancel` — and cancelling also
+ * cancels anything already out for that order and releases the stock it was
+ * holding, in one server transaction.
+ *
+ * The register is READ-ONLY, and that is a correction rather than a limitation.
+ * It used to offer "New order", with fields for a customer name and an order
+ * value: a form for inventing a sale nobody made. Orders arrive from checkout.
+ * What an operator does to one is agree it or call it off, which is what the two
+ * row verbs are for.
  */
 
 const money = (value: string) => formatPrice(Number(value) || 0);
@@ -74,26 +78,8 @@ const COLUMNS: Column[] = [
   },
 ];
 
-const FIELDS: FormField[] = [
-  { key: "customer", label: "Customer", placeholder: "Full name", required: true },
-  { key: "items", label: "Items", type: "number", min: "1", initial: "1", required: true },
-  {
-    key: "value",
-    label: "Order value",
-    hint: "₹",
-    type: "number",
-    min: "0",
-    step: "100",
-    placeholder: "17800",
-    required: true,
-  },
-  { key: "payment", label: "Payment", type: "select", options: [...PAYMENT_STATES] },
-  { key: "method", label: "Paid by", type: "select", options: [...PAYMENT_METHODS] },
-  { key: "status", label: "Status", type: "select", options: [...ORDER_STATES] },
-];
-
 export function AdminOrdersWorkspace() {
-  const { orders, commitOrders, cancelOrder } = useFulfilment();
+  const { orders, ready, loading, error, confirmOrder, cancelOrder } = useFulfilment();
 
   const placed = orders.filter((order) => order.status === "Placed");
   const confirmed = orders.filter((order) => order.status === "Confirmed");
@@ -154,28 +140,32 @@ export function AdminOrdersWorkspace() {
 
       <RecordManager
         columns={COLUMNS}
-        fields={FIELDS}
+        emptyHint="No orders yet. They arrive here the moment a shopper checks out."
+        error={error}
+        fields={[]}
         filterKey="status"
         filterValues={STATUS_ORDER}
         icon={ShoppingBag}
         idKey="id"
-        idPrefix="IO-2026"
-        onCommit={commitOrders}
-        rowHref={(row) => `/admin/orders/${row.id}`}
+        loaded={ready}
+        loading={loading}
+        readOnly
+        rowHref={(row) => `/admin/orders/detail?id=${encodeURIComponent(row.id)}`}
         rows={orders}
         singular="order"
         tone="sky"
         rowAction={(row) => {
           if (row.status === "Cancelled") return null;
 
-          /* Cancelling is not a patch like the others — it has to reach the
-             shipment too — so it goes through the store rather than through
-             the register's own writer. */
+          /* Both verbs go through their own endpoint rather than patching the row:
+             confirming writes a history entry and cancelling reaches the parcel
+             and the stock as well. `onSelect` is awaited by the register, so a
+             refusal — a payment that has since failed, an order somebody else
+             just cancelled — is reported instead of being drawn as done. */
           const cancel = {
             icon: Ban,
             tone: "danger" as const,
             label: `Cancel ${row.id}`,
-            patch: {},
             onSelect: () => cancelOrder(row.id, "Store"),
             toast: {
               title: "Order cancelled",
@@ -195,7 +185,7 @@ export function AdminOrdersWorkspace() {
               label: blocked
                 ? `Payment failed — ${row.id} cannot be confirmed`
                 : `Confirm ${row.id}`,
-              patch: { status: "Confirmed" },
+              onSelect: () => confirmOrder(row.id),
               toast: { title: "Order confirmed", description: `${row.id} is ready to dispatch.` },
             },
             cancel,

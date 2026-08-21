@@ -1,200 +1,143 @@
 "use client";
 
-import { useCallback, useSyncExternalStore } from "react";
+import { useCallback, useMemo, useSyncExternalStore } from "react";
 
+import { adminClient } from "@/api/clients";
+import { createIdempotencyKey } from "@/api/request-context";
 import type { RecordRow } from "@/components/admin/record-manager";
-import {
-  maskName,
-  payments,
-  payouts,
-  refunds,
-  stampNow,
-} from "@/features/09-payment/payment-data";
-import { isReservedPayment, reservedPaymentSlots } from "@/features/09-payment/payment-slots";
-import { createLocalStore } from "@/lib/local-store";
+import { refreshQueues } from "@/features/15-dashboard/dashboard-api";
+import { createRemoteStore, type RemoteStore } from "@/lib/remote-store";
 
 /**
- * The ledger the two sides of the app share.
+ * The money ledger — payments, refunds and payouts, read from the database.
  *
- * The registers used to hold their rows in a `useState` seeded from fixtures,
- * which made this module a demonstration rather than a ledger: a shopper could
- * pay at checkout and nobody in the back office would ever see it, and an
- * operator's own edits died on the next navigation.
+ * This was a `localStorage` ledger with a comment explaining that keeping it
+ * there was what let checkout and the back office see the same payments. They
+ * did, within one browser. The deeper problem was that the write was a DUPLICATE:
+ * `POST /checkout/orders` already inserts the payment row inside the same
+ * transaction as the order (see `PlaceOrderService`), so every purchase was
+ * recorded twice — once in the database, where the console could not see it, and
+ * once in the browser, where nobody else could.
  *
- * One store fixes both. Checkout writes a payment here the moment the money
- * moves — see `recordCheckoutPayment` — and `/admin/payments` reads it, so the
- * ledger is the same list from either direction.
+ * `recordCheckoutPayment` is therefore gone rather than rewritten. Checkout does
+ * not need to tell the ledger anything; placing the order IS the entry.
  *
- * There is no provider: the store is a module singleton, so the storefront can
- * write to it without the admin console being mounted, and the admin console
- * can read it without checkout being mounted. Neither side imports the other.
+ * Three registers, three endpoints:
+ *
+ *   /admin/payments   every attempt, captured, due or failed
+ *   /admin/refunds    what has been sent back, and what is waiting on approval
+ *   /admin/payouts    what the gateway has settled to the bank
+ *
+ * Nothing here is editable. A ledger is a record of what happened; the verbs it
+ * offers are `collect-cod`, `gateway-check`, a refund transition and marking a
+ * payout paid — each of which records a new fact rather than amending an old one.
  */
 
-type Ledger = { payments: RecordRow[]; refunds: RecordRow[]; payouts: RecordRow[] };
+const paymentsStore: RemoteStore<RecordRow> = remote("/admin/payments");
+const refundsStore: RemoteStore<RecordRow> = remote("/admin/refunds");
+const payoutsStore: RemoteStore<RecordRow> = remote("/admin/payouts");
 
-/**
- * Bumped from v1 when `Review` left the vocabulary. A ledger written under the
- * old words would come back holding a state no chip filters and no row action
- * can clear, which is worse than starting from the seed — the states ARE the
- * schema here, so a change to them is a change of shape.
- */
-const STORAGE_KEY = "iced-out-payments-v2";
-
-const SEEDED: Ledger = { payments, refunds, payouts };
-
-/** Only flat string maps survive the trip back — anything else is not a record. */
-function reviveList(value: unknown, fallback: RecordRow[]): RecordRow[] {
-  if (!Array.isArray(value)) return fallback;
-
-  const rows: RecordRow[] = [];
-  for (const entry of value) {
-    if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
-    const row: RecordRow = {};
-    for (const [key, cell] of Object.entries(entry as Record<string, unknown>)) {
-      if (typeof cell === "string") row[key] = cell;
-    }
-    if (row.id) rows.push(row);
-  }
-
-  return rows;
+function remote(path: string): RemoteStore<RecordRow> {
+  return createRemoteStore<RecordRow>(async () => {
+    const response = await adminClient.get<{ data: RecordRow[] }>(path);
+    return response.data.data;
+  });
 }
 
-const store = createLocalStore<Ledger>(STORAGE_KEY, SEEDED, (parsed, fallback) => {
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
-  const stored = parsed as Partial<Record<keyof Ledger, unknown>>;
-
-  /* An emptied register is a legitimate state, so a missing key falls back to
-     the seed but a present-and-empty one is honoured. */
-  return {
-    payments: "payments" in stored ? reviveList(stored.payments, []) : fallback.payments,
-    refunds: "refunds" in stored ? reviveList(stored.refunds, []) : fallback.refunds,
-    payouts: "payouts" in stored ? reviveList(stored.payouts, []) : fallback.payouts,
-  };
-});
-
-/* ------------------------------------------------------- what checkout sends */
-
-/** A payment as the storefront knows it, at the moment it settles. */
-export type CheckoutPayment = {
-  /** The order's public number, `IO-2026-1049` — what both sides call it. */
-  order: string;
-  /** The shopper's name as typed. Masked before it is written. */
-  customer: string;
-  amount: number;
-  /** How they paid, in the storefront's words: `UPI ••••42`, `Visa •••• 1842`. */
-  method: string;
-  /** Whatever the gateway handed back. A `pay_…` id becomes the ledger's id. */
-  reference: string;
-  outcome: "captured" | "due" | "failed";
-  note?: string;
-};
-
-/**
- * The id the new payment takes, and the rows that survive it.
- *
- * A slot out of the exported pool, so the payment has a detail page to open —
- * see `payment-slots`. When every slot is spoken for the oldest browser-made
- * payment gives its id back, exactly as a placed order does: the pool is
- * precisely what the static export can address, so it cannot simply grow.
- */
-function claimSlot(rows: RecordRow[]) {
-  const taken = new Set(rows.map((row) => row.id));
-  const free = reservedPaymentSlots.find((slot) => !taken.has(slot));
-  if (free) return { id: free, kept: rows };
-
-  const oldest = [...rows].reverse().find((row) => isReservedPayment(row.id));
-  const id = oldest?.id ?? reservedPaymentSlots[0];
-  return { id, kept: rows.filter((row) => row.id !== id) };
-}
-
-/** Who took the money, read off how it was paid. */
-function gatewayFor(outcome: CheckoutPayment["outcome"], method: string) {
-  /* Cash on delivery is collected at the door, so the courier IS the gateway. */
-  if (outcome === "due") return "Courier";
-  if (/razorpay/i.test(method)) return "Razorpay";
-  /* The card sheet authorises on this origin with no acquirer behind it. */
-  return "On device";
-}
-
-/** The ledger's word for what the storefront just saw happen. */
-const STATE: Record<CheckoutPayment["outcome"], string> = {
-  captured: "Captured",
-  due: "Due",
-  failed: "Failed",
-};
-
-/** What the row says happened, when the gateway gave no words of its own. */
-const DEFAULT_NOTE: Record<CheckoutPayment["outcome"], string> = {
-  captured: "Taken at checkout",
-  due: "The courier collects it at the door",
-  failed: "The attempt did not go through",
-};
-
-/**
- * A payment from checkout, into the ledger the console reads.
- *
- * Every order writes one, because every order is money owed:
- *
- *   - paid by card or gateway → `Captured`, or `Failed` if it bounced;
- *   - cash on delivery        → `Due`, until someone marks it collected.
- *
- * A failed attempt is recorded rather than dropped. The shopper saw it, the
- * order exists carrying it, and support will be asked about it — a ledger that
- * only holds the money that arrived cannot answer "what happened to mine".
- */
-export function recordCheckoutPayment(input: CheckoutPayment) {
-  const current = store.getSnapshot();
-  const { id, kept } = claimSlot(current.payments);
-
-  const row: RecordRow = {
-    id,
-    order: input.order,
-    customer: maskName(input.customer),
-    gateway: gatewayFor(input.outcome, input.method),
-    method: input.method,
-    amount: String(Math.round(input.amount)),
-    status: STATE[input.outcome],
-    /* What the shopper was told, wherever there was something to tell them —
-       so the row and the receipt cannot give two accounts of the same event. */
-    note: input.note?.trim() || DEFAULT_NOTE[input.outcome],
-    /* The gateway's own id, kept as evidence rather than used as the route — a
-       payment support is asked about is looked up by this. Cash on delivery
-       has none: no gateway was asked, so there is nothing to quote. */
-    reference: input.outcome === "due" ? "" : input.reference,
-    created: stampNow(),
-  };
-
-  store.write({ ...current, payments: [row, ...kept] });
-}
-
-/* --------------------------------------------------------- what admin reads */
-
-export type PaymentLedger = Ledger & {
-  commitPayments: (next: (current: RecordRow[]) => RecordRow[]) => void;
-  commitRefunds: (next: (current: RecordRow[]) => RecordRow[]) => void;
-  commitPayouts: (next: (current: RecordRow[]) => RecordRow[]) => void;
+export type PaymentLedger = {
+  payments: RecordRow[];
+  refunds: RecordRow[];
+  payouts: RecordRow[];
+  /** False until all three have answered once. */
+  ready: boolean;
+  loading: boolean;
+  error: string | null;
+  /** Re-reads all three. A refund changes a payment's standing, and a payout's. */
+  refresh: () => Promise<void>;
+  /**
+   * A verb on one row.
+   *
+   * `idempotent` marks the ones that move money — collecting cash on delivery,
+   * raising a refund — so a retry on a slow connection replays the first request
+   * instead of taking the money twice. The API enforces it against the key; this
+   * is the half that sends one.
+   */
+  act: (path: string, body?: Record<string, unknown>, idempotent?: boolean) => Promise<void>;
+  /** Raises a refund against a payment. Its own endpoint, and replay-safe. */
+  raiseRefund: (input: {
+    payment: string;
+    amount: number;
+    reason: string;
+  }) => Promise<void>;
 };
 
 export function usePaymentLedger(): PaymentLedger {
-  const state = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getServerSnapshot);
+  const payments = useSyncExternalStore(
+    paymentsStore.subscribe,
+    paymentsStore.getSnapshot,
+    paymentsStore.getServerSnapshot,
+  );
+  const refunds = useSyncExternalStore(
+    refundsStore.subscribe,
+    refundsStore.getSnapshot,
+    refundsStore.getServerSnapshot,
+  );
+  const payouts = useSyncExternalStore(
+    payoutsStore.subscribe,
+    payoutsStore.getSnapshot,
+    payoutsStore.getServerSnapshot,
+  );
 
-  /* Each takes an updater rather than a list because an undo can fire long
-     after the render that offered it, and it still has to build on what is
-     current — which the store, not the closure, knows. */
-  const commitPayments = useCallback((next: (current: RecordRow[]) => RecordRow[]) => {
-    const current = store.getSnapshot();
-    store.write({ ...current, payments: next(current.payments) });
+  const refresh = useCallback(async () => {
+    /* The queue counts too — `paymentExceptions` is what the rail badges on the
+       Payments lane, and collecting a cash payment clears one. */
+    await Promise.all([
+      paymentsStore.refresh(),
+      refundsStore.refresh(),
+      payoutsStore.refresh(),
+      refreshQueues(),
+    ]);
   }, []);
 
-  const commitRefunds = useCallback((next: (current: RecordRow[]) => RecordRow[]) => {
-    const current = store.getSnapshot();
-    store.write({ ...current, refunds: next(current.refunds) });
-  }, []);
+  const act = useCallback(
+    async (path: string, body?: Record<string, unknown>, idempotent = false) => {
+      await adminClient.post(
+        path,
+        body ?? {},
+        idempotent
+          ? { headers: { "Idempotency-Key": createIdempotencyKey(path) } }
+          : undefined,
+      );
+      await refresh();
+    },
+    [refresh],
+  );
 
-  const commitPayouts = useCallback((next: (current: RecordRow[]) => RecordRow[]) => {
-    const current = store.getSnapshot();
-    store.write({ ...current, payouts: next(current.payouts) });
-  }, []);
+  const raiseRefund = useCallback(
+    (input: { payment: string; amount: number; reason: string }) =>
+      act("/admin/refunds", input, true),
+    [act],
+  );
 
-  return { ...state, commitPayments, commitRefunds, commitPayouts };
+  return useMemo(
+    () => ({
+      payments: payments.data,
+      refunds: refunds.data,
+      payouts: payouts.data,
+      ready: payments.loaded && refunds.loaded && payouts.loaded,
+      loading: payments.loading || refunds.loading || payouts.loading,
+      error: payments.error ?? refunds.error ?? payouts.error,
+      refresh,
+      act,
+      raiseRefund,
+    }),
+    [act, payments, payouts, raiseRefund, refresh, refunds],
+  );
+}
+
+/** Drops the held ledger. Called on staff sign-out. */
+export function resetPaymentLedger() {
+  paymentsStore.reset();
+  refundsStore.reset();
+  payoutsStore.reset();
 }

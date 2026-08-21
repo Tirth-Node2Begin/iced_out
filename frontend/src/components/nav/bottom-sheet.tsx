@@ -6,6 +6,14 @@ import { createPortal } from "react-dom";
 
 import { EASE_OUT } from "@/components/new-home/motion-primitives";
 
+/* The surface's own rules, imported here rather than left to whichever
+   stylesheet a route group happened to pull in. Both overlays used to be
+   styled by chrome.css, which /about, /home-v2 and the /new-* pages never
+   load — so on those routes the sheet fell out of `position: fixed` and
+   landed in the page flow under the footer as unstyled text. Owning the
+   import means the rules travel with the markup. */
+import "@/styles/components/overlay-sheet.css";
+
 /** Nothing to subscribe to — the value only changes once, at hydration. */
 const subscribeNever = () => () => {};
 

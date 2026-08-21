@@ -29,6 +29,8 @@ import {
   type StatusTone,
   type Tone,
 } from "@/components/admin/admin-ui";
+import { MediaField } from "@/components/admin/media-field";
+import { MediaGalleryField } from "@/components/admin/media-gallery-field";
 
 /**
  * The console's list screen — one component behind every register in `/admin`.
@@ -78,7 +80,30 @@ export type FormField = {
    * of them at once. It stores what was picked as one comma-joined string, so a
    * record stays the flat string map the rest of this component relies on.
    */
-  type?: "text" | "number" | "select" | "textarea" | "date" | "chips";
+  /**
+   * `image` is a picker, not an input: it uploads the chosen file to the media
+   * endpoint straight away and keeps what came back — the asset's URL — as its
+   * value. The record therefore stays the flat string map everything else here
+   * relies on, and the bytes are already stored and validated by the time the
+   * form is submitted.
+   *
+   * `gallery` is its many-valued cousin — the other photographs of the same
+   * thing, submitted as one comma-joined list of URLs in display order.
+   *
+   * `checkbox` is a single yes/no, and it submits `"true"` or `""` rather than
+   * the browser's `"on"`, so a register reading the value back gets the same
+   * string whichever way it was set.
+   */
+  type?:
+    | "text"
+    | "number"
+    | "select"
+    | "textarea"
+    | "date"
+    | "chips"
+    | "image"
+    | "gallery"
+    | "checkbox";
   options?: SelectOption[];
   /**
    * Options read off the rest of the form instead of declared up front, for a
@@ -101,6 +126,16 @@ export type FormField = {
   full?: boolean;
   /** Prefill for a new record. */
   initial?: string;
+  /**
+   * Asked when the record is created and never again.
+   *
+   * For a field that is a DECISION rather than a fact — "publish this now". The
+   * decision is made once; offering it on every later edit turns a correction to
+   * a typo into a chance to re-run it by accident. It is dropped from the edit
+   * form entirely rather than disabled, because a control that is present and
+   * inert still reads as an option.
+   */
+  createOnly?: boolean;
   /** Bounds for a number field — a count or a price never goes negative. */
   min?: string;
   step?: string;
@@ -116,15 +151,18 @@ export type RowAction = {
   icon: LucideIcon;
   /** Names the action for the tooltip and for screen readers. */
   label: string;
-  /** What the record becomes. Undo comes free with it. */
+  /** What the record becomes. Undo comes free with it on a local register. */
   patch?: RecordRow;
   /**
    * For a verb whose consequences reach past this row — cancelling an order
    * also cancels the parcel carrying it — the register hands the change to the
    * store that owns both instead of writing the row itself. No undo is offered
    * for one of these, because this component cannot know how to reverse it.
+   *
+   * May return a promise: a verb backed by its own endpoint (confirm an order,
+   * approve a return) is awaited, and a refusal is reported as a toast.
    */
-  onSelect?: () => void;
+  onSelect?: () => void | Promise<void>;
   tone?: "good" | "danger";
   /** Shown, but held — for a row where the verb is right but not yet legal. */
   disabled?: boolean;
@@ -154,11 +192,57 @@ export type RecordManagerProps = {
    */
   onCommit?: (next: (current: RecordRow[]) => RecordRow[]) => void;
   /**
+   * The three write verbs, sent to the SERVER.
+   *
+   * Pass these — see `useRegister` — and this component stops being the owner of
+   * the records: the form awaits the request, a refusal keeps the dialog open
+   * with the server's reason on it, and the rows redraw from whatever the
+   * database ends up holding. That is the difference between a console that
+   * looks like it saved and one that did.
+   *
+   * `onCommit` is still used for the local-only registers that have not been
+   * given endpoints yet, so both arrangements can coexist while screens are
+   * moved across one at a time.
+   *
+   * Undo is deliberately NOT offered for a persisted change. A toast offering to
+   * reverse something already written to the database, which may have cascaded,
+   * is a promise this component cannot keep.
+   */
+  onCreate?: (values: RecordRow) => Promise<void>;
+  onUpdate?: (values: RecordRow, previous: RecordRow) => Promise<void>;
+  onDelete?: (row: RecordRow) => Promise<void>;
+  /** True while the register's first read is in flight. */
+  loading?: boolean;
+  /** How the last read failed, as a sentence to show above the table. */
+  error?: string | null;
+  /** False until the endpoint has answered — an empty register vs an unread one. */
+  loaded?: boolean;
+  /**
    * Fills in what the form deliberately does not ask for — a slug minted from
    * a name, a stock code. Runs on create and on edit; `previous` is the record
    * being edited, and is undefined on a create.
    */
   derive?: (values: RecordRow, rows: RecordRow[], previous?: RecordRow) => RecordRow;
+  /**
+   * Answers the REST of the form from the one field that was just changed.
+   *
+   * `derive` cannot do this: it runs at submit, on values nobody can still see.
+   * A listing chosen from a stock item should arrive with that item's price and
+   * photographs already in the boxes, so the operator confirms them instead of
+   * copying them off another screen — and can still edit any of it before saving.
+   *
+   * `changed` is the field that was just answered, or `null` when the form has
+   * only just opened — which matters, because the driving field starts on the
+   * first option it is offered rather than on nothing, and a form that filled
+   * itself in only after the operator re-picked what was already selected would
+   * be a form that looked broken the first time.
+   *
+   * Return only the keys to fill in, or null to leave the form alone. It decides
+   * for itself whether `changed` is a field it cares about. Fields it writes to
+   * are remounted around the new value, which is why it should not answer a
+   * field the operator is currently typing in.
+   */
+  autofill?: (changed: string | null, values: RecordRow, previous?: RecordRow) => RecordRow | null;
   /**
    * The last word on whether the form may be submitted, for a rule this
    * component cannot see — stock that has already been spoken for, a name
@@ -243,7 +327,14 @@ export function RecordManager({
   initial,
   rows: given,
   onCommit,
+  onCreate,
+  onUpdate,
+  onDelete,
+  loading,
+  error,
+  loaded,
   derive,
+  autofill,
   validate,
   idKey = "id",
   idPrefix,
@@ -282,8 +373,19 @@ export function RecordManager({
    * anyone asks what they say, which is the cheaper arrangement and the one
    * eighty screens already rely on.
    */
-  const dependent = fields.some((field) => field.optionsFor);
+  const dependent = fields.some((field) => field.optionsFor) || Boolean(autofill);
   const [formValues, setFormValues] = useState<RecordRow>({});
+
+  /**
+   * Bumped whenever `autofill` writes a value, and mixed into every field's key.
+   *
+   * The inputs in this form are uncontrolled — `FormData` at submit is the only
+   * time anything asks what they say, which is the arrangement eighty screens
+   * already rely on. An uncontrolled input ignores a change to its
+   * `defaultValue`, so the only honest way to put an answer INTO one is to give
+   * it a new identity and let it mount around the new value.
+   */
+  const [revision, setRevision] = useState(0);
 
   /** A field's vocabulary, which may be a question about the other answers. */
   function choicesOf(field: FormField, values: RecordRow, record?: RecordRow): SelectOption[] {
@@ -311,8 +413,20 @@ export function RecordManager({
   }
 
   function openDraft(record: RecordRow | null) {
+    const values = seed(record);
+
+    /* An edit opens on what the record actually says — its own answers are the
+       truth, and filling them in from somewhere else would silently rewrite a
+       product whose price was deliberately set apart from its stock item's. A
+       CREATE has no answers yet, so the field it starts on gets to supply them. */
+    if (!record) Object.assign(values, autofill?.(null, values, undefined) ?? {});
+
     setDraft(record);
-    setFormValues(seed(record));
+    setFormValues(values);
+    /* A fresh dialog is a fresh set of fields whatever the counter says — the
+       key changes with it, so the boxes cannot carry over the last record's
+       answers. */
+    setRevision((current) => current + 1);
   }
 
   function update(key: string, value: string) {
@@ -330,6 +444,25 @@ export function RecordManager({
         const choices = choicesOf(field, next, record);
         const open = choices.filter((choice) => !optionDisabled(choice)).map(optionValue);
         if (!open.includes(next[field.key] ?? "")) next[field.key] = open[0] ?? "";
+      }
+
+      /* Then the answers this change IMPLIES — a listing taking on the price and
+         the photographs of the stock item it was just pointed at. Applied after
+         the reconcile above so it cannot be undone by it, and only the keys that
+         actually move are counted, so a change that fills nothing in does not
+         tear the form down around the operator. */
+      const filled = autofill?.(key, next, record) ?? null;
+
+      if (filled) {
+        let moved = false;
+
+        for (const [target, value] of Object.entries(filled)) {
+          if (target === key || (next[target] ?? "") === value) continue;
+          next[target] = value;
+          moved = true;
+        }
+
+        if (moved) setRevision((current) => current + 1);
       }
 
       return next;
@@ -384,6 +517,22 @@ export function RecordManager({
   const editing = draft !== null && draft !== undefined;
 
   /**
+   * Which verbs this register actually offers.
+   *
+   * A persisted register — one given any of the three handlers — offers exactly
+   * the verbs it was given a handler for. That is how a register can be
+   * create-only (a courier pickup is started and handed over; there is nothing to
+   * edit about it and no endpoint to delete one) without needing a prop per verb.
+   *
+   * A local register keeps the old behaviour: `readOnly` off means all three,
+   * because it owns its own rows and can always do all of them.
+   */
+  const persisted = Boolean(onCreate ?? onUpdate ?? onDelete);
+  const canCreate = !readOnly && (persisted ? Boolean(onCreate) : true);
+  const canEdit = !readOnly && (persisted ? Boolean(onUpdate) : true);
+  const canDelete = !readOnly && (persisted ? Boolean(onDelete) : true);
+
+  /**
    * Every change to the register goes through here, so the page above it hears
    * about the change in the same event that caused it. The mirror is a ref
    * rather than the `rows` closure because an undo handler can fire long after
@@ -406,14 +555,46 @@ export function RecordManager({
   }
 
   /** Moves one record on, and offers the way back where there is one. */
-  function apply(row: RecordRow, action: RowAction) {
+  async function apply(row: RecordRow, action: RowAction) {
     if (action.onSelect) {
-      action.onSelect();
+      /* A verb the page owns. It may be async — approving a return posts to the
+         API — so it is awaited, and its refusal is reported rather than lost to
+         an unhandled rejection. */
+      try {
+        await action.onSelect();
+      } catch (caught) {
+        toast.error(`${action.label} failed`, {
+          description:
+            caught instanceof Error ? caught.message : "The server refused that change.",
+        });
+        return;
+      }
+
       if (action.toast) toast.success(action.toast.title, { description: action.toast.description });
       return;
     }
 
     const patch = action.patch ?? {};
+
+    /* A persisted register sends the patch to the server and re-reads. No undo
+       for the same reason a delete has none: the change is written, and it may
+       have cascaded past this row. */
+    if (onUpdate) {
+      try {
+        await onUpdate({ ...row, ...patch }, row);
+        if (action.toast) {
+          toast.success(action.toast.title, { description: action.toast.description });
+        }
+      } catch (caught) {
+        toast.error(`${action.label} failed`, {
+          description:
+            caught instanceof Error ? caught.message : "The server refused that change.",
+        });
+      }
+
+      return;
+    }
+
     const before: RecordRow = {};
     for (const key of Object.keys(patch)) before[key] = row[key] ?? "";
 
@@ -433,11 +614,32 @@ export function RecordManager({
     );
   }
 
-  function save(event: FormEvent<HTMLFormElement>) {
+  /**
+   * True while a persisted create or edit is in flight.
+   *
+   * The submit button is held for the duration, which is not politeness: without
+   * it a double-click on a slow connection posts the form twice, and two
+   * products get created from one dialog.
+   */
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const typed: RecordRow = {};
-    for (const field of fields) typed[field.key] = String(form.get(field.key) ?? "").trim();
+
+    for (const field of fields) {
+      /* A checkbox the browser did not send is not missing data — it is the
+         answer "no", and it has to reach the register as one rather than as an
+         empty string that could equally mean "never asked". */
+      typed[field.key] =
+        field.type === "checkbox"
+          ? form.get(field.key) === null
+            ? ""
+            : "true"
+          : String(form.get(field.key) ?? "").trim();
+    }
 
     /* A `chips` field carries its value in a hidden input, which the browser
        excludes from constraint validation — so a required one is checked here
@@ -466,6 +668,37 @@ export function RecordManager({
       return;
     }
 
+    /* Persisted register: the server has the last word on whether this record may
+       exist, so the dialog stays open until it answers. A refusal — a duplicate
+       slug, a size with no stock left, a status this operator may not set — is
+       shown against the form the operator can still fix, rather than being
+       swallowed after the row has already been drawn as saved. */
+    const persist = previous ? onUpdate : onCreate;
+
+    if (persist) {
+      setSaving(true);
+
+      try {
+        await (previous ? onUpdate!(values, previous) : onCreate!(values));
+
+        toast.success(`${sentence(singular)} ${previous ? "updated" : "created"}`, {
+          description: label(values, fields, previous?.[idKey] ?? ""),
+        });
+        setDraft(undefined);
+      } catch (caught) {
+        /* The API client's normaliser has already turned this into a sentence
+           written to be read by an operator. */
+        toast.error(`This ${singular} could not be ${previous ? "saved" : "created"}`, {
+          description:
+            caught instanceof Error ? caught.message : "The server refused that change.",
+        });
+      } finally {
+        setSaving(false);
+      }
+
+      return;
+    }
+
     if (previous) {
       const id = previous[idKey];
       commit((current) => current.map((row) => (row[idKey] === id ? { ...row, ...values } : row)));
@@ -479,7 +712,30 @@ export function RecordManager({
     setDraft(undefined);
   }
 
-  function remove(row: RecordRow) {
+  async function remove(row: RecordRow) {
+    if (onDelete) {
+      setDeleting(true);
+
+      try {
+        await onDelete(row);
+        /* No undo. The record is gone from the database and the delete may have
+           cascaded; offering to put it back would be a promise this component
+           cannot keep. */
+        toast.success(`${sentence(singular)} deleted`, {
+          description: `${row[idKey]} was removed.`,
+        });
+      } catch (caught) {
+        toast.error(`${row[idKey]} could not be deleted`, {
+          description:
+            caught instanceof Error ? caught.message : "The server refused that change.",
+        });
+      } finally {
+        setDeleting(false);
+      }
+
+      return;
+    }
+
     commit((current) => current.filter((entry) => entry[idKey] !== row[idKey]));
     toast.success(`${sentence(singular)} deleted`, {
       description: `${row[idKey]} was removed from this register.`,
@@ -559,7 +815,7 @@ export function RecordManager({
           <Download aria-hidden size={14} strokeWidth={1.7} /> Export
         </Btn>
 
-        {!readOnly && (
+        {canCreate && (
           <Btn onClick={() => openDraft(null)} size="sm" variant="solid">
             <Plus aria-hidden size={14} strokeWidth={2} /> New {singular}
           </Btn>
@@ -570,32 +826,56 @@ export function RecordManager({
 
       {children}
 
+      {/* A register that failed to load says so, above whatever it managed to
+          hold. Rendering the empty state for a failed read is how a console
+          tells an operator the shop has no orders when in fact the request
+          fell over. */}
+      {error && (
+        <p className="aui-tablefoot" role="status">
+          <span>{error}</span>
+        </p>
+      )}
+
       {visible.length === 0 ? (
-        <Empty
-          action={
-            filtered ? (
-              <Btn
-                onClick={() => {
-                  setQuery("");
-                  setFilter("All");
-                }}
-              >
-                Clear filters
-              </Btn>
-            ) : readOnly ? undefined : (
-              <Btn onClick={() => openDraft(null)} variant="solid">
-                <Plus aria-hidden size={14} strokeWidth={2} /> New {singular}
-              </Btn>
-            )
-          }
-          copy={
-            filtered
-              ? `Nothing in ${many} matches that search. Clear the filters to see the whole register.`
-              : (emptyHint ?? `Nothing here yet. Add the first ${singular} to get started.`)
-          }
-          icon={Icon ?? Search}
-          title={filtered ? "No matches" : `No ${many} yet`}
-        />
+        /* Three different nothings. "Loading" is not "empty", and neither is
+           "your filter excluded everything" — offering "Add the first product"
+           while the first read is still in flight invites an operator to create
+           a duplicate of something they cannot see yet. */
+        loading && !loaded ? (
+          <Empty
+            copy={`Reading ${many} from the database…`}
+            icon={Icon ?? Search}
+            title={`Loading ${many}`}
+          />
+        ) : (
+          <Empty
+            action={
+              filtered ? (
+                <Btn
+                  onClick={() => {
+                    setQuery("");
+                    setFilter("All");
+                  }}
+                >
+                  Clear filters
+                </Btn>
+              ) : !canCreate || error ? undefined : (
+                <Btn onClick={() => openDraft(null)} variant="solid">
+                  <Plus aria-hidden size={14} strokeWidth={2} /> New {singular}
+                </Btn>
+              )
+            }
+            copy={
+              filtered
+                ? `Nothing in ${many} matches that search. Clear the filters to see the whole register.`
+                : error
+                  ? `This register could not be read, so there is nothing to show. ${error}`
+                  : (emptyHint ?? `Nothing here yet. Add the first ${singular} to get started.`)
+            }
+            icon={Icon ?? Search}
+            title={filtered ? "No matches" : error ? `${sentence(many)} unavailable` : `No ${many} yet`}
+          />
+        )
       ) : (
         <div className="aui-tablewrap">
           <table className="aui-table">
@@ -654,18 +934,18 @@ export function RecordManager({
                             icon={action.icon}
                             key={action.label}
                             label={action.label}
-                            onClick={() => apply(row, action)}
+                            onClick={() => void apply(row, action)}
                           />
                         ));
                       })()}
-                      {!readOnly && (
+                      {canEdit && (
                         <IconBtn
                           icon={Pencil}
                           label={`Edit ${row[idKey]}`}
                           onClick={() => openDraft(row)}
                         />
                       )}
-                      {!readOnly && (
+                      {canDelete && (
                         <IconBtn
                           danger
                           icon={Trash2}
@@ -720,9 +1000,13 @@ export function RecordManager({
       <Modal
         footer={
           <>
-            <Btn onClick={() => setDraft(undefined)}>Cancel</Btn>
-            <Btn form="aui-record-form" type="submit" variant="solid">
-              {editing ? "Save changes" : `Create ${singular}`}
+            <Btn disabled={saving} onClick={() => setDraft(undefined)}>
+              Cancel
+            </Btn>
+            {/* Held while the request is out. Without this a double-click on a
+                slow connection posts the form twice and creates two records. */}
+            <Btn disabled={saving} form="aui-record-form" type="submit" variant="solid">
+              {saving ? "Saving…" : editing ? "Save changes" : `Create ${singular}`}
             </Btn>
           </>
         }
@@ -738,25 +1022,69 @@ export function RecordManager({
             : `Fill in what this ${singular} needs. You can edit any of it later.`
         }
       >
-        <form className="aui-form" id="aui-record-form" key={draft?.[idKey] ?? "new"} onSubmit={save}>
+        <form
+          className="aui-form"
+          id="aui-record-form"
+          key={draft?.[idKey] ?? "new"}
+          onSubmit={(event) => void save(event)}
+        >
           <div className="aui-form aui-form--2">
-            {fields.map((field) => {
+            {/* `fields` itself is untouched: `seed`, `update` and `save` all read
+                the whole declaration, and a create-only field simply resolves to
+                an empty answer on an edit. Only what is DRAWN is narrowed. */}
+            {(editing ? fields.filter((field) => !field.createOnly) : fields).map((field) => {
               const choices = choicesOf(field, formValues, draft ?? undefined);
+              /* What an uncontrolled control starts from. In a form nothing
+                 reads across, that is the record being edited; in one where a
+                 field can be answered FOR the operator it is whatever the form
+                 currently holds, and the key below is what makes a control pick
+                 that up after `autofill` has moved it. */
+              const start = dependent
+                ? (formValues[field.key] ?? "")
+                : (draft?.[field.key] ?? field.initial ?? "");
+              const key = dependent ? `${field.key}#${revision}` : field.key;
+
+              /* A checkbox answers for itself. `Field` renders its caption as a
+                 `<label>`, and a checkbox needs its own label beside the box —
+                 wrapping one in the other would nest two labels, which is
+                 invalid and leaves the browser deciding which one the click
+                 belongs to. So this one stands outside the wrapper and says its
+                 piece once. */
+              if (field.type === "checkbox") {
+                return (
+                  <div className="aui-field aui-field--full" key={key}>
+                    <CheckBox
+                      defaultChecked={start === "true"}
+                      hint={field.help}
+                      label={field.label}
+                      name={field.key}
+                      onToggle={
+                        dependent ? (on) => update(field.key, on ? "true" : "") : undefined
+                      }
+                    />
+                  </div>
+                );
+              }
+
               return (
               <Field
-                full={field.full || field.type === "textarea"}
-                group={field.type === "chips"}
+                full={field.full || field.type === "textarea" || field.type === "gallery"}
+                group={field.type === "chips" || field.type === "gallery"}
                 help={field.help}
                 hint={field.hint}
-                key={field.key}
+                key={key}
                 label={field.label}
               >
                 {field.type === "chips" ? (
                   <MultiChoice
-                    defaultValue={draft?.[field.key] ?? field.initial ?? ""}
+                    defaultValue={start}
                     name={field.key}
                     options={choices.map(optionValue)}
                   />
+                ) : field.type === "gallery" ? (
+                  <MediaGalleryField defaultValue={start} label={field.label} name={field.key} />
+                ) : field.type === "image" ? (
+                  <MediaField defaultValue={start} label={field.label} name={field.key} />
                 ) : field.type === "select" ? (
                   <Select
                     ariaLabel={field.label}
@@ -783,14 +1111,17 @@ export function RecordManager({
                   />
                 ) : field.type === "textarea" ? (
                   <textarea
-                    defaultValue={draft?.[field.key] ?? field.initial ?? ""}
+                    defaultValue={start}
                     name={field.key}
+                    onChange={
+                      dependent ? (event) => update(field.key, event.target.value) : undefined
+                    }
                     placeholder={field.placeholder}
                     required={field.required}
                   />
                 ) : (
                   <input
-                    defaultValue={draft?.[field.key] ?? field.initial ?? ""}
+                    defaultValue={start}
                     inputMode={field.type === "number" ? "numeric" : undefined}
                     min={field.type === "number" ? (field.min ?? "0") : undefined}
                     name={field.key}
@@ -811,14 +1142,61 @@ export function RecordManager({
       </Modal>
 
       <ConfirmDialog
-        confirmLabel={`Delete ${singular}`}
-        description={`${doomed?.[idKey] ?? "This record"} will be removed from the register. You can undo this from the toast that follows.`}
-        onConfirm={() => doomed && remove(doomed)}
+        confirmLabel={deleting ? "Deleting…" : `Delete ${singular}`}
+        /* Two different promises, and only one of them can be kept. A local
+           register can put the row back; a persisted one has written the delete
+           to the database and may have cascaded past this record. */
+        description={
+          onDelete
+            ? `${doomed?.[idKey] ?? "This record"} will be deleted from the database. This cannot be undone.`
+            : `${doomed?.[idKey] ?? "This record"} will be removed from the register. You can undo this from the toast that follows.`
+        }
+        onConfirm={() => doomed && void remove(doomed)}
         onOpenChange={(next) => !next && setDoomed(undefined)}
         open={doomed !== undefined}
         title={`Delete this ${singular}?`}
       />
     </>
+  );
+}
+
+/**
+ * The `checkbox` field.
+ *
+ * A real `<input type="checkbox">` rather than a styled button, so the label,
+ * the space bar and every assistive technology behave the way they already know
+ * how to. Its `value` is fixed at `"true"` and the browser omits it entirely
+ * when it is off, which is exactly the shape `save()` reads it back with.
+ */
+function CheckBox({
+  name,
+  label,
+  hint,
+  defaultChecked,
+  onToggle,
+}: {
+  name: string;
+  label: string;
+  hint?: string;
+  defaultChecked: boolean;
+  /** Only in a form something reads across — see `dependent`. */
+  onToggle?: (checked: boolean) => void;
+}) {
+  return (
+    <label className="aui-check">
+      <input
+        defaultChecked={defaultChecked}
+        name={name}
+        onChange={onToggle ? (event) => onToggle(event.target.checked) : undefined}
+        type="checkbox"
+        value="true"
+      />
+      <span className="aui-check__box" aria-hidden />
+      <span className="aui-check__copy">
+        <strong>{label}</strong>
+        {hint && <small>{hint}</small>}
+      </span>
+    </label>
   );
 }
 

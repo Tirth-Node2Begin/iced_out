@@ -75,6 +75,27 @@ export type CropKey = keyof typeof CROPS;
 /* Catalogue                                                                  */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * A release count in words, for copy that says it in a sentence.
+ *
+ * The intro headline reads "Twenty pieces cut for weight and movement" — a
+ * sentence, so the number belongs in it as a word. It stops at twenty because
+ * past that a spelled-out number sets badly in a display face and the numeral
+ * carries it better.
+ *
+ * Stats print the figure instead; both come from the same live count, they just
+ * disagree about how a number should look.
+ */
+const COUNT_WORDS = [
+  "No", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine",
+  "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen",
+  "Seventeen", "Eighteen", "Nineteen", "Twenty",
+];
+
+export function spellCount(count: number): string {
+  return COUNT_WORDS[count] ?? String(count);
+}
+
 export type Category =
   | "outerwear"
   | "knitwear"
@@ -93,7 +114,19 @@ export type Piece = {
   /** paise-free rupees, formatted at render */
   price: number;
   compareAt?: number;
+  /** The sprite crop, used when there is no uploaded photo. */
   crop: CropKey;
+  /**
+   * The product's own photo, if an operator has uploaded one.
+   *
+   * `crop` is the fallback: the seeded catalogue starts with no photographs, and a
+   * page of empty frames is worse than a page of repeated crops. See
+   * `use-pieces.ts`, which builds these from the live catalogue.
+   */
+  image?: string;
+  /** The product's approved rating, and how many reviews it is an average of. */
+  rating?: number;
+  reviewCount?: number;
   isNew?: boolean;
   soldOut?: boolean;
 };
@@ -334,13 +367,13 @@ export const MEN: AudienceContent = {
 
   intro: {
     eyebrow: "Iced_out / Men / Drop 001",
-    heavy: "Twenty pieces cut for ",
+    heavy: "{count} pieces cut for ",
     light: "weight and movement",
     ghost: "Menswear",
     body: "The men's edit is built around three anchors — a 520 GSM fleece, a four-pocket canvas overshirt, and a wide-leg cargo balanced by articulated knees. Everything else is designed to sit under, over, or beside them.",
     note: "Produced in a single run at our Bengaluru studio. When a size closes, it closes.",
     specs: [
-      { value: "20", label: "Pieces live" },
+      { value: "{count}", label: "Pieces live" },
       { value: "320", label: "Numbered units" },
       { value: "01", label: "Production run" },
     ],
@@ -463,13 +496,13 @@ export const WOMEN: AudienceContent = {
 
   intro: {
     eyebrow: "Iced_out / Women / Drop 001",
-    heavy: "Twenty pieces cut for ",
+    heavy: "{count} pieces cut for ",
     light: "volume and line",
     ghost: "Womenswear",
     body: "The women's edit runs on three anchors — a bone canvas overshirt with a clean collar, a drape-cut wide trouser, and a garment-washed fleece with a dropped shoulder. The rest is built to layer against them.",
     note: "Produced in a single run at our Bengaluru studio. When a size closes, it closes.",
     specs: [
-      { value: "20", label: "Pieces live" },
+      { value: "{count}", label: "Pieces live" },
       { value: "320", label: "Numbered units" },
       { value: "01", label: "Production run" },
     ],

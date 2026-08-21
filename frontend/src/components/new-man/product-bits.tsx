@@ -26,37 +26,64 @@ import { DISPATCH_WINDOW_SECONDS } from "@/components/new-man/product-deck";
  * It is opt-in because the OTHER callers are the related-products grid and the
  * listing tiles, where images are genuinely arriving off the network and
  * blocking on them is the wrong trade.
+ *
+ * `className` names the wrapper, because the same three framing rules are
+ * wanted under four different boxes — the hero's `.nmp-frame`, the listing
+ * tile's `.nh-mcard__media`, the quick-add panel's `.nhq__shot` and the
+ * viewer's `.nmv__shot`. Each of those used to carry its own copy of the
+ * custom-property arithmetic; four copies is four places to forget the day a
+ * mode is added, which is exactly what happened when `none` was.
  */
 export function ProductFrame({
   frame,
   alt,
   instant,
+  className = "nmp-frame",
 }: {
-  frame: Frame;
+  /**
+   * `undefined` is treated as "no photograph", not as a mistake to throw on.
+   *
+   * A gallery is as long as the operator's own run now, so a held index can
+   * outlive the run it was pointing into — the callers clamp for that, and this
+   * is the floor under them. A product page that shows an empty frame for a
+   * beat is a page; one that throws is a blank screen with a stack trace on it.
+   */
+  frame: Frame | undefined;
   alt: string;
   instant?: boolean;
+  className?: string;
 }) {
+  if (!frame) return <span className={className} data-mode="none" />;
+
   return (
-    <span className="nmp-frame" data-mode={frame.mode}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        alt={alt}
-        decoding={instant ? "sync" : "async"}
-        // Images are natively draggable, and that gesture wins: without this
-        // the browser starts its own drag-and-drop the moment a pointer moves
-        // on the photograph, and the gallery's swipe never sees a single move.
-        draggable={false}
-        src={frame.src}
-        style={
-          frame.mode === "quad"
-            ? ({
-                "--qx": frame.qx,
-                "--qy": frame.qy,
-                "--zoom": frame.zoom,
-              } as CSSProperties)
-            : ({ "--op": frame.op, "--zoom": frame.zoom } as CSSProperties)
-        }
-      />
+    <span className={className} data-mode={frame.mode}>
+      {/* A piece nobody has photographed draws an empty frame and says so to
+          nothing — the card around it already names the piece. It must NOT
+          borrow a picture of another garment, which is what the sprite fallback
+          here amounted to. */}
+      {frame.mode === "none" ? (
+        <span aria-hidden className="nmp-frame__blank" />
+      ) : (
+        /* eslint-disable-next-line @next/next/no-img-element */
+        <img
+          alt={alt}
+          decoding={instant ? "sync" : "async"}
+          // Images are natively draggable, and that gesture wins: without this
+          // the browser starts its own drag-and-drop the moment a pointer moves
+          // on the photograph, and the gallery's swipe never sees a single move.
+          draggable={false}
+          src={frame.src}
+          style={
+            frame.mode === "quad"
+              ? ({
+                  "--qx": frame.qx,
+                  "--qy": frame.qy,
+                  "--zoom": frame.zoom,
+                } as CSSProperties)
+              : ({ "--op": frame.op, "--zoom": frame.zoom } as CSSProperties)
+          }
+        />
+      )}
     </span>
   );
 }

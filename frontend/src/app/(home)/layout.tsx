@@ -7,10 +7,13 @@ import { Archivo } from "next/font/google";
 import "@/styles/new-home.css";
 import "@/styles/chrome.css";
 import "@/styles/home-v2.css";
+/* The craft chapter below the founders is the About page's, and its rules live
+   in that route's sheet. Every selector in it is namespaced under `.nh-about*`,
+   so loading it here adds the chapter without reaching anything else. */
+import "@/styles/about.css";
 
 import { Header } from "@/components/layout/header";
 import { AosProvider } from "@/components/home-v2/aos-provider";
-import { BrandMorph } from "@/components/home-v2/brand-morph";
 import { SmoothScroll } from "@/components/home-v2/smooth-scroll";
 
 /**
@@ -33,15 +36,11 @@ export const metadata: Metadata = {
 
 export default function HomeLayout({ children }: { children: ReactNode }) {
   return (
-    /* BrandMorph wraps both the bar and the page: it needs the wordmark slot
-       and the hero title to register with the same provider. */
-    <div className={`hv2 ${archivo.variable}`}>
-      <BrandMorph>
-        <Header fontClassName={archivo.variable} />
-        <SmoothScroll>
-          <AosProvider>{children}</AosProvider>
-        </SmoothScroll>
-      </BrandMorph>
+    <div className={`hv2 hv2-home ${archivo.variable}`}>
+      <Header fontClassName={archivo.variable} />
+      <SmoothScroll>
+        <AosProvider>{children}</AosProvider>
+      </SmoothScroll>
     </div>
   );
 }

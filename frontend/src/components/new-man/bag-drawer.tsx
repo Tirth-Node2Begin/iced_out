@@ -16,6 +16,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { createPortal } from "react-dom";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 
+import { ProductImage } from "@/components/commerce/product-image";
 import { EASE_OUT } from "@/components/new-home/motion-primitives";
 import { formatPrice } from "@/features/02-products";
 import { useCart } from "@/features/04-cart/cart-context";
@@ -220,15 +221,23 @@ function BagPanel() {
               <ul className="nmb__lines">
                 {lines.map((line) => (
                   <li className="nmb__line" key={`${line.product.id}-${line.size}`}>
-                    {/* the sprite sheet, restated against this panel's own class:
-                        `.product-sprite` lives in commerce.css, which this route
-                        does not load, and the panel is portalled out of `.nh-root`
-                        anyway */}
-                    <span
-                      aria-hidden
-                      className="nmb__thumb"
-                      data-pos={line.product.imagePosition}
-                    />
+                    {/* The piece's own photograph.
+
+                        This drew a quadrant of the house contact sheet and
+                        never once looked at `line.product.image` — so adding a
+                        pair of jeans to the bag put a picture of a hoodie next
+                        to it, on the one screen where a shopper is checking
+                        they picked the right thing. `ProductImage` carries its
+                        own stylesheet, so it works here despite the panel being
+                        portalled out of `.nh-root` on a route that never loads
+                        commerce.css, which is what the sprite was restated for. */}
+                    <span className="nmb__thumb">
+                      <ProductImage
+                        alt={line.product.name}
+                        position={line.product.imagePosition}
+                        src={line.product.image}
+                      />
+                    </span>
 
                     <div className="nmb__lineBody">
                       <h3 className="nmb__name">{line.product.name}</h3>

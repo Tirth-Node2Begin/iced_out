@@ -16,6 +16,7 @@ import {
   Menu,
   Search,
   Settings,
+  Shirt,
   ShoppingBag,
   Star,
   Store,
@@ -24,12 +25,14 @@ import {
   Undo2,
   UserRound,
   Users,
+  type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
 import { PulseBell } from "@/components/admin/pulse-bell";
+import { useQueues, type Queues } from "@/features/15-dashboard/dashboard-api";
 import { useAuth } from "@/features/20-auth-security/auth-context";
 
 /**
@@ -39,31 +42,66 @@ import { useAuth } from "@/features/20-auth-security/auth-context";
  * the whole console reads as cards on one surface — the same construction the
  * account screens use, at operator scale.
  *
- * The rail lists thirteen areas and nothing else: no nested tree, no
+ * The rail lists fourteen areas and nothing else: no nested tree, no
  * accordions. Where an area has more than one screen, those screens are tabs
  * across the top of the area (`AdminModuleNav`), not a second level in the
  * rail. Two levels of navigation in one column is how an operations console
  * becomes unlearnable.
+ *
+ * A lane's badge is WORK WAITING in that area, counted by the server.
+ *
+ * Three of them used to be written here as strings — Orders "12", Returns "05",
+ * Support "02" — so the rail announced twelve orders to a shop that had one, and
+ * five returns to a shop that had none. A badge that cannot change is worse than
+ * no badge: it teaches an operator to stop reading it.
+ *
+ * `queue` names which of the dashboard's six counts a lane answers to. Lanes
+ * without one carry no badge, because there is nothing waiting in them — a
+ * catalogue is a place you go to, not a queue that comes to you.
  */
 const NAVIGATION = [
   { href: "/admin", label: "Dashboard", icon: Gauge },
-  { href: "/admin/orders", label: "Orders", icon: ShoppingBag, count: "12" },
-  { href: "/admin/shipments/active", label: "Shipments", icon: Truck },
+  { href: "/admin/orders", label: "Orders", icon: ShoppingBag, queue: "ordersToConfirm" },
+  { href: "/admin/shipments/active", label: "Shipments", icon: Truck, queue: "readyToDispatch" },
   { href: "/admin/catalog/products", label: "Catalog", icon: Boxes },
-  { href: "/admin/inventory/overview", label: "Inventory", icon: ClipboardCheck },
-  { href: "/admin/returns/requests", label: "Returns & Exchanges", icon: Undo2, count: "05" },
+  /* The storefront's own pages, not the things sold on them. It sits beside
+     Catalog because that is the order the work happens in — a garment is
+     stocked, listed, and then chosen to lead the home page. */
+  { href: "/admin/home/hero", label: "Home page", icon: Shirt },
+  {
+    href: "/admin/inventory/overview",
+    label: "Inventory",
+    icon: ClipboardCheck,
+    queue: "stockAtRisk",
+  },
+  {
+    href: "/admin/returns/requests",
+    label: "Returns & Exchanges",
+    icon: Undo2,
+    queue: "returnsToReview",
+  },
   /* Its own area, not a tab inside Returns. A return is where most vouchers
      come FROM, but the ledger is read for its own reasons — what the store
      owes, what has been spent — and looking that up should not mean first
      picking your way into a module about something else. */
   { href: "/admin/vouchers", label: "Vouchers", icon: Ticket },
-  { href: "/admin/payments", label: "Payments", icon: CircleDollarSign },
+  {
+    href: "/admin/payments",
+    label: "Payments",
+    icon: CircleDollarSign,
+    queue: "paymentExceptions",
+  },
   { href: "/admin/customers", label: "Customers", icon: Users },
   { href: "/admin/reviews", label: "Reviews", icon: Star },
-  { href: "/admin/support", label: "Support", icon: Headphones, count: "02" },
+  { href: "/admin/support", label: "Support", icon: Headphones, queue: "openTickets" },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/admin/settings/store", label: "Settings", icon: Settings },
-] as const;
+] as const satisfies ReadonlyArray<{
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  queue?: keyof Queues;
+}>;
 
 /**
  * Screens the rail deliberately does not list.
@@ -91,6 +129,9 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { staffSession, signOutStaff } = useAuth();
+  /* The six queue counts, from `/admin/dashboard/queues`. The dashboard reads the
+     same store, so opening the console makes one request for both. */
+  const { queues } = useQueues();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [railOpen, setRailOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
@@ -216,7 +257,11 @@ export function AdminShell({ children }: { children: ReactNode }) {
         >
           <nav aria-label="Administration" className="aui-rail__nav" ref={lanes}>
             {visible.map(({ href, label, icon: Icon, ...rest }) => {
-              const count = "count" in rest ? rest.count : undefined;
+              /* Absent when the queue is empty, not a "00": a badge is a call for
+                 attention, and one on every lane saying nothing is needed is just
+                 thirteen pieces of furniture. */
+              const waiting = "queue" in rest ? queues[rest.queue].count : 0;
+
               return (
                 <Link
                   aria-current={isCurrent(href, pathname) ? "page" : undefined}
@@ -225,7 +270,17 @@ export function AdminShell({ children }: { children: ReactNode }) {
                 >
                   <Icon aria-hidden size={16} strokeWidth={1.7} />
                   {label}
-                  {count && <span className="aui-rail__count">{count}</span>}
+                  {waiting > 0 && (
+                    <span
+                      /* The number alone reads as a quantity of nothing in
+                         particular to a screen reader, which announces the lane
+                         and then "12". */
+                      aria-label={`${waiting} waiting`}
+                      className="aui-rail__count"
+                    >
+                      {waiting > 99 ? "99+" : String(waiting).padStart(2, "0")}
+                    </span>
+                  )}
                 </Link>
               );
             })}

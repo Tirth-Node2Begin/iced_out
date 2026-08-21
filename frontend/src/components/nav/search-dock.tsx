@@ -65,12 +65,12 @@ export function SearchDock({ open, onClose }: { open: boolean; onClose: () => vo
   // usually already decided by the time they press Enter.
   useEffect(() => {
     const hit = hits[cursor];
-    if (open && hit) router.prefetch(`/product/${hit.slug}`);
+    if (open && hit) router.prefetch(`/product?slug=${hit.slug}`);
   }, [cursor, hits, open, router]);
 
   const go = (slug: string) => {
     onClose();
-    router.push(`/product/${slug}`);
+    router.push(`/product?slug=${slug}`);
   };
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -153,12 +153,16 @@ export function SearchDock({ open, onClose }: { open: boolean; onClose: () => vo
                     <Link
                       className="io-dock__hit"
                       data-active={index === cursor}
-                      href={`/product/${product.slug}`}
+                      href={`/product?slug=${product.slug}`}
                       onClick={onClose}
                       onMouseEnter={() => setCursor(index)}
                     >
                       <span className="io-dock__hitMedia">
-                        <ProductImage position={product.imagePosition} />
+                        <ProductImage
+                          alt={product.name}
+                          position={product.imagePosition}
+                          src={product.image}
+                        />
                       </span>
                       <span>
                         <span className="io-dock__hitName">{product.name}</span>

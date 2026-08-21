@@ -1192,6 +1192,11 @@
   min-height: clamp(186px, 15vw, 214px);
 }
 
+/* Nothing is going to slide through it, so it takes the height of what it says. */
+.nh-root .nmp-review__stage[data-empty] {
+  min-height: 0;
+}
+
 .nh-root .nmp-review__body {
   display: flex;
   flex-direction: column;
@@ -1239,13 +1244,78 @@
   margin-top: auto;
 }
 
-.nh-root .nmp-review__avatar {
-  width: 34px;
-  height: 34px;
-  flex: none;
+/* ---- 03.1 what the panel says when nobody has written -------------------
+   Not a zero score and not an empty box: both read as broken. A piece nobody
+   has reviewed is the ordinary state of a new listing, and saying so is what
+   makes the number on an older piece worth reading. */
+.nh-root .nmp-score__none {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 9px;
+  max-width: 46ch;
+  color: var(--nh-muted);
+}
+
+.nh-root .nmp-score__noneTitle {
+  margin: 0;
+  font-size: clamp(1.05rem, 1.7vw, 1.35rem);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--nh-ink);
+}
+
+.nh-root .nmp-score__noneCopy {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.nh-root .nmp-review__empty {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  height: 100%;
+  max-width: 52ch;
+}
+
+.nh-root .nmp-review__emptyTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  color: var(--nh-ink);
+}
+
+.nh-root .nmp-review__emptyCopy {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--nh-muted);
+}
+
+/* The shopper's own headline, above their words. A review carries both and the
+   card only ever showed the body — so the one line they were asked to write
+   most carefully was the one nobody read. */
+.nh-root .nmp-review__headline {
+  margin: 0;
+  font-size: 14.5px;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  color: var(--nh-ink);
+}
+
+/* "True to size" — a fact, so it is drawn as a chip rather than as prose. */
+.nh-root .nmp-review__fit {
+  padding: 4px 10px;
   border-radius: 999px;
-  object-fit: cover;
-  box-shadow: 0 0 0 2px var(--nh-ring);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--nh-ink-soft);
+  background: var(--nmp-fill);
+  box-shadow: inset 0 0 0 1px var(--nmp-edge-soft);
 }
 
 .nh-root .nmp-review__foot {
@@ -1483,6 +1553,20 @@
   position: relative;
   display: inline-flex;
   flex: none;
+  /* Sized to the five stars in it, never to the box around it.
+     ---------------------------------------------------------------------------
+     The bright row is `width: var(--pct)`, and a percentage resolves against
+     THIS element — so this element has to be as wide as the stars are. It was
+     not: an `inline-flex` child of a column flex container is stretched across
+     the cross axis by the default `align-items: stretch`, which made it as wide
+     as the review card. A three-star rating then filled 60% of 645px, which
+     covers all five stars, and every review on the page read as five stars
+     whatever it was given.
+     It never showed while the reviews were written content — the three of them
+     were rated 5, 5 and 4, and even 80% of the card still covered the row. It
+     appeared the moment the ratings became real ones. */
+  align-self: start;
+  width: max-content;
   line-height: 0;
 }
 
@@ -1900,5 +1984,344 @@
   .nh-root .nmp-opt::after,
   .nh-root .nmp-round {
     transition: none;
+  }
+}
+
+/* ============================================================ 03.2 write ==
+   The other half of a section that quotes shoppers: a way for one to write.
+   Three states, and only ever one of them on screen — signed out, already
+   written, or the form itself. The whole block sits under the grid at full
+   width, because a form squeezed into the score column is a form nobody fills
+   in. */
+.nh-root .nmp-write {
+  margin-top: clamp(1.5rem, 3vw, 2.75rem);
+}
+
+.nh-root .nmp-write__open {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 13px 22px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 12.5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--nh-ink);
+  background: var(--nmp-fill);
+  box-shadow: inset 0 0 0 1px var(--nmp-edge);
+  transition:
+    background-color 0.3s var(--nh-ease-soft),
+    transform 0.3s var(--nh-ease);
+}
+
+.nh-root .nmp-write__open:hover {
+  background: rgba(255, 255, 255, 0.11);
+  transform: translateY(-1px);
+}
+
+/* Signed out. The sentence states the rule before the control, so nobody signs
+   in to discover they have already used their one review. */
+.nh-root .nmp-write__gate {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: clamp(1rem, 1.8vw, 1.35rem) clamp(1.1rem, 2vw, 1.6rem);
+  border-radius: var(--nh-radius-lg);
+  background: var(--nh-surface-2);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  color: var(--nh-muted);
+}
+
+.nh-root .nmp-write__gate svg {
+  flex: none;
+  color: var(--nh-muted-2);
+}
+
+.nh-root .nmp-write__gate p {
+  margin: 0;
+  flex: 1 1 22ch;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.nh-root .nmp-write__gate strong {
+  font-weight: 500;
+  color: var(--nh-ink);
+}
+
+.nh-root .nmp-write__signin {
+  flex: none;
+  padding: 10px 20px;
+  border-radius: 999px;
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--nh-surface);
+  background: var(--nh-ink);
+  transition: opacity 0.3s var(--nh-ease);
+}
+
+.nh-root .nmp-write__signin:hover {
+  opacity: 0.86;
+}
+
+/* ---- the form ---------------------------------------------------------- */
+.nh-root .nmp-write__form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(0.9rem, 1.6vw, 1.25rem);
+  padding: clamp(1.25rem, 2.2vw, 2rem);
+  border-radius: var(--nh-radius-lg);
+  background: var(--nh-surface-2);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.nh-root .nmp-write__lede {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.nh-root .nmp-write__rating {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.nh-root .nmp-write__label {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--nh-muted);
+}
+
+.nh-root .nmp-write__stars {
+  display: flex;
+  gap: 4px;
+}
+
+/* Filled up to the chosen value, so the row reads as one rating rather than as
+   five independent toggles. */
+.nh-root .nmp-write__star {
+  display: grid;
+  place-items: center;
+  padding: 3px;
+  cursor: pointer;
+  color: var(--nh-muted-2);
+  background: none;
+  transition:
+    color 0.22s var(--nh-ease),
+    transform 0.22s var(--nh-ease);
+}
+
+.nh-root .nmp-write__star[data-on] {
+  color: var(--nh-ink);
+}
+
+.nh-root .nmp-write__star[data-on] svg {
+  fill: currentColor;
+}
+
+.nh-root .nmp-write__star:hover {
+  transform: translateY(-1px);
+}
+
+.nh-root .nmp-write__field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+.nh-root .nmp-write__field--wide {
+  grid-column: 1 / -1;
+}
+
+.nh-root .nmp-write__field :is(input, select, textarea) {
+  width: 100%;
+  padding: 12px 14px;
+  border: 0;
+  border-radius: 12px;
+  outline: 0;
+  font-family: inherit;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--nh-ink);
+  background: var(--nmp-fill);
+  box-shadow: inset 0 0 0 1px var(--nmp-edge-soft);
+  transition: box-shadow 0.3s var(--nh-ease);
+}
+
+.nh-root .nmp-write__field textarea {
+  resize: vertical;
+  min-height: 96px;
+}
+
+.nh-root .nmp-write__field :is(input, select, textarea):focus-visible {
+  box-shadow: inset 0 0 0 1px var(--nh-ink);
+}
+
+.nh-root .nmp-write__field ::placeholder {
+  color: var(--nh-muted-2);
+}
+
+.nh-root .nmp-write__field option {
+  background: var(--nh-surface-2);
+  color: var(--nh-ink);
+}
+
+.nh-root .nmp-write__acts {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-top: clamp(0.6rem, 1.2vw, 1rem);
+  border-top: 1px solid var(--nh-hairline);
+}
+
+.nh-root .nmp-write__note {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--nh-muted-2);
+}
+
+.nh-root .nmp-write__buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.nh-root .nmp-write__cancel,
+.nh-root .nmp-write__send {
+  padding: 11px 22px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  transition:
+    background-color 0.3s var(--nh-ease-soft),
+    opacity 0.3s var(--nh-ease);
+}
+
+.nh-root .nmp-write__cancel {
+  color: var(--nh-ink-soft);
+  background: var(--nmp-fill);
+  box-shadow: inset 0 0 0 1px var(--nmp-edge-soft);
+}
+
+.nh-root .nmp-write__cancel:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.nh-root .nmp-write__send {
+  color: var(--nh-surface);
+  background: var(--nh-ink);
+}
+
+.nh-root .nmp-write__send:hover:not(:disabled) {
+  opacity: 0.86;
+}
+
+.nh-root .nmp-write__cancel:disabled,
+.nh-root .nmp-write__send:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+/* ---- their own review, and what is happening to it --------------------- */
+.nh-root .nmp-write__own {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: clamp(1.1rem, 2vw, 1.6rem);
+  border-radius: var(--nh-radius-lg);
+  background: var(--nh-surface-2);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.nh-root .nmp-write__ownHead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* The state carries the colour, because it is the answer to the only question
+   somebody re-reading their own review is asking. */
+.nh-root .nmp-write__state {
+  padding: 4px 11px;
+  border-radius: 999px;
+  font-size: 10px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--nh-ink);
+  background: var(--nmp-fill);
+  box-shadow: inset 0 0 0 1px var(--nmp-edge-soft);
+}
+
+.nh-root .nmp-write__own[data-state="approved"] .nmp-write__state {
+  color: #9ff0c4;
+  box-shadow: inset 0 0 0 1px rgba(159, 240, 196, 0.28);
+}
+
+.nh-root .nmp-write__own[data-state="pending"] .nmp-write__state {
+  color: #f4d69a;
+  box-shadow: inset 0 0 0 1px rgba(244, 214, 154, 0.28);
+}
+
+.nh-root .nmp-write__own[data-state="rejected"] .nmp-write__state {
+  color: #f2a6a6;
+  box-shadow: inset 0 0 0 1px rgba(242, 166, 166, 0.28);
+}
+
+.nh-root .nmp-write__ownTitle {
+  margin: 0;
+  font-size: 14.5px;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  color: var(--nh-ink);
+}
+
+.nh-root .nmp-write__ownBody {
+  margin: 0;
+  max-width: 62ch;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--nh-ink-soft);
+}
+
+.nh-root .nmp-write__ownState {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--nh-muted);
+}
+
+/* How many people the score is an average of, beside it on a related tile. */
+.nh-root .nmp-card__reviews {
+  margin-left: 4px;
+  font-style: normal;
+  color: var(--nh-muted-2);
+}
+
+@media (max-width: 720px) {
+  .nh-root .nmp-write__form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .nh-root .nmp-write__acts {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .nh-root .nmp-write__buttons {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

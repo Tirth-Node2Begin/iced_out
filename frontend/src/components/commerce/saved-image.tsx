@@ -14,9 +14,18 @@ import type { SavedImage as SavedImageValue } from "@/features/05-wishlist/saved
  * the piece, so a filled `alt` would say it twice.
  */
 export function SavedImage({ image }: { image: SavedImageValue }) {
-  if (image.kind === "sprite") return <ProductImage position={image.position} />;
+  /* `kind: "sprite"` is a piece that IS a sprite quadrant, so the fallback is
+     asked for outright rather than being what happens when nothing is set. */
+  if (image.kind === "sprite") return <ProductImage fallback="sprite" position={image.position} />;
 
   const { frame } = image;
+
+  /* A saved piece nobody has photographed. The row beside it already names the
+     piece and prints its price, so an empty frame is the honest answer — the
+     sprite quadrant this used to borrow was a picture of a different garment. */
+  if (frame.mode === "none") {
+    return <span aria-hidden="true" className="io-shot io-shot--blank" />;
+  }
 
   return (
     // eslint-disable-next-line @next/next/no-img-element

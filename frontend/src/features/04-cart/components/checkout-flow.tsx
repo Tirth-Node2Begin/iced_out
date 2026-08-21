@@ -52,10 +52,10 @@ import {
   type StepId,
 } from "@/features/04-cart/checkout-validation";
 import {
-  DELIVERY_OPTIONS,
   deliveryEstimate,
   deliveryFee,
   deliveryOption,
+  useDeliveryOptions,
   type DeliveryMethod,
 } from "@/features/04-cart/delivery-options";
 import {
@@ -215,6 +215,9 @@ export function CheckoutFlow({
   const { claim: claimVoucher } = useVouchers();
   const { profile, ready: profileReady } = useProfile();
   const { add: addAddress, addresses, defaultAddress, ready: addressesReady } = useAddresses();
+  /* The two speeds and what they cost, from the store's settings rather than
+     from a constant — an operator who reprices delivery reprices it here. */
+  const deliveryOptions = useDeliveryOptions();
 
   const [stepIndex, setStepIndex] = useState(0);
   const [errors, setErrors] = useState<Errors>({});
@@ -482,26 +485,45 @@ export function CheckoutFlow({
    * into it, and the order screen is where the second attempt happens.
    */
   const complete = useCallback(
-    (payment: { method: string; reference: string; outcome: PaymentOutcome; note?: string }) => {
+    async (payment: { method: string; reference: string; outcome: PaymentOutcome; note?: string }) => {
       const option = deliveryOption(draft.deliveryMethod);
 
-      const order = placeOrder({
-        lines,
-        contact: { name: draft.name, email: draft.email, mobile: draft.mobile },
-        address: {
-          line: draft.address,
-          city: draft.city,
-          state: draft.state,
-          postalCode: draft.postalCode,
-        },
-        delivery: {
-          label: option.label,
-          estimate: deliveryEstimate(draft.deliveryMethod),
-          fee: delivery,
-        },
-        payment,
-        money: { subtotal, discount, total: payable, couponCode: coupon?.code ?? null },
-      });
+      /* Awaited, and guarded. The order is written by the API now, so
+         everything below — claiming the voucher, emptying the bag, navigating
+         to the receipt — is only true once the server has accepted it.
+         A refusal (a size that sold out under the shopper, a price that moved
+         while the page sat open) leaves the bag and the draft exactly as they
+         are and says why, which is the only recoverable version of this. */
+      let order;
+
+      try {
+        order = await placeOrder({
+          lines,
+          contact: { name: draft.name, email: draft.email, mobile: draft.mobile },
+          address: {
+            line: draft.address,
+            city: draft.city,
+            state: draft.state,
+            postalCode: draft.postalCode,
+          },
+          delivery: {
+            label: option.label,
+            estimate: deliveryEstimate(draft.deliveryMethod),
+            fee: delivery,
+          },
+          payment,
+          money: { subtotal, discount, total: payable, couponCode: coupon?.code ?? null },
+        });
+      } catch (refusal) {
+        setFailure(
+          refusal instanceof Error
+            ? refusal.message
+            : "The order could not be placed. Please try again.",
+        );
+        setStatus("idle");
+
+        return;
+      }
 
       /* The voucher is CLAIMED here and nowhere else — not by copying the code,
          not by putting it on the bag. From this moment it leaves the redeemable
@@ -530,7 +552,13 @@ export function CheckoutFlow({
 
          `replace`, so Back from the order goes to the bag rather than to a
          checkout for an order that has already been placed. */
-      router.replace(`/orders/${order.id}?placed=${payment.outcome === "failed" ? "0" : "1"}`);
+      /* Both parameters on ONE query string. This read `?id=…?placed=…` for a
+         moment — two separators — which made the id literally
+         "ord-local-01?placed=1" and sent every completed order to "that order is
+         not on this device". */
+      router.replace(
+        `/orders?id=${encodeURIComponent(order.id)}&placed=${payment.outcome === "failed" ? "0" : "1"}`,
+      );
 
       /* And the surface itself goes. It is a modal now, so nothing unmounts it
          on navigation — left open it would sit over the order it just wrote,
@@ -1059,7 +1087,7 @@ export function CheckoutFlow({
                   <div className="co-group">
                     <p className="co-group__label">Delivery speed</p>
                     <div className="co-choices co-choices--split">
-                      {DELIVERY_OPTIONS.map((option) => {
+                      {deliveryOptions.map((option) => {
                         const Icon = DELIVERY_ICONS[option.id];
                         const fee = deliveryFee(option.id, subtotal);
                         const selected = draft.deliveryMethod === option.id;
@@ -1230,7 +1258,11 @@ export function CheckoutFlow({
                 {lines.slice(0, SUMMARY_LINES).map((line) => (
                   <li key={`${line.product.id}-${line.size}`}>
                     <span className="co-summary__media">
-                      <ProductImage position={line.product.imagePosition} />
+                      <ProductImage
+                        alt={line.product.name}
+                        position={line.product.imagePosition}
+                        src={line.product.image}
+                      />
                       <i>{line.quantity}</i>
                     </span>
                     <span className="co-summary__body">

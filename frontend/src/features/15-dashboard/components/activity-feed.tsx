@@ -1,127 +1,120 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-
 import { Section, Status } from "@/components/admin/admin-ui";
-import {
-  ageLabel,
-  backlog,
-  eventAt,
-  FEED_LIMIT,
-  type LogEntry,
-} from "@/features/15-dashboard/data/activity-log";
+import type { StatusTone } from "@/components/admin/admin-ui";
+import { useActivity } from "@/features/15-dashboard/dashboard-api";
 
 /**
- * The activity log, live.
+ * The activity log — what the console has actually been doing.
  *
- * It replaced two hand-written notice banners. A banner tells you what was
- * true when the page loaded; this tells you the console is still running, and
- * that is the thing an operator glances down here to find out.
+ * It used to MINT a line every fifteen seconds from a generator seeded off a
+ * counter. That is worth naming precisely, because it looked like the most alive
+ * thing on the screen and was the least: an idle console with nobody signed in
+ * produced a steady stream of "order confirmed" and "refund approved" lines for
+ * work that had never happened. It read `/dev/urandom` and called it operations.
  *
- * There is no pause control and there should not be one. This is the one block
- * on the screen whose whole job is to keep moving — a button that stops it is
- * a button that makes it lie, and an operator who wants a still picture has
- * the register the line came from.
+ * It now reads `/admin/dashboard/activity` and re-reads it on an interval. On a
+ * quiet store the list is short and stays short, which is the correct picture of
+ * a quiet store.
  *
- * Three decisions worth keeping:
+ * Two of the original three decisions survive, for their original reasons:
  *
- *   1. ONE interval. The clock and the new line are minted in the same
- *      callback off two refs, rather than a timer effect plus a second effect
- *      watching it — that second effect is a synchronous setState in an effect
- *      body, which is both a cascading render and a lint error in this repo.
- *   2. It idles when the tab is hidden. Not a pause an operator can reach:
- *      nobody is reading it, and a background tab would otherwise mint a line
- *      every fifteen seconds forever, all but eight of which are thrown away
- *      on the next render. It picks straight back up on return.
- *   3. Age is counted from the feed's own clock, never from `Date`. See the
- *      note on the data module.
+ *   1. It idles when the tab is hidden — nobody is reading it, and a background
+ *      tab would otherwise poll forever. It picks straight back up on return.
+ *      (That now lives in `useActivity`.)
+ *   2. There is no pause control and there should not be one. This is the one
+ *      block whose job is to keep up to date; a button that freezes it is a
+ *      button that makes it lie.
+ *
+ * The third — a hand-rolled clock counting seconds so ages could tick without
+ * reading `Date` — is gone with the generator that needed it. An age is now
+ * computed from the timestamp the server sent, which is the thing it was always
+ * meant to describe.
  */
 
-/** How often the clock moves, and how many of those before a new line lands. */
-const TICK_SECONDS = 5;
-const TICKS_PER_EVENT = 3;
+/** How many lines stay on the wall. The endpoint returns at most this many. */
+const FEED_LIMIT = 8;
 
-const BACKLOG = backlog();
+/** A duration, in the shortest words that are true. */
+function ageLabel(seconds: number): string {
+  if (seconds < 45) return "just now";
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.round(hours / 24)}d ago`;
+}
+
+/** The tone strings the presenter sends, narrowed to what `Status` accepts. */
+const TONES = new Set<StatusTone>(["good", "warn", "bad", "info", "idle", "neutral"]);
+
+function toneOf(value: string): StatusTone | undefined {
+  return TONES.has(value as StatusTone) ? (value as StatusTone) : undefined;
+}
 
 export function ActivityFeed() {
-  const [entries, setEntries] = useState<LogEntry[]>(BACKLOG);
-  const [clock, setClock] = useState(0);
-  const [watching, setWatching] = useState(true);
-
-  /* Counters, not state: nothing renders them, and holding them in refs is
-     what keeps the interval free of a stale closure over its own tick. */
-  const ticks = useRef(0);
-  const minted = useRef(BACKLOG.length);
-
-  useEffect(() => {
-    const onVisibility = () => setWatching(!document.hidden);
-    document.addEventListener("visibilitychange", onVisibility);
-    return () => document.removeEventListener("visibilitychange", onVisibility);
-  }, []);
-
-  useEffect(() => {
-    if (!watching) return;
-
-    const timer = setInterval(() => {
-      ticks.current += 1;
-      const seconds = ticks.current * TICK_SECONDS;
-      setClock(seconds);
-
-      if (ticks.current % TICKS_PER_EVENT === 0) {
-        const entry = eventAt(minted.current, seconds, 0);
-        minted.current += 1;
-        setEntries((prev) => [entry, ...prev].slice(0, FEED_LIMIT));
-      }
-    }, TICK_SECONDS * 1_000);
-
-    return () => clearInterval(timer);
-  }, [watching]);
+  const { entries, loading, error, loaded } = useActivity();
+  const shown = entries.slice(0, FEED_LIMIT);
 
   return (
     <Section
-      copy="Everything the console has done, newest first. New lines arrive as the work happens — the eight most recent stay on the wall."
+      copy="Everything the console has done, newest first. The list refreshes itself — the eight most recent stay on the wall."
       eyebrow="Activity"
       title="Live log"
     >
-      <div className="aui-tablewrap">
-        <table className="aui-log aui-table">
-          <thead>
-            <tr>
-              <th scope="col">Source</th>
-              <th scope="col">Event</th>
-              <th data-hide="sm" scope="col">
-                Actor
-              </th>
-              <th scope="col">State</th>
-              <th data-align="right" scope="col">
-                When
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {entries.map((entry) => (
-              <tr data-fresh={entry.born === clock && clock > 0 ? "true" : undefined} key={entry.id}>
-                <td>{entry.source}</td>
-                <td>
-                  <span className="aui-table__primary">
-                    <strong>{entry.title}</strong>
-                    <small>
-                      <code>{entry.action}</code> · {entry.detail}
-                    </small>
-                  </span>
-                </td>
-                <td data-hide="sm">{entry.actor}</td>
-                <td>
-                  <Status tone={entry.tone} value={entry.state} />
-                </td>
-                <td className="aui-table__num" data-align="right">
-                  {ageLabel(entry.offset + clock - entry.born)}
-                </td>
+      {/* Three nothings, told apart. An empty table under "Live log" reads as a
+          broken screen; on a store nobody has used yet it is just the truth. */}
+      {shown.length === 0 ? (
+        <p className="aui-tablefoot" role="status">
+          <span>
+            {error
+              ? error
+              : loading && !loaded
+                ? "Reading the log…"
+                : "Nothing has happened yet. Console activity appears here as work is done."}
+          </span>
+        </p>
+      ) : (
+        <div className="aui-tablewrap">
+          <table className="aui-log aui-table">
+            <thead>
+              <tr>
+                <th scope="col">Source</th>
+                <th scope="col">Event</th>
+                <th data-hide="sm" scope="col">
+                  Actor
+                </th>
+                <th scope="col">State</th>
+                <th data-align="right" scope="col">
+                  When
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {shown.map((entry) => (
+                <tr key={entry.id}>
+                  <td>{entry.source}</td>
+                  <td>
+                    <span className="aui-table__primary">
+                      <strong>{entry.title}</strong>
+                      <small>
+                        <code>{entry.action}</code> · {entry.detail}
+                      </small>
+                    </span>
+                  </td>
+                  <td data-hide="sm">{entry.actor}</td>
+                  <td>
+                    <Status tone={toneOf(entry.tone)} value={entry.state} />
+                  </td>
+                  <td className="aui-table__num" data-align="right">
+                    {ageLabel(entry.offset)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </Section>
   );
 }

@@ -308,6 +308,11 @@ function FlyingLetter({
     return `${lerp(from.fontStretch, to.fontStretch, t)}%`;
   });
 
+  const fontWeight = useTransform(progress, (t) => {
+    const { from, to } = current.current;
+    return lerp(from.fontWeight, to.fontWeight, t);
+  });
+
   return (
     <motion.div
       aria-hidden
@@ -317,7 +322,7 @@ function FlyingLetter({
          scrolling back up picks it up where it was, rather than replaying the
          load entrance from behind its baseline halfway down the page. */
       data-landed={landed || undefined}
-      style={{ x, y, fontSize, lineHeight, letterSpacing, fontStretch }}
+      style={{ x, y, fontSize, lineHeight, letterSpacing, fontStretch, fontWeight }}
     >
       {/* The load entrance — the glyph rides up from behind its own baseline on
           its own beat, so the headline writes itself on from the left instead of
@@ -349,6 +354,7 @@ type Slot = {
   lineHeight: number;
   letterSpacing: number;
   fontStretch: number;
+  fontWeight: number;
 };
 
 type LetterGeometry = {
@@ -411,13 +417,18 @@ function metrics(el: HTMLElement) {
   const lineHeight = parseFloat(style.lineHeight);
   const letterSpacing = parseFloat(style.letterSpacing);
   const fontStretch = parseFloat(style.fontStretch);
+  const fontWeight = parseFloat(style.fontWeight);
 
   return {
     fontSize,
-    // `normal` on any of the three parses to NaN; fall back to the initial value.
+    // `normal` on any of these parses to NaN; fall back to the initial value.
     lineHeight: Number.isNaN(lineHeight) ? 1.2 : lineHeight / fontSize,
     letterSpacing: Number.isNaN(letterSpacing) ? 0 : letterSpacing / fontSize,
     fontStretch: Number.isNaN(fontStretch) ? 100 : fontStretch,
+    /* The hero sets the wordmark in a heavier cut than the bar does, so weight
+       is a end-to-end difference like the other four and has to be flown, not
+       pinned. Left fixed, the glyph would change cut the instant it lifted. */
+    fontWeight: Number.isNaN(fontWeight) ? 400 : fontWeight,
   };
 }
 

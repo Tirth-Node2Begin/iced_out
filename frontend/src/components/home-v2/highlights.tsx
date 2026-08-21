@@ -10,7 +10,7 @@ import {
 } from "motion/react";
 import { useRef, useState } from "react";
 
-import { HIGHLIGHTS } from "./data";
+import { useCopy, type HighlightCard } from "./copy";
 import { DUR, EASE, RevealImage, ScrollWords } from "./motion";
 
 /**
@@ -28,9 +28,7 @@ import { DUR, EASE, RevealImage, ScrollWords } from "./motion";
  * FLIPs each card to its new slot, which is the slide the capture shows
  * between t=12.8s, 14.2s and 15.8s.
  */
-const CARDS = HIGHLIGHTS.cards;
-
-function Card({ card }: { card: (typeof CARDS)[number] }) {
+function Card({ card }: { card: HighlightCard }) {
   return (
     <div className="hv2-card__shell">
       <span className="hv2-card__index" data-aos="hv2-rise">
@@ -51,6 +49,8 @@ function Card({ card }: { card: (typeof CARDS)[number] }) {
 }
 
 export function Highlights() {
+  const { highlights } = useCopy();
+  const cards = highlights.cards;
   const ref = useRef<HTMLElement>(null);
   const reduce = useReducedMotion() ?? false;
   const [active, setActive] = useState(0);
@@ -68,11 +68,11 @@ export function Highlights() {
     setActive((prev) => (prev === next ? prev : next));
   });
 
-  const copy = CARDS[active];
+  const copy = cards[active];
 
   // Build the row: cards in order, copy panel spliced in after the active one.
   const slots: Array<{ key: string; node: React.ReactNode }> = [];
-  CARDS.forEach((card, i) => {
+  cards.forEach((card, i) => {
     slots.push({ key: card.index, node: <Card card={card} /> });
     if (i === active) {
       slots.push({
@@ -116,14 +116,14 @@ export function Highlights() {
       <div className="hv2-highlights__pin hv2-shell">
         <div className="hv2-highlights__head">
           <span className="hv2-eyebrow" data-aos="hv2-rise">
-            {HIGHLIGHTS.eyebrow}
+            {highlights.eyebrow}
           </span>
           <ScrollWords
             as="h2"
             className="hv2-h2"
             offset={["start 0.92", "start 0.5"]}
             spread={2.2}
-            text={HIGHLIGHTS.heading.join("\n")}
+            text={highlights.heading.join("\n")}
           />
         </div>
 

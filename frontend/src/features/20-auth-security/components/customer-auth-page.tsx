@@ -8,8 +8,6 @@ import "./nh-auth.css";
 
 import { safeReturnPath } from "@/config/route-rules";
 import { AuthSplitVisual } from "@/components/auth/auth-split-visual";
-import { recordCustomerSignIn } from "@/features/01-users/customers-store";
-import { DEFAULT_PROFILE } from "@/features/01-users/profile-context";
 import { useAuth } from "@/features/20-auth-security/auth-context";
 import { useHydrated } from "@/lib/use-hydrated";
 
@@ -54,9 +52,12 @@ function GoogleMark() {
 export function CustomerAuthPage({ mode }: { mode: CustomerAuthMode }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { signIn } = useAuth();
+  const { signIn, register } = useAuth();
   const [submitted, setSubmitted] = useState(false);
   const [revealed, setRevealed] = useState(false);
+  /** What the server said went wrong, shown under the fields. */
+  const [error, setError] = useState("");
+  const [pending, setPending] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
 
   /* The session is opened in the browser, so nothing here works before the
@@ -68,35 +69,51 @@ export function CustomerAuthPage({ mode }: { mode: CustomerAuthMode }) {
   const isCredentialMode = mode === "login" || mode === "register";
   const hasPassword = mode === "login" || mode === "register" || mode === "reset";
 
-  /**
-   * Who is signing in, read off the form at the moment they do.
-   *
-   * "Continue with Google" is a button beside the fields rather than a real
-   * provider, so it has nothing typed to read; in that path the identity is the
-   * one this browser already stands for on the account screens.
-   */
-  function identity() {
+  /** What was typed, read off the form at the moment it is submitted. */
+  function credentials() {
     const data = new FormData(formRef.current ?? undefined);
-    const email = String(data.get("email") ?? "").trim();
-    const name = String(data.get("name") ?? "").trim();
-    return email
-      ? { email, name: name || undefined }
-      : { email: DEFAULT_PROFILE.email, name: DEFAULT_PROFILE.name };
+    return {
+      name: String(data.get("name") ?? "").trim(),
+      email: String(data.get("email") ?? "").trim(),
+      password: String(data.get("password") ?? ""),
+    };
   }
 
-  function enterSession() {
-    /* The console reads the same register, so signing in here is what puts a
-       shopper in `/admin/customers` — and moves their last-seen on every
-       return visit. */
-    recordCustomerSignIn(identity());
-    signIn();
-    router.replace(safeReturnPath(searchParams.get("returnTo"), "/account/profile"));
+  /**
+   * Opens the session against the API.
+   *
+   * The account is created and the session issued by the server — signing in
+   * here is what puts a shopper in `/admin/customers`, because both screens now
+   * read the same register rather than two copies of it.
+   */
+  async function enterSession() {
+    const typed = credentials();
+    setPending(true);
+    setError("");
+
+    try {
+      if (mode === "register") {
+        await register({ name: typed.name, email: typed.email, password: typed.password });
+      } else {
+        await signIn({ email: typed.email, password: typed.password });
+      }
+
+      router.replace(safeReturnPath(searchParams.get("returnTo"), "/account/profile"));
+    } catch (failure) {
+      /* The normaliser has already turned this into a sentence written to be
+         shown — a wrong password, a taken email, a lockout — so it is shown
+         rather than reworded into something vaguer. */
+      setError(
+        failure instanceof Error ? failure.message : "That did not work. Please try again.",
+      );
+      setPending(false);
+    }
   }
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (isCredentialMode) {
-      enterSession();
+      void enterSession();
       return;
     }
     setSubmitted(true);
@@ -131,6 +148,14 @@ export function CustomerAuthPage({ mode }: { mode: CustomerAuthMode }) {
               {aside}
             </>
           ) : (
+            /* Every control below carries `suppressHydrationWarning`. Password
+               managers and form fillers stamp their own bookkeeping attributes
+               (`fdprocessedid` and friends) onto inputs and buttons while the
+               HTML is still parsing — before React hydrates — and React reads
+               that as the server having rendered something the client did not.
+               The flag is one level deep, so it goes on each control rather
+               than the form. Nothing here renders differently on the two
+               sides; only a visitor's extension does. */
             <form className="iox-auth__form" onSubmit={submit} ref={formRef}>
               {mode === "register" && (
                 <div className="iox-field">
@@ -139,7 +164,7 @@ export function CustomerAuthPage({ mode }: { mode: CustomerAuthMode }) {
                   </div>
                   <div className="iox-field__control">
                     <User size={16} aria-hidden="true" />
-                    <input id="auth-name" name="name" placeholder="Enter your full name" autoComplete="name" required />
+                    <input id="auth-name" name="name" placeholder="Enter your full name" autoComplete="name" required suppressHydrationWarning />
                   </div>
                 </div>
               )}
@@ -150,7 +175,7 @@ export function CustomerAuthPage({ mode }: { mode: CustomerAuthMode }) {
                 </div>
                 <div className="iox-field__control">
                   <Mail size={16} aria-hidden="true" />
-                  <input id="auth-email" name="email" type="email" placeholder="Enter your email" autoComplete="email" required />
+                  <input id="auth-email" name="email" type="email" placeholder="Enter your email" autoComplete="email" required suppressHydrationWarning />
                 </div>
               </div>
 
@@ -174,6 +199,7 @@ export function CustomerAuthPage({ mode }: { mode: CustomerAuthMode }) {
                       autoComplete={mode === "login" ? "current-password" : "new-password"}
                       minLength={6}
                       required
+                      suppressHydrationWarning
                     />
                     <button
                       className="iox-field__reveal"
@@ -181,6 +207,7 @@ export function CustomerAuthPage({ mode }: { mode: CustomerAuthMode }) {
                       onClick={() => setRevealed((on) => !on)}
                       aria-label={revealed ? "Hide password" : "Show password"}
                       aria-pressed={revealed}
+                      suppressHydrationWarning
                     >
                       {revealed ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
                     </button>
@@ -188,18 +215,37 @@ export function CustomerAuthPage({ mode }: { mode: CustomerAuthMode }) {
                 </div>
               )}
 
+              {error ? (
+                <p className="iox-auth__error" role="alert">
+                  {error}
+                </p>
+              ) : null}
+
               {aside}
 
               {/* Held closed until the handler exists — see the note on `ready`. */}
-              <button className="iox-btn iox-btn--primary" disabled={!ready} type="submit">
-                <span>{page.action}</span>
+              <button
+                className="iox-btn iox-btn--primary"
+                disabled={!ready || pending}
+                type="submit"
+                suppressHydrationWarning
+              >
+                <span>{pending ? "One moment…" : page.action}</span>
                 <ArrowRight size={16} aria-hidden="true" />
               </button>
 
               {isCredentialMode && (
                 <>
                   <div className="iox-rule"><span>or</span></div>
-                  <button className="iox-btn iox-btn--ghost" type="button" onClick={enterSession}>
+                  {/* No provider behind it yet, so it says so rather than
+                      quietly signing somebody in as a fixture account. */}
+                  <button
+                    className="iox-btn iox-btn--ghost"
+                    disabled
+                    title="Google sign-in is not connected yet."
+                    type="button"
+                    suppressHydrationWarning
+                  >
                     <GoogleMark />
                     <span>Continue with Google</span>
                   </button>

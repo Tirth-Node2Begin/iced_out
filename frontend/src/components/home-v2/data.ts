@@ -27,6 +27,31 @@ export const HERO_PANELS = [
   { src: "/images/home-v2/hero-06.jpg", alt: "Concrete corridor, full-length", flex: 0.74, height: 0.59 },
 ] as const;
 
+/**
+ * The hero's marginalia — the three corner blocks framing the wordmark.
+ *
+ * The middle of the frame belongs to the wordmark and the figure, so anything
+ * that has to be *read* is set small and pushed to an edge. The fourth corner
+ * is deliberately empty: the site bar is sticky above this section and already
+ * occupies the top right.
+ *
+ * NOT CURRENTLY DRAWN, along with HERO_FIGURE below. Both belong to the
+ * cut-out-figure hero; the strip hero above is the one in service. Kept
+ * because putting that hero back is a component swap, not a rewrite.
+ */
+export const HERO_MARGIN = {
+  lead: ["Heavyweight uniforms", "cut for life after dark"],
+  cta: { label: "Shop the drop", href: "/new-drop" },
+  ctaNote: "Drop 001 · 320 units",
+  drop: ["New collection", "Drop 001 — AW25"],
+} as const;
+
+/** The cut-out figure the wordmark passes behind. */
+export const HERO_FIGURE = {
+  src: "/images/hero-model.png",
+  alt: "Iced_out overcoat on a faceless form, lit from the left",
+} as const;
+
 export const MANIFESTO = {
   from: "2016",
   to: "2025",

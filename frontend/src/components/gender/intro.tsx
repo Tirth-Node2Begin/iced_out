@@ -3,7 +3,7 @@
 import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
 import { useRef } from "react";
 
-import type { AudienceContent } from "@/components/gender/data";
+import { spellCount, type AudienceContent } from "@/components/gender/data";
 import { Reveal, SplitHeading } from "@/components/gender/motion";
 
 /**
@@ -14,7 +14,14 @@ import { Reveal, SplitHeading } from "@/components/gender/motion";
  * shared trigger. Its `y` is expressed in `%` so the rise scales with the type,
  * which is set in `vw`.
  */
-export function CollectionIntro({ content }: { content: AudienceContent }) {
+export function CollectionIntro({
+  content,
+  count,
+}: {
+  content: AudienceContent;
+  /** How many pieces are actually published for this audience right now. */
+  count: number;
+}) {
   const ref = useRef<HTMLElement>(null);
   const reduce = useReducedMotion();
 
@@ -29,6 +36,16 @@ export function CollectionIntro({ content }: { content: AudienceContent }) {
   const ghostY = useTransform(scrollYProgress, [0, 1], [70, -70]);
 
   const { intro } = content;
+
+  /* The deck writes the release size as `{count}` rather than asserting a
+     number, because the number is whatever the console has published. It is
+     spelled in the headline, which is a sentence, and printed as a figure in
+     the stat rail beside "320 numbered units" — same fact, two registers. */
+  const heading = intro.heavy.replace("{count}", spellCount(count));
+  const specs = intro.specs.map((spec) => ({
+    ...spec,
+    value: spec.value.replace("{count}", String(count)),
+  }));
 
   return (
     <section className="gx-section gx-intro" ref={ref}>
@@ -56,7 +73,7 @@ export function CollectionIntro({ content }: { content: AudienceContent }) {
           </Reveal>
           <SplitHeading
             className="gx-intro__title"
-            segments={[{ text: intro.heavy }, { text: intro.light, light: true }]}
+            segments={[{ text: heading }, { text: intro.light, light: true }]}
           />
         </div>
 
@@ -72,7 +89,7 @@ export function CollectionIntro({ content }: { content: AudienceContent }) {
 
       <div className="gx-wrap">
         <div className="gx-intro__specs" style={{ marginTop: "clamp(2rem, 4vw, 3.5rem)" }}>
-          {intro.specs.map((spec, index) => (
+          {specs.map((spec, index) => (
             <Reveal className="gx-intro__spec" delay={0.08 * index} key={spec.label}>
               <b>{spec.value}</b>
               <span>{spec.label}</span>

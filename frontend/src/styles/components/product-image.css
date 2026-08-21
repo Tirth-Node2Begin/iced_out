@@ -1,0 +1,53 @@
+/* ============================================================================
+   ICED_OUT — the product photograph
+
+   The rules for `<ProductImage>`'s uploaded branch, imported by the component
+   itself (`components/commerce/product-image.tsx`) so they reach every route
+   that renders one — the storefront shell, the gender pages, the /new-* pages
+   and the search dock all mount it, and only some of them load commerce.css.
+
+   `.product-photo` had no rules ANYWHERE in the tree. The class was on the
+   element and nothing answered it, so an operator's photograph rendered as a
+   bare <img> at its natural size: a 46x58 thumb in the search dock showed the
+   top-left corner of a 1600px shot, and the product page's frames showed
+   whatever happened to overflow. The sprite fallback beside it has always been
+   `position: absolute; inset: 0` — this is that same contract, so the two
+   branches of one component finally sit in their frame the same way.
+   ========================================================================= */
+
+.product-photo {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  /* Cover, matching the sprite: every frame this lands in is a fixed ratio the
+     page's layout depends on, and a portrait and a landscape shot have to sit
+     in it the same way or a grid of cards stops lining up. */
+  object-fit: cover;
+  object-position: center;
+}
+
+/* The empty frame — a photograph that has not been taken.
+   ---------------------------------------------------------------------------
+   Not a placeholder image. It used to be a quadrant of the house sprite sheet,
+   which meant an unphotographed pair of jeans was advertised with a picture of
+   a hoodie, and nothing on the card said so. This is a flat surface with a
+   faint diagonal on it: it reads as "nothing here yet" at a glance and cannot
+   be mistaken for the garment.
+
+   Sized and positioned exactly like `.product-photo`, so a grid of cards keeps
+   its rhythm whether or not the shots have been done. */
+.product-blank {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  background-color: rgba(255, 255, 255, 0.035);
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(255, 255, 255, 0.035) 0,
+    rgba(255, 255, 255, 0.035) 1px,
+    transparent 1px,
+    transparent 11px
+  );
+}

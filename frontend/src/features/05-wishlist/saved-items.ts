@@ -16,6 +16,10 @@
  * list. Resolution lives here, once, so /wishlist and /account/wishlist cannot
  * disagree about what a saved id means.
  *
+ * The catalogue is passed in. It is the database's now and arrives over the
+ * network, so a screen calling this has to be subscribed to it — see
+ * `useCatalog()` in the gallery.
+ *
  * A tile is saved as ITSELF rather than as the fixture underneath it. Twenty
  * tiles share four fixture slugs, so collapsing them would put "Bone Utility
  * Overshirt" in the list of a shopper who saved the Nightshift Overcoat, and
@@ -26,11 +30,7 @@
 import { CATEGORIES, MEN, WOMEN, type Piece } from "@/components/gender/data";
 import { frameFor, productFor, sizesFor, type Frame } from "@/components/new-man/data";
 import { productSlug } from "@/components/new-man/product-deck";
-import {
-  productFixtures,
-  type Product,
-  type ProductImagePosition,
-} from "@/features/02-products";
+import type { Product, ProductImagePosition } from "@/features/02-products";
 
 /**
  * How the piece is drawn.
@@ -80,7 +80,7 @@ function fromProduct(product: Product): SavedItem {
     id: product.id,
     name: product.name,
     meta: `${product.category} · ${product.color}`,
-    href: `/product/${product.slug}`,
+    href: `/product?slug=${product.slug}`,
     price: product.price,
     compareAtPrice: product.compareAtPrice,
     badge: product.badge,
@@ -94,8 +94,8 @@ function fromProduct(product: Product): SavedItem {
   };
 }
 
-function fromPiece(piece: Piece): SavedItem {
-  const sizes = sizesFor(piece);
+function fromPiece(piece: Piece, catalogue: Product[]): SavedItem {
+  const sizes = sizesFor(piece, catalogue);
 
   return {
     id: piece.id,
@@ -105,8 +105,8 @@ function fromPiece(piece: Piece): SavedItem {
        back to the storefront PDP for the fixture it stands for — exactly where
        the tile on /women already points. */
     href: MEN_IDS.has(piece.id)
-      ? `/new-man/${productSlug(piece)}`
-      : `/product/${piece.slug}`,
+      ? `/new-man/piece?slug=${productSlug(piece)}`
+      : `/product?slug=${piece.slug}`,
     /* The tile's own price, NOT `pricingFor` — that is /new-man's page-local
        demo discount and says so in its own doc comment. */
     price: piece.price,
@@ -117,16 +117,16 @@ function fromPiece(piece: Piece): SavedItem {
     image: { kind: "frame", frame: frameFor(piece) },
     soldOut: Boolean(piece.soldOut) || sizes.every((size) => size.state === "out"),
     sizes: sizes.map((size) => ({ label: size.label, soldOut: size.state === "out" })),
-    product: productFor(piece),
+    product: productFor(piece, catalogue),
   };
 }
 
-export function resolveSavedItem(id: string): SavedItem | null {
-  const product = productFixtures.find((entry) => entry.id === id);
+export function resolveSavedItem(id: string, catalogue: Product[]): SavedItem | null {
+  const product = catalogue.find((entry) => entry.id === id);
   if (product) return fromProduct(product);
 
   const piece = PIECES.find((entry) => entry.id === id);
-  if (piece) return fromPiece(piece);
+  if (piece) return fromPiece(piece, catalogue);
 
   return null;
 }
@@ -137,8 +137,8 @@ export function resolveSavedItem(id: string): SavedItem | null {
  * Ids that no longer resolve are dropped rather than rendered as a hole — a
  * piece pulled from the catalogue should leave the list, not a broken tile.
  */
-export function resolveSavedItems(ids: string[]): SavedItem[] {
+export function resolveSavedItems(ids: string[], catalogue: Product[]): SavedItem[] {
   return ids
-    .map((id) => resolveSavedItem(id))
+    .map((id) => resolveSavedItem(id, catalogue))
     .filter((item): item is SavedItem => item !== null);
 }

@@ -17,15 +17,8 @@ import {
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
-import { toneVars } from "@/components/admin/admin-ui";
-import {
-  ageLabel,
-  PULSE_LIMIT,
-  signalAt,
-  standingSignals,
-  type Signal,
-  type SignalKind,
-} from "@/features/15-dashboard/data/operations-pulse";
+import { toneVars, type Tone } from "@/components/admin/admin-ui";
+import { usePulse } from "@/features/15-dashboard/dashboard-api";
 
 /**
  * The bell, and the drawer behind it.
@@ -36,29 +29,24 @@ import {
  * and a badge that printed its length, which is a badge that can never be wrong
  * and can also never be right.
  *
- * Three decisions carried over from the activity feed, for the same reasons:
+ * Two decisions carried over, for their original reasons:
  *
- *   1. ONE interval. The clock and the arriving signal are minted in the same
- *      callback off refs, rather than a timer effect plus a second effect
- *      watching it — that second effect is a synchronous setState in an effect
- *      body, which is both a cascading render and a lint error in this repo.
- *   2. It idles when the tab is hidden. Nobody is reading a background tab, and
- *      a drawer that mints a signal every twenty seconds forever would greet a
- *      returning operator with a badge in the hundreds and nothing behind it.
- *   3. Age is counted from the pulse's own clock, never from `Date`. See the
- *      note on the data module.
+ *   1. It idles when the tab is hidden. Nobody is reading a background tab, and
+ *      polling forever for a screen nobody is looking at is waste.
+ *      (That now lives in the pulse store's own poll.)
+ *   2. The count is UNREAD, not total. Opening the drawer is the acknowledgement —
+ *      there is no "mark all read" button, because the only way to reach the
+ *      button is to open the thing that would have cleared it anyway.
  *
- * The count is UNREAD, not total. Opening the drawer is the acknowledgement —
- * there is no "mark all read" button, because the only way to reach the button
- * is to open the thing that would have cleared it anyway.
+ * What is gone is the generator. This used to MINT a signal every twenty seconds
+ * — "payment exception on IO-2026-1043", for an order that did not exist — so the
+ * badge on an idle console climbed forever and every line behind it was invented.
+ * The signals now come from `/admin/dashboard/pulse`, which reads `ops_signals`.
+ * A store with nothing wrong shows an empty drawer, which is the point of it.
  */
 
-/** How often the clock moves, and how many of those before a signal lands. */
-const TICK_SECONDS = 5;
-const TICKS_PER_SIGNAL = 4;
-
 /** The glyph each kind wears. One icon per area, matching the rail's. */
-const GLYPH: Record<SignalKind, LucideIcon> = {
+const GLYPH: Record<string, LucideIcon> = {
   order: ShoppingBag,
   payment: CircleDollarSign,
   shipment: Truck,
@@ -68,65 +56,65 @@ const GLYPH: Record<SignalKind, LucideIcon> = {
   review: Star,
 };
 
-const STANDING = standingSignals();
+/**
+ * The tone strings `ops_signals.tone` holds, narrowed to what the stylesheet has
+ * variables for. An unrecognised one falls back rather than reaching `toneVars`
+ * as a string it cannot resolve — a signal with a typo in its tone should still
+ * be readable.
+ */
+const TONES = new Set<Tone>(["ink", "mint", "amber", "rose", "sky", "violet"]);
+
+function toneOf(value: string): Tone {
+  return TONES.has(value as Tone) ? (value as Tone) : "ink";
+}
+
+/** A duration, in the shortest words that are true. */
+function ageLabel(seconds: number): string {
+  if (seconds < 45) return "just now";
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.round(hours / 24)}d ago`;
+}
 
 export function PulseBell() {
   const [open, setOpen] = useState(false);
-  const [signals, setSignals] = useState<Signal[]>(STANDING);
-  const [clock, setClock] = useState(0);
-  const [watching, setWatching] = useState(true);
-  /** Signals that have arrived since the drawer was last opened. It starts full:
-      a backlog nobody has read yet is exactly what the badge is for. */
-  const [unread, setUnread] = useState(STANDING.length);
-  /** How many at the head of the list still wear the new-signal mark.
-      Held apart from `unread` so opening the drawer can clear the BADGE without
-      also erasing, in the same frame, the only clue as to which lines are the
-      ones you came in to read. */
-  const [fresh, setFresh] = useState(STANDING.length);
+  const { signals } = usePulse();
 
-  /* Counters, not state: nothing renders them, and holding them in refs is
-     what keeps the interval free of a stale closure over its own tick. */
-  const ticks = useRef(0);
-  const minted = useRef(STANDING.length);
-  const openRef = useRef(false);
+  /**
+   * How many signals had been seen the last time the drawer was open.
+   *
+   * The badge is `signals.length - seen`, derived rather than counted up by a
+   * timer: the list is server-owned and newest-first, so "how many are new" is a
+   * question about its length, and a separately-incremented counter could drift
+   * from it after a failed poll.
+   */
+  const [seen, setSeen] = useState(0);
+  /** How many at the head still wear the new-signal mark. Held apart from the
+      badge so opening the drawer can clear the COUNT without erasing, in the same
+      frame, the only clue as to which lines are the ones you came in to read. */
+  const [fresh, setFresh] = useState(0);
+
+  const unread = Math.max(0, signals.length - seen);
+
+  /* A signal list that SHRANK — a resolved exception dropping off — must not
+     leave `seen` above its length, or the badge stays dark after the next arrival.
+     Clamped in a ref-free effect because it is a correction to state, not a
+     render-time derivation. */
+  const length = useRef(signals.length);
 
   useEffect(() => {
-    const onVisibility = () => setWatching(!document.hidden);
-    document.addEventListener("visibilitychange", onVisibility);
-    return () => document.removeEventListener("visibilitychange", onVisibility);
-  }, []);
-
-  useEffect(() => {
-    if (!watching) return;
-
-    const timer = setInterval(() => {
-      ticks.current += 1;
-      const seconds = ticks.current * TICK_SECONDS;
-      setClock(seconds);
-
-      if (ticks.current % TICKS_PER_SIGNAL !== 0) return;
-
-      const signal = signalAt(minted.current, seconds);
-      minted.current += 1;
-      setSignals((prev) => [signal, ...prev].slice(0, PULSE_LIMIT));
-      /* Arriving into an open drawer is arriving read: the operator is looking
-         straight at it, and a badge that ticks up while you watch the line
-         appear is a badge nobody trusts again. */
-      setFresh((count) => count + 1);
-      if (!openRef.current) setUnread((count) => count + 1);
-    }, TICK_SECONDS * 1_000);
-
-    return () => clearInterval(timer);
-  }, [watching]);
+    if (signals.length < length.current) setSeen((count) => Math.min(count, signals.length));
+    length.current = signals.length;
+  }, [signals.length]);
 
   function onOpenChange(next: boolean) {
-    openRef.current = next;
     setOpen(next);
     if (!next) return;
-    /* Reading `unread` from the render rather than from inside the setter: a
-       side effect in a state updater runs twice under Strict Mode. */
+    /* The lines that were unread on the way in stay marked while it is open. */
     setFresh(unread);
-    setUnread(0);
+    setSeen(signals.length);
   }
 
   return (
@@ -167,7 +155,7 @@ export function PulseBell() {
 
             <div className="aui-drawer__list">
               {signals.map((signal, index) => {
-                const Icon = GLYPH[signal.kind];
+                const Icon = GLYPH[signal.kind] ?? ShoppingBag;
                 return (
                   <Link
                     className="aui-pulse"
@@ -177,7 +165,7 @@ export function PulseBell() {
                     href={signal.href}
                     key={signal.id}
                     onClick={() => onOpenChange(false)}
-                    style={toneVars(signal.tone)}
+                    style={toneVars(toneOf(signal.tone))}
                   >
                     <span className="aui-pulse__glyph">
                       <Icon aria-hidden size={16} strokeWidth={1.7} />
@@ -185,7 +173,7 @@ export function PulseBell() {
                     <div>
                       <strong>{signal.title}</strong>
                       <p>{signal.detail}</p>
-                      <small>{ageLabel(signal.offset + clock - signal.born)}</small>
+                      <small>{ageLabel(signal.offset)}</small>
                     </div>
                     <ArrowRight aria-hidden className="aui-pulse__go" size={14} strokeWidth={1.7} />
                   </Link>

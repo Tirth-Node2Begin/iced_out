@@ -1825,6 +1825,329 @@
   box-shadow: inset 0 0 0 1px var(--nh-hairline-soft);
 }
 
+/* A thumbnail sitting in front of a cell's own text. Absent for a record with
+   no photo, so a register that has none looks exactly as it did before. */
+.aui-cellmedia {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.aui-cellmedia__img {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  object-fit: cover;
+  border-radius: 7px;
+  box-shadow: inset 0 0 0 1px var(--nh-hairline-soft);
+}
+
+/* A photo on a record: the preview, and the two verbs that change it.
+   The file input itself is never shown — the labelled button opens it, so the
+   control reads like the rest of the form rather than like a browser default. */
+.aui-photo {
+  /* The containing block for the clipped file input below. Without it that
+     input is positioned against `.aui-modal` instead, which is a scrollable box
+     — see `.aui-check` for what that costs. */
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: -2px;
+}
+
+.aui-photo__frame {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 72px;
+  height: 72px;
+  overflow: hidden;
+  border-radius: var(--nh-radius-lg);
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline-soft);
+}
+
+.aui-photo__img {
+  width: 100%;
+  height: 100%;
+  /* Cover, so a portrait and a landscape shot sit the same on the row. */
+  object-fit: cover;
+}
+
+.aui-photo__empty {
+  color: var(--nh-muted);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.aui-photo__acts {
+  display: flex;
+  gap: 6px;
+}
+
+/* Kept in the layout for focus and screen readers, never drawn. */
+.aui-photo__file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* A rating in a table cell, as the five stars a shopper actually tapped.
+   The unfilled remainder is kept rather than dropped, so every row is the same
+   width and a column of them reads as a distribution at a glance — which is
+   what a moderator is scanning for. */
+.aui-stars {
+  display: inline-flex;
+  gap: 1px;
+  color: var(--nh-ink);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.aui-stars__rest {
+  color: var(--nh-muted-2);
+  opacity: 0.45;
+}
+
+/* ---- the gallery field --------------------------------------------------
+   The photographs after the primary, laid out as the run they are: a strip of
+   thumbs in display order, each carrying the two controls that change that
+   order and the one that removes it. The number on a cell is its place in the
+   finished gallery, so it counts from 2 — the primary above it is 1, and a
+   grid that started at 1 here read as if the primary were not in the run. */
+.aui-gallery {
+  /* Same reason as `.aui-photo`: this field hides a file input inside it. */
+  position: relative;
+  display: grid;
+  gap: 12px;
+}
+
+.aui-gallery__grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+}
+
+.aui-gallery__cell {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  /* 4:5, the frame every product shot is cropped to elsewhere in the shop. */
+  aspect-ratio: 4 / 5;
+  border-radius: var(--nh-radius-card);
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline-soft);
+}
+
+.aui-gallery__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.aui-gallery__index {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  min-width: 19px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: rgba(8, 9, 10, 0.72);
+  color: var(--nh-ink);
+  font-size: 10px;
+  line-height: 19px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+/* Held at the foot of the cell rather than revealed on hover: these are the
+   only way to reorder the run, and a control a touch device can never surface
+   is a control that does not exist there. */
+.aui-gallery__acts {
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  left: 5px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.aui-gallery__act {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(8, 9, 10, 0.74);
+  color: var(--nh-ink-soft);
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  transition:
+    background-color 0.3s var(--nh-ease),
+    color 0.3s var(--nh-ease);
+}
+
+.aui-gallery__act:hover:not(:disabled) {
+  background: rgba(8, 9, 10, 0.92);
+  color: var(--nh-ink);
+}
+
+.aui-gallery__act:disabled {
+  color: var(--nh-muted-2);
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.aui-gallery__act--danger:hover:not(:disabled) {
+  background: rgba(255, 90, 90, 0.9);
+  color: #fff;
+}
+
+.aui-gallery__foot {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.aui-gallery__count {
+  color: var(--nh-muted-2);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+/* ---- the checkbox field -------------------------------------------------
+   A decision rather than a value, so it is drawn as a row you press anywhere on
+   rather than as a lone box with a caption above it — the shape every other
+   on/off in this console already uses (`.aui-switchrow`). The real input stays
+   in the layout for the keyboard and for screen readers; the square beside it
+   is what is actually painted. */
+.aui-check {
+  /**
+   * The containing block for the clipped input inside it — and this one is
+   * load-bearing.
+   *
+   * A visually-hidden `position: absolute` input is placed against its nearest
+   * POSITIONED ancestor, and without this that was `.aui-modal`. The input's
+   * static position sits near the foot of a form that scrolls, so it landed
+   * ~830px down the modal — well past the modal's own 780px height — and
+   * dragged `scrollHeight` out to 894. Nothing showed, because the modal clips
+   * its overflow. But the moment the box was ticked the input took focus, and
+   * the browser did what it always does for a focused element that is out of
+   * view: it scrolled the modal by exactly that 114px overhang. The heading
+   * jumped out of the top of the dialog and a band of empty surface appeared
+   * under the footer. Anchoring the input here keeps it in its own row, and the
+   * modal has nothing to scroll.
+   */
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  padding: 14px 16px;
+  border-radius: var(--nh-radius-card);
+  cursor: pointer;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline-soft);
+  transition: box-shadow 0.3s var(--nh-ease);
+}
+
+.aui-check:hover {
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+/* Not `display: none` — a hidden input takes no focus and answers to no
+   keyboard. It is clipped instead, and the square below follows its state. */
+.aui-check > input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.aui-check__box {
+  position: relative;
+  display: block;
+  width: 19px;
+  height: 19px;
+  flex: none;
+  margin-top: 1px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  transition:
+    background-color 0.24s var(--nh-ease),
+    box-shadow 0.24s var(--nh-ease);
+}
+
+/* The tick, drawn rather than typed: a glyph would inherit the form's font and
+   sit differently on every machine. */
+.aui-check__box::after {
+  position: absolute;
+  top: 4px;
+  left: 6.5px;
+  width: 5px;
+  height: 9px;
+  border: solid var(--nh-solid-fg);
+  border-width: 0 2px 2px 0;
+  content: "";
+  opacity: 0;
+  transform: rotate(43deg) scale(0.7);
+  transition:
+    opacity 0.2s var(--nh-ease),
+    transform 0.2s var(--nh-ease);
+}
+
+.aui-check > input:checked + .aui-check__box {
+  background: var(--nh-solid-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-solid-bg);
+}
+
+.aui-check > input:checked + .aui-check__box::after {
+  opacity: 1;
+  transform: rotate(43deg) scale(1);
+}
+
+.aui-check > input:focus-visible + .aui-check__box {
+  box-shadow:
+    inset 0 0 0 1px var(--nh-solid-bg),
+    0 0 0 3px rgba(242, 244, 244, 0.24);
+}
+
+.aui-check__copy {
+  display: grid;
+  gap: 4px;
+}
+
+.aui-check__copy strong {
+  color: var(--nh-ink);
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: -0.005em;
+}
+
+.aui-check__copy small {
+  color: var(--nh-muted-2);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
 /* Chips as a form control, where they stand for one many-valued answer. */
 .aui-chips--field {
   gap: 6px;
@@ -3738,6 +4061,234 @@ button.aui-select {
   font-variant-numeric: tabular-nums;
 }
 
+/* ============================================ 13b. the home page hero board
+
+   The one screen in the console that is about a PICTURE rather than a record,
+   so it is drawn as a run of cards rather than a table. Each card shows the
+   uploaded frame and its cutout side by side, because a cutout is judged by
+   comparison — a board that showed only the result would make a bad
+   segmentation impossible to spot until it was on the home page. */
+
+.hero-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 18px;
+}
+
+.hero-form__act {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.hero-form__note {
+  color: var(--nh-muted);
+  font-size: 12px;
+  margin-top: 12px;
+}
+
+/* Where the picture comes from — two cards, one chosen. `.aui-check` already
+   draws the row; the only thing radios need on top of it is a round box, since
+   a square with a tick in it means "several of these" and exactly one of these
+   is true. */
+.hero-source {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  width: 100%;
+}
+
+.hero-source__opt .aui-check__box {
+  border-radius: 999px;
+}
+
+.hero-source__opt .aui-check__box::after {
+  top: 5px;
+  left: 5px;
+  width: 7px;
+  height: 7px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--nh-solid-fg);
+  transform: none;
+}
+
+.hero-source__opt > input:checked + .aui-check__box::after {
+  transform: none;
+}
+
+/* The product picker: the piece's own photograph beside the dropdown, so the
+   frame that is about to be cut out is visible BEFORE the save rather than
+   after it. */
+.hero-pick {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+}
+
+.hero-pick__frame {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 72px;
+  height: 72px;
+  overflow: hidden;
+  border-radius: var(--nh-radius-lg);
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline-soft);
+}
+
+.hero-pick__img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.hero-pick__control {
+  flex: 1;
+  min-width: 0;
+}
+
+.hero-run {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hero-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 18px;
+  padding: 16px;
+  border-radius: var(--nh-radius-card);
+  background: var(--nh-card-bg);
+  /* Every 1px edge is an inset shadow here, never a border — new_style §5.2. */
+  box-shadow: inset 0 0 0 1px var(--nh-hairline-soft);
+}
+
+.hero-card__frames {
+  display: flex;
+  gap: 10px;
+}
+
+.hero-card__frame {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  gap: 6px;
+  margin: 0;
+  width: 92px;
+}
+
+.hero-card__frame figcaption {
+  color: var(--nh-muted-2);
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.hero-card__frame > :first-child {
+  display: grid;
+  place-items: center;
+  height: 92px;
+  overflow: hidden;
+  border-radius: var(--nh-radius-lg);
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline-soft);
+}
+
+/* The cutout sits on a chequerboard, which is the only honest way to show a
+   transparent PNG: on a flat panel a white-backed near-miss and a real cutout
+   look identical, and the whole point of this screen is telling those apart. */
+.hero-card__frame--cutout > :first-child {
+  background-color: rgba(255, 255, 255, 0.06);
+  background-image:
+    linear-gradient(45deg, rgba(0, 0, 0, 0.32) 25%, transparent 25%),
+    linear-gradient(-45deg, rgba(0, 0, 0, 0.32) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, rgba(0, 0, 0, 0.32) 75%),
+    linear-gradient(-45deg, transparent 75%, rgba(0, 0, 0, 0.32) 75%);
+  background-size: 12px 12px;
+  background-position: 0 0, 0 6px, 6px -6px, -6px 0;
+}
+
+.hero-card__img {
+  width: 100%;
+  height: 100%;
+  /* Contain, not cover: a garment cropped to fill the tile is a garment whose
+     hem you cannot check. */
+  object-fit: contain;
+}
+
+.hero-card__blank {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  color: var(--nh-muted-2);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.hero-card__body {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.hero-card__pos {
+  color: var(--nh-muted-2);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.hero-card__title {
+  margin: 0;
+  color: var(--nh-ink);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.hero-card__states {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Why the last cutout ended the way it did, in the operator's language. Set
+   at reading size rather than as fine print: it is an instruction, and this is
+   the only place it is ever said. */
+.hero-card__detail {
+  color: var(--nh-ink-soft);
+  font-size: 12.5px;
+  line-height: 1.5;
+  max-width: 62ch;
+}
+
+.hero-card__acts {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  min-width: 148px;
+}
+
+.hero-card__acts .aui-btn {
+  justify-content: flex-start;
+  gap: 7px;
+}
+
+.hero-card__order {
+  display: flex;
+  gap: 6px;
+}
+
 /* ==================================================== 14. responsive */
 @media (max-width: 1240px) {
   .aui-app {
@@ -3871,5 +4422,22 @@ button.aui-select {
 
   .aui-rowacts {
     opacity: 1;
+  }
+
+  .hero-form,
+  .hero-source {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* Three columns will not fit, and the frames are the part that must stay
+     legible — so they lead, the words follow, and the verbs go full width. */
+  .hero-card {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .hero-card__acts {
+    flex-direction: row;
+    flex-wrap: wrap;
+    min-width: 0;
   }
 }

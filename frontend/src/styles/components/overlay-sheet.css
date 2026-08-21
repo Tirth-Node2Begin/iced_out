@@ -1,0 +1,445 @@
+/* ============================================================================
+   ICED_OUT — the bar's bottom-docked overlays
+
+   The search dock and the small-screen menu, plus the surface they share
+   (`components/nav/bottom-sheet.tsx`).
+
+   This lives in its own sheet rather than inside chrome.css because the two
+   overlays ship with the *bar*, and the bar is mounted on routes that never
+   load chrome.css — `/about` through `<AboutNav>`, `/home-v2` and the
+   `/new-*` catalogue pages through their own layouts. On those routes the
+   dock rendered with no rules at all: `position: fixed` never applied, so the
+   field and its suggestion chips landed in the page flow under the footer as
+   bare text. Importing the sheet from `bottom-sheet.tsx` puts it in the same
+   module graph as the markup it styles, so it cannot go missing again — add a
+   route, get the styles.
+
+   Values resolve through the new_style.md token list (§2 colour, §4
+   shape/space/motion), same as chrome.css.
+   ========================================================================= */
+
+/* ============================================================ 1. search dock */
+/* Docked to the bottom edge and full-bleed, so the field lands where the hand
+   already is and the results grow up the page instead of replacing it. There
+   is no route change: the query never leaves the screen the shopper is on. */
+.io-dock {
+  /* Both sheets portal to `document.body` — the header is sticky and creates a
+     stacking context a fixed child could never escape. That also puts them
+     outside `.io-scope` and `.nh-nav-scope`, so the token block travels with
+     the surface rather than being inherited. Same move `.site-footer` makes. */
+  --nh-surface-2: #16181a;
+  --nh-card-bg: #1a1c1e;
+  --nh-ink: #f1f3f3;
+  --nh-ink-soft: #d5d9da;
+  --nh-muted: #8f9598;
+  --nh-muted-2: #6e7477;
+  --nh-solid-bg: #f2f4f4;
+  --nh-solid-fg: #0d0e10;
+  --nh-ghost-bg: rgba(255, 255, 255, 0.08);
+  --nh-ghost-bg-hover: rgba(255, 255, 255, 0.15);
+  --nh-hairline: rgba(255, 255, 255, 0.13);
+  --nh-chip-bg: rgba(22, 25, 27, 0.72);
+  --nh-radius-card: 14px;
+  --nh-radius-lg: 22px;
+  --nh-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --nh-gutter: clamp(1rem, 3.2vw, 3.25rem);
+
+  position: fixed;
+  z-index: 130;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  color: var(--nh-ink);
+  font-family: var(--font-archivo), "Archivo", system-ui, sans-serif;
+  letter-spacing: -0.01em;
+}
+
+.io-dock__scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(6, 7, 8, 0.62);
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+}
+
+.io-dock__panel {
+  position: relative;
+  display: flex;
+  width: 100%;
+  max-height: min(78svh, 700px);
+  flex-direction: column;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  border-radius: var(--nh-radius-lg) var(--nh-radius-lg) 0 0;
+  background: var(--nh-surface-2);
+  box-shadow:
+    inset 0 1px 0 0 var(--nh-hairline),
+    0 -44px 110px -34px rgba(0, 0, 0, 0.96);
+}
+
+.io-dock__wrap {
+  width: min(100%, 1560px);
+  margin-inline: auto;
+  padding-inline: var(--nh-gutter);
+}
+
+.io-dock__grip {
+  display: block;
+  width: 38px;
+  height: 3px;
+  margin: 9px auto 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+/* ---- 3.1 the field ------------------------------------------------------ */
+.io-dock__field {
+  display: flex;
+  height: 68px;
+  align-items: center;
+  gap: 13px;
+  box-shadow: inset 0 -1px 0 0 var(--nh-hairline);
+}
+
+.io-dock__field > svg {
+  flex: none;
+  color: var(--nh-muted);
+}
+
+.io-dock__input {
+  width: 100%;
+  min-width: 0;
+  flex: 1;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--nh-ink);
+  font-size: clamp(16px, 2.1vw, 20px);
+  font-weight: 300;
+  font-stretch: 108%;
+  letter-spacing: -0.015em;
+  outline: none;
+}
+
+.io-dock__input::placeholder {
+  color: var(--nh-muted-2);
+}
+
+/* Chrome and Safari both draw their own clear affordance on `type="search"`,
+   and neither matches anything else on the page. */
+.io-dock__input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.io-dock__hint {
+  flex: none;
+  padding: 4px 8px;
+  border-radius: 6px;
+  color: var(--nh-muted);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+/* A key cap on a device with no keyboard is decoration; the close control and
+   the scrim are the way out there. */
+@media (max-width: 620px) {
+  .io-dock__hint {
+    display: none;
+  }
+}
+
+.io-dock__close {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: var(--nh-muted);
+  cursor: pointer;
+  background: none;
+  transition:
+    background-color 0.35s var(--nh-ease),
+    color 0.35s var(--nh-ease);
+}
+
+.io-dock__close:hover {
+  background: var(--nh-ghost-bg);
+  color: var(--nh-ink);
+}
+
+/* ---- 3.2 body ----------------------------------------------------------- */
+.io-dock__body {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-block: 18px 24px;
+}
+
+.io-dock__label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  color: var(--nh-muted);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.io-dock__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.io-dock__chip {
+  height: 32px;
+  padding: 0 15px;
+  border-radius: 999px;
+  color: var(--nh-ink-soft);
+  font-size: 12px;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  background: var(--nh-chip-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  transition:
+    background-color 0.35s var(--nh-ease),
+    color 0.35s var(--nh-ease);
+}
+
+.io-dock__chip:hover {
+  background: var(--nh-ghost-bg-hover);
+  color: var(--nh-ink);
+}
+
+.io-dock__results {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* One row per hit: thumb, name, price. The keyboard cursor and the pointer
+   share `[data-active]`, so arrowing down and hovering look identical. */
+.io-dock__hit {
+  display: grid;
+  align-items: center;
+  padding: 8px;
+  border-radius: var(--nh-radius-card);
+  color: var(--nh-ink);
+  gap: 13px;
+  grid-template-columns: 46px minmax(0, 1fr) auto;
+  transition: background-color 0.3s var(--nh-ease);
+}
+
+.io-dock__hit[data-active="true"],
+.io-dock__hit:hover {
+  background: var(--nh-ghost-bg);
+}
+
+.io-dock__hitMedia {
+  position: relative;
+  overflow: hidden;
+  width: 46px;
+  height: 58px;
+  border-radius: 8px;
+  background: var(--nh-card-bg);
+}
+
+/* The sprite fallback, restated.
+
+   `.product-sprite` is declared in commerce.css, which the routes that mount
+   the bar without the storefront shell — /about, /home-v2, /new-* — do not
+   load, so there the fallback had no background at all and every hit read as an
+   empty card. Same move new-man.css makes for `.nmb__thumb`.
+
+   The uploaded branch needs nothing here: `.product-photo` now carries its own
+   sheet, imported by the component that renders it (styles/components/
+   product-image.css), so it fills this box on every route already. */
+.io-dock__hitMedia .product-sprite {
+  position: absolute;
+  inset: 0;
+  background-image: url("/images/drop-001-products.webp");
+  background-image: image-set(
+    url("/images/drop-001-products.avif") type("image/avif"),
+    url("/images/drop-001-products.webp") type("image/webp")
+  );
+  background-repeat: no-repeat;
+  /* Tighter than the 200% the grid uses: at this size the piece has to fill the
+     tile, not sit in the middle of its share of the sheet. Matches `.io-thumb`. */
+  background-size: 260% 260%;
+}
+
+.io-dock__hitMedia .product-sprite--top-left {
+  background-position: 0 0;
+}
+
+.io-dock__hitMedia .product-sprite--top-right {
+  background-position: 100% 0;
+}
+
+.io-dock__hitMedia .product-sprite--bottom-left {
+  background-position: 0 100%;
+}
+
+.io-dock__hitMedia .product-sprite--bottom-right {
+  background-position: 100% 100%;
+}
+
+.io-dock__hitName {
+  display: block;
+  overflow: hidden;
+  font-size: 13.5px;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.io-dock__hitMeta {
+  display: block;
+  overflow: hidden;
+  color: var(--nh-muted);
+  font-size: 11px;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.io-dock__hitPrice {
+  color: var(--nh-ink-soft);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.io-dock__empty {
+  padding: 26px 0 10px;
+  color: var(--nh-muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.io-dock__empty strong {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--nh-ink);
+  font-size: 17px;
+  font-weight: 400;
+}
+
+/* ============================================================== 2. nav sheet */
+/* The same bottom-docked surface as the search — one gesture language for both
+   of the bar's overlays rather than a drawer for one and a sheet for the other. */
+.io-sheet__nav {
+  display: grid;
+  padding-block: 6px 14px;
+  gap: 1px;
+}
+
+.io-sheet__link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px 2px;
+  color: var(--nh-ink);
+  font-size: 19px;
+  font-weight: 300;
+  font-stretch: 110%;
+  letter-spacing: -0.02em;
+  box-shadow: inset 0 -1px 0 0 rgba(255, 255, 255, 0.07);
+  transition: color 0.35s var(--nh-ease);
+}
+
+.io-sheet__link[aria-current="page"] {
+  color: var(--nh-ink);
+}
+
+.io-sheet__link[aria-current="page"] span:last-child::after {
+  content: "";
+  display: block;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--nh-solid-bg);
+}
+
+.io-sheet__link svg {
+  color: var(--nh-muted);
+  transition: transform 0.42s var(--nh-ease);
+}
+
+.io-sheet__link:hover svg {
+  transform: translateX(3px);
+}
+
+.io-sheet__utils {
+  display: grid;
+  padding-block: 16px 4px;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+}
+
+.io-sheet__util {
+  display: flex;
+  height: 46px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: var(--nh-ink-soft);
+  font-size: 12px;
+  gap: 8px;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+  cursor: pointer;
+  background: var(--nh-ghost-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  transition: background-color 0.35s var(--nh-ease);
+}
+
+.io-sheet__util:hover {
+  background: var(--nh-ghost-bg-hover);
+}
+
+/* The session control takes the full row — it is the one decision on the sheet
+   that is not a destination, and half a row of white beside a glass pill reads
+   as a layout that ran out of items. */
+.io-sheet__util--solid {
+  grid-column: 1 / -1;
+  background: var(--nh-solid-bg);
+  color: var(--nh-solid-fg);
+}
+
+.io-sheet__util--solid:hover {
+  background: var(--nh-solid-bg-hover);
+}
+
+.io-sheet__count {
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--nh-solid-bg);
+  color: var(--nh-solid-fg);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+.io-sheet__util--solid .io-sheet__count {
+  background: var(--nh-solid-fg);
+  color: var(--nh-solid-bg);
+}
+
+/* ========================================================= 3. reduced motion */
+/* Paired with the `.io-scope *` rule chrome.css keeps for the page frame. */
+@media (prefers-reduced-motion: reduce) {
+  .io-dock * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -17,6 +17,7 @@ import {
 
 import { Reveal } from "@/components/new-home/motion-primitives";
 import { pricingFor, productFor, type Piece } from "@/components/new-man/data";
+import { useCatalog } from "@/features/02-products";
 import {
   CATEGORY_LABELS,
   PRODUCT_COPY,
@@ -52,7 +53,10 @@ const FLOOR = 244;
  * lines up, and the reader opts into the rest.
  */
 export function ProductPanels({ piece }: { piece: Piece }) {
-  const product = productFor(piece);
+  /* The lookup takes the catalogue, so reading it here is both what starts the
+     load and what makes this re-run when it lands. */
+  const { data: catalogue } = useCatalog();
+  const product = productFor(piece, catalogue);
   const price = pricingFor(piece);
 
   const [wanted, setWanted] = useState<Partial<Record<PanelId, number>>>({});
@@ -92,17 +96,17 @@ export function ProductPanels({ piece }: { piece: Piece }) {
               title="Description & fit"
             >
               <p className="nh-body nmp-panel__lead">
-                {product?.description ?? piece.name}
+                {product?.description || piece.name}
               </p>
               {product?.story && <p className="nh-body">{product.story}</p>}
 
               <dl className="nmp-specs">
                 <Spec label="Category" value={CATEGORY_LABELS[piece.category]} />
-                <Spec label="Fabric" value={product?.fabric ?? "Heavyweight cotton"} />
+                <Spec label="Fabric" value={product?.fabric || "Heavyweight cotton"} />
                 <Spec label="Colour" value={product?.color ?? "Washed black"} />
                 <Spec label="Collection" value={product?.collection ?? "Drop 001"} />
                 <Spec label="Fit" value="Boxy body, dropped shoulder" />
-                <Spec label="Care" value={product?.care ?? "Cold wash. Dry flat."} />
+                <Spec label="Care" value={product?.care || "Cold wash. Dry flat."} />
               </dl>
             </Panel>
           </Reveal>
@@ -117,11 +121,16 @@ export function ProductPanels({ piece }: { piece: Piece }) {
               title="Shipping"
             >
               <ul className="nmp-facts">
-                <Fact
-                  icon={<Percent aria-hidden size={15} />}
-                  label="Discount"
-                  value={`${price.off}% off applied`}
-                />
+                {/* A row about a reduction only belongs here when there has
+                    been one. It used to read "45% off applied" on every piece in
+                    the shop, off a discount invented from the slug. */}
+                {price.off !== null && (
+                  <Fact
+                    icon={<Percent aria-hidden size={15} />}
+                    label="Discount"
+                    value={`${price.off}% off applied`}
+                  />
+                )}
                 <Fact
                   icon={<Package aria-hidden size={15} />}
                   label="Package"
