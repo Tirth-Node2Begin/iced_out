@@ -12,7 +12,10 @@ use Iced\Support\Json;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Spec §5 and §8.2/§8.17 driven through the real pipeline, in process.
+ * Spec §5 and §8.2 — CUSTOMER auth, driven through the real pipeline, in process.
+ *
+ * The staff half moved to the CRM backend (tests/Contract/StaffAuthFlowTest),
+ * which is the only deployable that still serves /admin/auth/*.
  *
  * Needs a migrated + seeded database — the demo accounts of §12 are the
  * fixtures. Cookies are carried by hand because there is no browser here.
@@ -93,66 +96,6 @@ final class AuthFlowTest extends TestCase
 
         $fields = array_column($body['error']['errors'], 'field');
         self::assertEqualsCanonicalizing(['name', 'email', 'password'], $fields);
-    }
-
-    public function testStaffSignInReturnsTheConsoleSessionPayload(): void
-    {
-        [$status, $body] = $this->post('/admin/auth/login', 'public', [
-            'email' => 'admin@iced-out.example',
-            'password' => 'preview1',
-        ]);
-
-        self::assertSame(200, $status);
-        self::assertSame('Aarav D.', $body['data']['name']);
-        self::assertSame('ADMIN', $body['data']['role']);
-        self::assertContains('*', $body['data']['permissions']);
-        self::assertIsString($body['data']['expires_at']);
-        self::assertArrayHasKey('io_ssess', $this->cookies);
-    }
-
-    public function testTouchSlidesTheIdleWindow(): void
-    {
-        $this->post('/admin/auth/login', 'public', [
-            'email' => 'admin@iced-out.example',
-            'password' => 'preview1',
-        ]);
-
-        [, $first] = $this->get('/admin/auth/session', 'admin');
-        sleep(1);
-        [$status, $second] = $this->post('/admin/auth/touch', 'admin');
-
-        self::assertSame(200, $status);
-        self::assertGreaterThan($first['data']['expires_at'], $second['data']['expires_at']);
-    }
-
-    public function testAStaffCookieCannotOpenACustomerSession(): void
-    {
-        $this->post('/admin/auth/login', 'public', [
-            'email' => 'admin@iced-out.example',
-            'password' => 'preview1',
-        ]);
-
-        // The staff cookie is in the jar, but the two audiences are separate
-        // token spaces — it authorises nothing on the customer side.
-        [$status] = $this->get('/auth/session', 'customer');
-
-        self::assertSame(401, $status);
-    }
-
-    public function testCookieAuthenticatedMutationFromAnUntrustedOriginIsRefused(): void
-    {
-        $this->post('/admin/auth/login', 'public', [
-            'email' => 'admin@iced-out.example',
-            'password' => 'preview1',
-        ]);
-
-        [$status, $body] = $this->send('POST', '/admin/auth/touch', [
-            'x-client-audience' => 'admin',
-            'origin' => 'http://evil.example',
-        ]);
-
-        self::assertSame(403, $status);
-        self::assertSame('ICE-AUTH-403', $body['error']['code']);
     }
 
     /** @return array{0: int, 1: array<string, mixed>} */

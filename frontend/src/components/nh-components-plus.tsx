@@ -446,6 +446,10 @@ export function Frame({
 }) {
   const body = (
     <Sheen className={cn("nhx-frame", className)}>
+      {/* A plain <img>: this export ships `images: { unoptimized: true }`, so
+          <Image> would emit the same tag inside a wrapper that has to be told
+          every asset's intrinsic size. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={src} alt={alt} loading="lazy" decoding="async" />
       {labels.tl && (
         <span className="nhx-frame__label nhx-frame__label--tl">
@@ -611,6 +615,8 @@ export function LineItem({
       transition={{ duration: 0.55, delay: 0.12 + index * 0.06, ease: EASE_OUT }}
     >
       <span className="nhx-line-item__thumb">
+        {/* Same reason as the frame above — the optimiser is switched off. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={src} alt="" />
       </span>
       <span>

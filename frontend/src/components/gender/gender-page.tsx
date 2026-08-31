@@ -15,6 +15,7 @@ import { CollectionIntro } from "@/components/gender/intro";
 import { LifestyleBanner } from "@/components/gender/lifestyle-banner";
 import { Lookbook } from "@/components/gender/lookbook";
 import { ProductShelf } from "@/components/gender/product-grid";
+import { DEPTS } from "@/components/new-man/product-deck";
 import { useGenderPieces } from "@/components/gender/use-pieces";
 import { SiteFooter } from "@/components/layout/site-footer";
 
@@ -114,6 +115,7 @@ export function GenderPage({ content }: { content: AudienceContent }) {
           <ProductShelf
             {...content.shelves[0]}
             columns={4}
+            dept={DEPTS[content.audience]}
             emptyNote={
               error
                 ? error
@@ -129,11 +131,22 @@ export function GenderPage({ content }: { content: AudienceContent }) {
           {/* the two editorial blocks break the rail's column to run full width */}
           <LifestyleBanner content={content} />
 
-          <ProductShelf {...content.shelves[1]} columns={3} pieces={shelves[1]} wide />
+          <ProductShelf
+            {...content.shelves[1]}
+            columns={3}
+            dept={DEPTS[content.audience]}
+            pieces={shelves[1]}
+            wide
+          />
 
           <Lookbook content={content} />
 
-          <ProductShelf {...content.shelves[2]} columns={4} pieces={shelves[2]} />
+          <ProductShelf
+            {...content.shelves[2]}
+            columns={4}
+            dept={DEPTS[content.audience]}
+            pieces={shelves[2]}
+          />
         </div>
 
         {/* 09 -------------------------------------- brand story banner */}

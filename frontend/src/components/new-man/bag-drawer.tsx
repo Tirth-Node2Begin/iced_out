@@ -21,6 +21,7 @@ import { EASE_OUT } from "@/components/new-home/motion-primitives";
 import { formatPrice } from "@/features/02-products";
 import { useCart } from "@/features/04-cart/cart-context";
 import { useCheckoutModal } from "@/features/04-cart/checkout-modal-context";
+import { lockScroll } from "@/lib/scroll-lock";
 
 /**
  * The bag, as the panel "add to bag" opens on the /new-man routes.
@@ -37,22 +38,35 @@ import { useCheckoutModal } from "@/features/04-cart/checkout-modal-context";
  * It is a bag, not a bag page: quantity, a coupon, and the two ways out. The
  * full bag at /cart is one press away and says so.
  */
-export function BagDrawer() {
+export function BagDrawer({
+  shopHref = "/new-man",
+}: {
+  /**
+   * Where the empty state sends a shopper back to.
+   *
+   * The drawer is mounted by both department layouts, and "shop the drop" has
+   * to mean the floor the shopper is standing on — a womenswear visitor with an
+   * empty bag was being handed the men's release.
+   */
+  shopHref?: string;
+} = {}) {
   const { isOpen } = useCart();
 
   return (
-    <AnimatePresence>{isOpen && <BagDrawerPortal key="bag" />}</AnimatePresence>
+    <AnimatePresence>
+      {isOpen && <BagDrawerPortal key="bag" shopHref={shopHref} />}
+    </AnimatePresence>
   );
 }
 
-function BagDrawerPortal() {
+function BagDrawerPortal({ shopHref }: { shopHref: string }) {
   // The panel only ever exists because someone put something in the bag, so it
   // is never part of a server render and has nothing to reconcile.
   if (typeof document === "undefined") return null;
-  return createPortal(<BagPanel />, document.body);
+  return createPortal(<BagPanel shopHref={shopHref} />, document.body);
 }
 
-function BagPanel() {
+function BagPanel({ shopHref }: { shopHref: string }) {
   const dialog = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const reduce = useReducedMotion();
@@ -113,21 +127,11 @@ function BagPanel() {
 
     document.addEventListener("keydown", onKeyDown);
 
-    /* Lenis drives the window scroll on these routes, so locking the document
-       is what stops the page travelling behind the overlay. The scrollbar's
-       width is handed back as padding or the whole layout jumps left as it
-       disappears. */
-    const root = document.documentElement;
-    const gap = window.innerWidth - root.clientWidth;
-    const previousOverflow = root.style.overflow;
-    const previousPadding = root.style.paddingRight;
-    root.style.overflow = "hidden";
-    if (gap > 0) root.style.paddingRight = `${gap}px`;
+    const releaseScroll = lockScroll();
 
     return () => {
       document.removeEventListener("keydown", onKeyDown);
-      root.style.overflow = previousOverflow;
-      root.style.paddingRight = previousPadding;
+      releaseScroll();
       opener?.focus?.();
     };
   }, [close]);
@@ -208,7 +212,7 @@ function BagPanel() {
             <p>Add a piece from the current drop and it will be held here.</p>
             <button
               className="nmb__btn nmb__btn--solid"
-              onClick={() => leaveTo("/new-man")}
+              onClick={() => leaveTo(shopHref)}
               type="button"
             >
               Shop the drop

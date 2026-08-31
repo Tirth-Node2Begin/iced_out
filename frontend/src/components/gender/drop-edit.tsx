@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpRight, Heart } from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowUpRight, Heart } from "lucide-react";
 import Link from "next/link";
 import { motion, useReducedMotion } from "motion/react";
 import { useCallback, useMemo, useState } from "react";
@@ -17,14 +17,20 @@ import { useGenderPieces } from "@/components/gender/use-pieces";
 import { useWishlist } from "@/features/05-wishlist/wishlist-context";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { DEPTS, pieceHref, type Dept } from "@/components/new-man/product-deck";
+import { scrollToHash } from "@/lib/in-page-scroll";
 
 /**
  * 01 — THE RELEASE. `#gx-edit`, the hero's primary CTA target.
  *
- * A category rail and eight products, read from the published catalogue for this
- * page's audience. Eight is the cut-off because the page is meant to be read, not
- * scrolled — the foot pill carries anyone who wants the rest to the full
- * collection.
+ * A category rail and the published catalogue for this page's audience, paged
+ * eight at a time.
+ *
+ * It used to show the first eight and nothing else, with a foot pill handing
+ * anyone who wanted the rest to `/collections/view?slug=drop-001` — so the
+ * filter rail was a promise the grid could not keep: narrowing to Outerwear
+ * still showed eight of them and sent you somewhere unfiltered for the ninth.
+ * The pager keeps the whole release on this page, inside the filter.
  *
  * The pieces used to be twenty hardcoded objects per audience, and the prices on
  * them disagreed with the database: this grid showed "Core Heavy Tee · ₹4,200"
@@ -32,10 +38,12 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
  * garments that did not exist as products at all. See `use-pieces.ts`.
  *
  * The shadcn primitives carry the semantics: ToggleGroup gives the rail its
- * roving focus and single-selection, Button the save toggle and the foot pill.
+ * roving focus and single-selection, Button the save toggle and the pager steps.
  * `drop.css` re-skins them onto the house palette.
  */
-const SHOWN = 8;
+
+/** Two rows of four at desktop — the shape the grid was drawn around. */
+const PER_PAGE = 8;
 
 /** category → the label the rail shows for it, so the card can name its own */
 const CATEGORY_LABEL = new Map(
@@ -44,6 +52,7 @@ const CATEGORY_LABEL = new Map(
 
 export function DropEdit({ content }: { content: AudienceContent }) {
   const [category, setCategory] = useState<Category | "all">("all");
+  const [page, setPage] = useState(1);
   const { pieces, loading, error, loaded } = useGenderPieces(content.audience);
 
   const matches = useMemo(
@@ -54,7 +63,24 @@ export function DropEdit({ content }: { content: AudienceContent }) {
     [pieces, category],
   );
 
-  const visible = matches.slice(0, SHOWN);
+  const pageCount = Math.max(1, Math.ceil(matches.length / PER_PAGE));
+
+  /* The list can shrink out from under the page you are on — the catalogue
+     lands, or a filter narrows twenty pieces to three while you are on page 3.
+     Adjusted during render rather than in an effect so the grid never paints an
+     empty page first and corrects itself afterwards. */
+  if (page > pageCount) setPage(pageCount);
+
+  const start = (page - 1) * PER_PAGE;
+  const visible = matches.slice(start, start + PER_PAGE);
+
+  /* Paging moves the viewport back to the section head. The new tiles render
+     above the control that asked for them, so staying put leaves you looking at
+     the foot of a grid that changed somewhere off-screen. */
+  const goTo = useCallback((next: number) => {
+    setPage(next);
+    scrollToHash("gx-edit");
+  }, []);
 
   /* An empty grid has three possible causes and only one of them is the rail. */
   const note = error
@@ -81,6 +107,9 @@ export function DropEdit({ content }: { content: AudienceContent }) {
               aria-label="Filter the release by category"
               className="gxd-filter"
               onValueChange={(value) => {
+                /* Narrowing the release has to return you to its first page:
+                   page 3 of everything is past the end of most categories. */
+                setPage(1);
                 /* Radix emits "" when the active item is pressed again; the
                    rail has no empty state, so that reads as "all" */
                 if (!value) return setCategory("all");
@@ -106,23 +135,119 @@ export function DropEdit({ content }: { content: AudienceContent }) {
         ) : (
           <div className="gxd-grid">
             {visible.map((piece, index) => (
-              <ProductCard index={index} key={piece.id} piece={piece} />
+              <ProductCard
+                dept={DEPTS[content.audience]}
+                index={index}
+                key={piece.id}
+                piece={piece}
+              />
             ))}
           </div>
         )}
 
-        <div className="gxd-foot">
-          <Button asChild className="gxd-pill" variant="ghost">
-            <Link href="/collections/view?slug=drop-001">
-              View all {pieces.length} pieces
-              <span aria-hidden className="gxd-pill__dot">
-                <ArrowUpRight size={15} />
-              </span>
-            </Link>
-          </Button>
-        </div>
+        <Pager count={pageCount} onChange={goTo} page={page} total={matches.length} />
       </div>
     </section>
+  );
+}
+
+/**
+ * The page numbers to draw, with the run between them elided.
+ *
+ * Always the first and last, always the one either side of the current — so the
+ * control is a fixed width whether the release is three pages or thirty, and
+ * both ends stay one click away.
+ */
+function pageWindow(current: number, count: number): (number | "gap")[] {
+  const wanted = [1, count, current - 1, current, current + 1]
+    .filter((n) => n >= 1 && n <= count)
+    .sort((a, b) => a - b);
+
+  const out: (number | "gap")[] = [];
+  for (const [index, n] of wanted.entries()) {
+    if (index > 0) {
+      const previous = wanted[index - 1];
+      if (n === previous) continue;
+      if (n - previous > 1) out.push("gap");
+    }
+    out.push(n);
+  }
+  return out;
+}
+
+/**
+ * The pager, in the slot the foot pill used to hold.
+ *
+ * Hidden on a single page: a control offering one destination, which is where
+ * you already are, is furniture. The count beside it is what the pill's "View
+ * all 20 pieces" was really for — knowing how much release there is — and it
+ * now reports the FILTERED total, which the pill never did.
+ */
+function Pager({
+  page,
+  count,
+  total,
+  onChange,
+}: {
+  page: number;
+  count: number;
+  total: number;
+  onChange: (next: number) => void;
+}) {
+  if (count <= 1) return null;
+
+  return (
+    <nav aria-label="Release pages" className="gxd-pager">
+      <Button
+        aria-label="Previous page"
+        className="gxd-pager__step"
+        disabled={page === 1}
+        onClick={() => onChange(page - 1)}
+        variant="ghost"
+      >
+        <ArrowLeft aria-hidden size={14} />
+        Prev
+      </Button>
+
+      <div className="gxd-pager__pages">
+        {pageWindow(page, count).map((entry, index) =>
+          entry === "gap" ? (
+            <span aria-hidden className="gxd-pager__gap" key={`gap-${index}`}>
+              &hellip;
+            </span>
+          ) : (
+            <Button
+              aria-current={entry === page ? "page" : undefined}
+              aria-label={`Page ${entry}`}
+              className="gxd-pager__page"
+              data-on={entry === page ? "true" : undefined}
+              key={entry}
+              onClick={() => onChange(entry)}
+              variant="ghost"
+            >
+              {entry}
+            </Button>
+          ),
+        )}
+      </div>
+
+      <Button
+        aria-label="Next page"
+        className="gxd-pager__step"
+        disabled={page === count}
+        onClick={() => onChange(page + 1)}
+        variant="ghost"
+      >
+        Next
+        <ArrowRight aria-hidden size={14} />
+      </Button>
+
+      {/* Announced on change, so the count is not something only the sighted
+          grid carries. */}
+      <p aria-live="polite" className="gxd-pager__count">
+        {total} {total === 1 ? "piece" : "pieces"}
+      </p>
+    </nav>
   );
 }
 
@@ -139,8 +264,20 @@ export function DropEdit({ content }: { content: AudienceContent }) {
  * the save button is a sibling of the anchor rather than a child, because a
  * button inside an anchor is invalid HTML that browsers resolve by dropping
  * one of the two.
+ *
+ * Where that anchor goes is `pieceHref`'s call, under the department this
+ * listing is: the release now opens the full detail screen — hero, panels,
+ * reviews, related — rather than the storefront PDP it used to hand you.
  */
-function ProductCard({ piece, index }: { piece: Piece; index: number }) {
+function ProductCard({
+  piece,
+  index,
+  dept,
+}: {
+  piece: Piece;
+  index: number;
+  dept: Dept;
+}) {
   const reduce = useReducedMotion();
 
   /* the shared wishlist rather than a local flag — a heart that only fills in
@@ -176,7 +313,7 @@ function ProductCard({ piece, index }: { piece: Piece; index: number }) {
         <Link
           aria-label={`${piece.name} — ${formatPrice(piece.price)}`}
           className="gxd-card__hit"
-          href={`/product?slug=${piece.slug}`}
+          href={pieceHref(dept, piece)}
         />
 
         <span className="gxd-card__chip" data-new={piece.isNew ? "true" : undefined}>

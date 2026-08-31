@@ -13,15 +13,7 @@ import {
 import { customerClient } from "@/api/clients";
 import { useAuth } from "@/features/20-auth-security/auth-context";
 
-/**
- * The address book, held by the account rather than by the browser.
- *
- * It used to be a `localStorage` record seeded with two sample addresses, so
- * every visitor — including one who had just registered — opened onto the same
- * Home and Studio cards. The book belongs to a user now: `GET /me/addresses`
- * returns theirs, a new account's is empty, and which one is default is a fact
- * the server keeps rather than a field two tabs can disagree about.
- */
+
 export type Address = {
   id: string;
   label: string;

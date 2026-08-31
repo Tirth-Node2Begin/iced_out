@@ -1,10 +1,17 @@
-export type RouteAudience = "customer" | "staff";
+export type RouteAudience = "customer";
 
 export type RouteRule = {
   pattern: RegExp;
   audience: RouteAudience;
 };
 
+/**
+ * The customer wall. There is no staff audience here any more — the operations
+ * console moved to the CRM, which is its own site with its own origin, its own
+ * session cookie and its own copy of this file. A `/admin/*` path on the
+ * storefront is a 404 now, not a gated route, which is the correct answer: this
+ * deployment has no such screens to gate.
+ */
 export const protectedRouteRules: RouteRule[] = [
   /* /cart is deliberately NOT here. Filling a bag and reading it back is
      browsing, not account work: gating it sent a shopper to the login page for
@@ -19,19 +26,6 @@ export const protectedRouteRules: RouteRule[] = [
      which is a shareable link precisely because it names none of that. */
   { pattern: /^\/orders(?:\/|$)/, audience: "customer" },
   { pattern: /^\/account(?:\/|$)/, audience: "customer" },
-  { pattern: /^\/admin\/payments(?:\/|$)/, audience: "staff" },
-  { pattern: /^\/admin\/orders(?:\/|$)/, audience: "staff" },
-  { pattern: /^\/admin\/shipments(?:\/|$)/, audience: "staff" },
-  { pattern: /^\/admin\/catalog(?:\/|$)/, audience: "staff" },
-  { pattern: /^\/admin\/inventory(?:\/|$)/, audience: "staff" },
-  { pattern: /^\/admin\/returns(?:\/|$)/, audience: "staff" },
-  { pattern: /^\/admin\/vouchers(?:\/|$)/, audience: "staff" },
-  { pattern: /^\/admin\/customers(?:\/|$)/, audience: "staff" },
-  { pattern: /^\/admin\/reviews(?:\/|$)/, audience: "staff" },
-  { pattern: /^\/admin\/support(?:\/|$)/, audience: "staff" },
-  { pattern: /^\/admin\/analytics(?:\/|$)/, audience: "staff" },
-  { pattern: /^\/admin\/settings(?:\/|$)/, audience: "staff" },
-  { pattern: /^\/admin(?:\/|$)/, audience: "staff" },
 ];
 
 export function getRouteRule(pathname: string) {

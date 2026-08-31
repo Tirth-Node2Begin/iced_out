@@ -1,0 +1,9 @@
+parameters:
+    level: 8
+    paths:
+        - src
+        - bin
+        - public
+        - config
+    tmpDir: phpstan.cache
+    treatPhpDocTypesAsCertain: false

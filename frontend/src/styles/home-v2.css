@@ -440,27 +440,134 @@ body:has(.hv2) {
   align-items: stretch;
 }
 
-/* Measured: 5 lines over 43vw of measure. Expressed in vw rather than `ch`
-   because the statement's own font-size is 2x this box's inherited one — a
-   `ch` here would resolve against 16px and come out less than half as wide.
+/* The measure, in vw rather than `ch` because the statement's own font-size is
+   2x this box's inherited one — a `ch` here would resolve against 16px and come
+   out less than half as wide.
 
    Laid out top-and-tail: the eyebrow sets the row's top line level with the
-   picture and the statement sets its bottom line, so the space between them
-   is the section's negative space rather than dead margin around a block
-   floating in the middle of it. */
+   picture and the statement sets its bottom line. That only reads as negative
+   space while the statement is tall enough to hold its end of the row — see the
+   size below, which is set so that it does. */
 .hv2-philosophy__copy {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: flex-start;
   max-width: 43.5vw;
 }
 
-.hv2-philosophy__statement {
+/* Sized to FILL the column, not merely to sit in it.
+
+   At 2.28vw the statement set eight lines — 305px of a 558px row at 1440 — and
+   top-and-tail put all 244px of the slack into one gap, so the section read as
+   an eyebrow and a paragraph with a hole between them rather than as a column
+   set against a picture. At 2.85vw the same words run ten lines and reach the
+   picture's bottom edge; what slack is left stays in the margin below.
+
+   It is measure and height at once: ten lines over this column lands around 34
+   characters, a better line for a display statement than the ~45 the smaller
+   size was setting. */
+.hv2-philosophy__heading {
   margin: clamp(14px, 1.4vw, 30px) 0 0;
-  font-size: clamp(22px, 2.28vw, 45px);
-  line-height: 1.16;
+  font-size: clamp(26px, 3.2vw, 58px);
+  line-height: 1.14;
   letter-spacing: -0.028em;
   font-weight: 500;
+
+  /* The measure, locked to the type — this is what holds the rag steady.
+
+     The column above is 43.5vw, so under the clamp's ceiling the type and the
+     measure grow together and every width sets the identical ten lines. Above
+     it the type stops at 52px while the column keeps widening, characters per
+     line creep up, and the rag drifts: at 1920 it drifted far enough to drop
+     the closing word onto a line of its own at 28% of the measure. (The line
+     that happened to was "the shoulders.", which has since moved into the
+     paragraph below — the geometry it proved is still this rule's.) In `em` this
+     resolves against the statement's OWN font-size, so the measure stops when
+     the type does.
+
+     The figure is DERIVED, not chosen: it is the column over the type, both in
+     vw. At 2.85vw type that was 43.5 / 2.85 = 15.25em; at the 3.2vw the type
+     now runs to it is 43.5 / 3.2 = 13.6em. Change one and the other has to
+     follow, or the measure stops matching the column and the rag drifts again.
+     Checked at both ends: 13.6em x 58px = 789px, and the column at the
+     viewport where the type reaches 58px (1812) is 788px. */
+  max-width: 13.6em;
+
+  /* Evens the last lines where it is supported, costs nothing where it is not.
+     It cannot carry the rag alone here — see the span rule below. */
+  text-wrap: pretty;
+}
+
+/**
+ * The paragraph under the claim — deliberately NOT the display face.
+ *
+ * The whole statement used to be one field rendered by one rule, so every word
+ * of it came out at the heading's size and weight. There was no entry point and
+ * no hierarchy: a wall of bold with the argument buried in the middle of it.
+ * This is the other half of that split.
+ *
+ * Roughly 40% of the heading's size, normal weight, near-zero tracking and a
+ * reading line-height rather than the heading's tight 1.18. The measure is in
+ * `ch` because this one IS set at a body size, so `ch` resolves against
+ * something close to its own font — which is exactly why the heading above
+ * cannot use it and states its measure in `em` instead.
+ *
+ * `--hv2-ink-soft` rather than full ink, so the claim stays the brightest thing
+ * in the column. Two elements at the same value would compete for the eye and
+ * the hierarchy would be back where it started.
+ */
+.hv2-philosophy__body {
+  margin: 0;
+  max-width: 52ch;
+  font-size: clamp(16px, 1.42vw, 23px);
+  line-height: 1.6;
+  letter-spacing: -0.002em;
+  font-weight: 400;
+  color: var(--hv2-ink-soft);
+  text-wrap: pretty;
+}
+
+/* Heading and paragraph travel together as ONE child of the copy column, which
+   is what lets `justify-content: space-between` keep doing its top-and-tail
+   job: the eyebrow holds the top line, this block holds the bottom. Three loose
+   children would have been spread evenly instead, opening a gap between the
+   claim and its own evidence. */
+.hv2-philosophy__text {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(14px, 1.1vw, 22px);
+
+  /* Centred in whatever the eyebrow leaves behind.
+
+     The column used to be `justify-content: space-between`, which pinned the
+     eyebrow to the top line and the copy to the bottom one. That held while the
+     copy was tall enough to nearly fill the column — but the picture is taller
+     now and the copy is two blocks rather than one long one, so the same rule
+     opened a ~460px void between the eyebrow and its own heading.
+
+     `margin-block: auto` on the text and `flex-start` on the column keeps the
+     eyebrow on the picture's top line, which was the point of the original
+     rule, and floats the rest in the middle of the space under it instead of
+     dropping it to the floor. */
+  margin-block: auto;
+}
+
+/* `ScrollWords` sets every word as its own `inline-block`, and a break
+   opportunity between two atomic inlines survives non-breaking glue — so the
+   `\u00A0` in the copy deck did nothing at all until this rule existed.
+
+   Laying the words back out as plain inlines restores ordinary line breaking,
+   which is what lets that glue bind "the shoulders." together. Below 842px the
+   type is pinned at the clamp's floor while the column keeps changing, so the
+   measure cannot be locked there the way it is above — the glue is what keeps
+   360px and 768px from ending on a lone word. Safe for one word per span: with
+   no space inside it, an inline span has nothing to break on.
+
+   Scoped here rather than fixed in the primitive, because the manifesto and the
+   testimonials heading wrap at hard breaks and need not pay for a change they
+   did not ask for. */
+.hv2-philosophy__heading > span {
+  display: inline;
 }
 
 .hv2-philosophy__mainWrap {
@@ -471,12 +578,15 @@ body:has(.hv2) {
 
 .hv2-philosophy__main {
   width: 100%;
-  aspect-ratio: 36 / 40;
+  /* Taller than the 36/40 it was. The column beside it now carries a heading
+     AND a paragraph, and at the old ratio the picture came out the shorter of
+     the two — the row stopped reading as a pair. */
+  aspect-ratio: 36 / 47;
   /* The ratio alone reads off the width, so on a wide monitor the picture
      runs to ~770px and the copy spanning it gets stretched to match. Capping
      against the viewport keeps the row a readable height; the crop takes up
      the difference. */
-  max-height: 62svh;
+  max-height: 78svh;
   border-radius: var(--hv2-radius-card);
 }
 
@@ -1024,17 +1134,32 @@ body:has(.hv2) {
   gap: clamp(16px, 1.9vw, 40px);
 }
 
-.hv2-quote__photo {
+/**
+ * The reviewer's initial, standing where a portrait used to.
+ *
+ * The card was designed around a photograph, which was affordable while the
+ * quotes beside it were written in-house — a stock portrait under an invented
+ * name costs nothing because neither is real. The quotes are live reviews now
+ * and the store holds no photograph of the people who wrote them, so putting a
+ * borrowed face above a real person's words would be the same fabrication moved
+ * into another medium.
+ *
+ * Same footprint as the portrait it replaces — 3/4, same radius, same grid
+ * column — so the card's proportions are untouched.
+ */
+.hv2-quote__mono {
+  display: grid;
+  place-items: center;
   aspect-ratio: 3 / 4;
   overflow: hidden;
   border-radius: calc(var(--hv2-radius-lg) - 8px);
-}
-
-.hv2-quote__photo img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
+  background: var(--hv2-surface-2);
+  box-shadow: inset 0 0 0 1px var(--hv2-hairline, rgba(255, 255, 255, 0.1));
+  color: var(--hv2-ink-soft);
+  font-size: clamp(30px, 3.4vw, 66px);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 1;
 }
 
 .hv2-quote__body {

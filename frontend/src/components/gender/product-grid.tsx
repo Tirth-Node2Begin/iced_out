@@ -10,6 +10,7 @@ import {
   type Piece,
 } from "@/components/gender/data";
 import { EASE_OUT, Reveal, SplitHeading } from "@/components/gender/motion";
+import { DEPTS, pieceHref, type Dept } from "@/components/new-man/product-deck";
 import { useWishlist } from "@/features/05-wishlist/wishlist-context";
 import { cn } from "@/lib/utils";
 
@@ -26,8 +27,10 @@ function ProductTile({
   index,
   columns,
   wide,
+  dept,
 }: {
   piece: Piece;
+  dept: Dept;
   index: number;
   columns: number;
   wide?: boolean;
@@ -82,7 +85,7 @@ function ProductTile({
       <Link
         aria-label={`${piece.name} — ${formatPrice(piece.price)}`}
         className="gx-card__hit"
-        href={`/product?slug=${piece.slug}`}
+        href={pieceHref(dept, piece)}
       />
 
       <span className="gx-card__chips">
@@ -133,6 +136,7 @@ export function ProductShelf({
   columns = 4,
   wide,
   emptyNote,
+  dept = DEPTS.men,
 }: {
   id?: string;
   eyebrow: string;
@@ -152,6 +156,14 @@ export function ProductShelf({
    * which — see `GenderPage`.
    */
   emptyNote?: string;
+  /**
+   * The floor these tiles are on — it decides which detail page they open.
+   *
+   * Defaults to menswear, which is where this shelf started. /women passes its
+   * own, so a tile and the lookbook row under it agree about where a piece
+   * lives; they used to both point at the storefront PDP instead.
+   */
+  dept?: Dept;
 }) {
   if (pieces.length === 0) {
     return (
@@ -186,6 +198,7 @@ export function ProductShelf({
           {pieces.map((piece, index) => (
             <ProductTile
               columns={columns}
+              dept={dept}
               index={index}
               key={piece.id}
               piece={piece}

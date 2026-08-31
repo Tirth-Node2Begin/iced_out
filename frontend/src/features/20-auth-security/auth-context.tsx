@@ -12,11 +12,17 @@ import {
   type ReactNode,
 } from "react";
 
-import { adminClient, customerClient, publicClient } from "@/api/clients";
+import { customerClient, publicClient } from "@/api/clients";
 import type { CustomerProfile } from "@/features/01-users/profile-context";
 
 /**
  * Who is signed in — asked of the API, not of this browser.
+ *
+ * CUSTOMER ONLY. This provider used to carry both audiences, because this app
+ * served the operations console as well as the shop. The console is the CRM
+ * now: its own origin, its own staff cookie, and its own copy of this file. The
+ * staff half is gone rather than dormant — `/admin/auth/*` is a 404 on this
+ * deployment, so keeping it would have been three requests that can only fail.
  *
  * The session used to be a `"1"` in `localStorage`: a flag anyone could set,
  * standing for an account nobody had created. It is now an httpOnly cookie the
@@ -24,18 +30,8 @@ import type { CustomerProfile } from "@/features/01-users/profile-context";
  * `GET /auth/session`, refreshed on boot and after every sign-in or sign-out —
  * so the app can never believe a session the server would refuse.
  */
-export type StaffSession = {
-  name: string;
-  role: string;
-  permissions: string[];
-  expiresAt: string | null;
-};
-
 export type Credentials = { email: string; password: string };
 export type Registration = Credentials & { name: string };
-
-/** The UI throttles activity pings to this, matching the server's own guard. */
-const STAFF_TOUCH_INTERVAL_MS = 30 * 1000;
 
 type AuthContextValue = {
   isAuthenticated: boolean;
@@ -49,16 +45,12 @@ type AuthContextValue = {
    * first render bounces a signed-in shopper on every reload.
    */
   sessionReady: boolean;
-  staffSession: StaffSession | null;
-  staffReady: boolean;
   requestLogin: (returnTo?: string) => void;
   signIn: (credentials: Credentials) => Promise<void>;
   register: (details: Registration) => Promise<void>;
   signOut: () => void;
   /** Re-reads `GET /auth/session` — for a screen that changed the profile. */
   refreshCustomer: () => Promise<void>;
-  signInStaff: (credentials: Credentials) => Promise<void>;
-  signOutStaff: () => void;
   subscribeToSignOut: (listener: () => void) => () => void;
 };
 
@@ -77,8 +69,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const [customer, setCustomer] = useState<CustomerProfile | null>(null);
   const [sessionReady, setSessionReady] = useState(false);
-  const [staffSession, setStaffSession] = useState<StaffSession | null>(null);
-  const [staffReady, setStaffReady] = useState(false);
 
   const refreshCustomer = useCallback(async () => {
     try {
@@ -97,35 +87,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  /* Asked once on boot. The cookie is httpOnly, so these requests ARE the only
-     way to find out whether it is there.
+  /* Asked once on boot. The cookie is httpOnly, so this request IS the only way
+     to find out whether it is there.
 
-     Both answers are awaited before anything is written, so no state is set
-     while the effect body is still running — and a provider unmounted mid-flight
-     (a route change during the round trip) writes nothing at all. */
+     The answer is awaited before anything is written, so no state is set while
+     the effect body is still running — and a provider unmounted mid-flight (a
+     route change during the round trip) writes nothing at all.
+
+     It used to ask about a STAFF session here too. That surface moved to the
+     CRM, which has its own origin, its own cookie and its own copy of this
+     provider — so there is nothing on this deployment for a second probe to
+     find, and `/admin/auth/session` is a 404 here now. */
   useEffect(() => {
     let live = true;
 
-    /* The console session is only asked about inside the console. Probing it on
-       every storefront page cost a request per load and logged a 401 in the
-       browser console for a session no shopper was ever going to have. */
-    const inConsole =
-      typeof window !== "undefined" && window.location.pathname.startsWith("/admin");
-
     async function boot() {
-      const [customerSession, staffSession] = await Promise.allSettled([
-        customerClient.get<{ data: { customer: CustomerProfile } }>("/auth/session"),
-        inConsole
-          ? adminClient.get<{ data: StaffSession }>("/admin/auth/session")
-          : Promise.reject(new Error("not in the console")),
-      ]);
-
-      if (!live) return;
-
-      setCustomer(customerSession.status === "fulfilled" ? customerSession.value.data.data.customer : null);
-      setStaffSession(staffSession.status === "fulfilled" ? staffSession.value.data.data : null);
-      setSessionReady(true);
-      setStaffReady(true);
+      try {
+        const response = await customerClient.get<{ data: { customer: CustomerProfile } }>(
+          "/auth/session",
+        );
+        if (live) setCustomer(response.data.data.customer);
+      } catch {
+        /* A 401 is the expected answer to "is anyone signed in?", never a
+           failure — and any other error means we cannot prove there is a
+           session, which for a guard is the same thing. */
+        if (live) setCustomer(null);
+      } finally {
+        if (live) setSessionReady(true);
+      }
     }
 
     void boot();
@@ -134,28 +123,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       live = false;
     };
   }, []);
-
-  /* A console session expires on the SERVER after fifteen idle minutes. The
-     ping slides that window while the operator is working; it is throttled, and
-     it never revives a session the server has already ended. */
-  useEffect(() => {
-    if (!staffSession) return;
-
-    let touchedAt = Date.now();
-
-    function touch() {
-      if (Date.now() - touchedAt < STAFF_TOUCH_INTERVAL_MS) return;
-      touchedAt = Date.now();
-      adminClient.post("/admin/auth/touch").catch(() => setStaffSession(null));
-    }
-
-    const events = ["pointerdown", "keydown", "visibilitychange"] as const;
-    events.forEach((event) => document.addEventListener(event, touch, { passive: true }));
-
-    return () => {
-      events.forEach((event) => document.removeEventListener(event, touch));
-    };
-  }, [staffSession]);
 
   // Gated actions send the shopper to the real /auth/login page and bring them
   // back afterwards. Read the location at call time so the provider does not
@@ -203,21 +170,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     customerClient.post("/auth/logout").catch(() => undefined);
   }, []);
 
-  const signInStaff = useCallback(async (credentials: Credentials) => {
-    const response = await publicClient.post<{ data: StaffSession }>(
-      "/admin/auth/login",
-      credentials,
-      { withCredentials: true },
-    );
-    setStaffSession(response.data.data);
-    setStaffReady(true);
-  }, []);
-
-  const signOutStaff = useCallback(() => {
-    setStaffSession(null);
-    adminClient.post("/admin/auth/logout").catch(() => undefined);
-  }, []);
-
   const subscribeToSignOut = useCallback((listener: () => void) => {
     signOutListeners.current.add(listener);
     return () => signOutListeners.current.delete(listener);
@@ -228,15 +180,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated: customer !== null,
       customer,
       sessionReady,
-      staffSession,
-      staffReady,
       requestLogin,
       signIn,
       register,
       signOut,
       refreshCustomer,
-      signInStaff,
-      signOutStaff,
       subscribeToSignOut,
     }),
     [
@@ -246,11 +194,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       requestLogin,
       sessionReady,
       signIn,
-      signInStaff,
       signOut,
-      signOutStaff,
-      staffReady,
-      staffSession,
       subscribeToSignOut,
     ],
   );

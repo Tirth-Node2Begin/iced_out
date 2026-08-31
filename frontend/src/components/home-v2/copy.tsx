@@ -33,14 +33,6 @@ export type HighlightCard = {
   src: string;
 };
 
-export type Testimonial = {
-  index: string;
-  quote: string;
-  name: string;
-  role: string;
-  src: string;
-};
-
 /**
  * The hero is deliberately absent. Its words are the wordmark itself, and
  * <BrandMorph> — which flies them from the headline into the bar — sits above
@@ -52,6 +44,16 @@ export type SiteCopy = {
   manifesto: { from: string; to: string; statement: string };
   philosophy: {
     eyebrow: string;
+    /**
+     * The claim, set large and bold — one sentence, and it carries the section.
+     *
+     * Split out of `body` because the two were one field and therefore one
+     * weight: the whole statement rendered at 45px/500 and read as an
+     * undifferentiated wall with no entry point. A reader needs somewhere to
+     * land before the detail arrives.
+     */
+    heading: string;
+    /** The supporting paragraph — normal weight, normal measure, sets the detail. */
     body: string;
     main: { src: string; alt: string };
     inset: { src: string; alt: string };
@@ -67,7 +69,17 @@ export type SiteCopy = {
        tuple is what makes that a compile error rather than a scroll bug. */
     cards: readonly [HighlightCard, HighlightCard, HighlightCard];
   };
-  testimonials: { heading: readonly string[]; items: readonly Testimonial[] };
+  /**
+   * Only the heading. The quotes underneath it are REVIEWS, and reviews are not
+   * ours to author — they come from `GET /reviews` at render time.
+   *
+   * This field used to carry an `items` array of three written-in testimonials
+   * per pack: invented names, invented quotes, invented product attributions,
+   * rendered ahead of the real ones. Nine fabricated customers across the three
+   * packs, presented to shoppers as feedback from people who had bought the
+   * clothes.
+   */
+  testimonials: { heading: readonly string[] };
 };
 
 /** The capture's pack, assembled from the transcribed reference data. */

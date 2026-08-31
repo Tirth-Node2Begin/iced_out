@@ -8,13 +8,15 @@ import { formatPrice } from "@/features/02-products/utils/format-price";
 import { formatDay, isClaimed, voucherPurpose, type Voucher } from "@/features/10-coupons/vouchers";
 
 /**
- * Redeeming a voucher: the code, big enough to read, and one button to take it.
+ * One voucher, in full: the code big enough to read, and where its money went.
  *
- * The dialog does NOT apply anything. Copying is not spending, and a code sat
- * on the clipboard is still an active voucher — so the status here says
- * `Active` right up until an order is actually placed with it, and only then
- * does it read `Claimed`. Telling somebody their credit was used the moment
- * they copied it would be a lie the checkout would then contradict.
+ * The dialog does NOT move anything. Adding a voucher to the wallet is the row
+ * action behind it — see `account-vouchers` — and this is the record: what it
+ * was for, when it was issued, and whether its value is now sitting in the
+ * balance. Copying the code is still offered because a code is a thing people
+ * quote to support, but it is no longer a step in spending one: there is no
+ * coupon box to paste it into any more, and there has not been since credit
+ * became a balance rather than a one-shot token.
  */
 export function RedeemVoucherDialog({
   voucher,
@@ -59,12 +61,14 @@ export function RedeemVoucherDialog({
           <div className="io-modal__head">
             <div>
               <Dialog.Title className="io-modal__title">
-                {claimed ? "Already redeemed" : "Redeem this voucher"}
+                {claimed ? "Already added" : "This voucher"}
               </Dialog.Title>
               <Dialog.Description className="io-modal__note">
                 {claimed
-                  ? `Spent on order ${voucher.claimedOrder || "one of yours"} on ${formatDay(voucher.claimedOn)}. A voucher is good for one order only.`
-                  : "Copy the code and paste it into the coupon box at checkout. Copying does not use it up — it stays active until you place an order."}
+                  ? voucher.claimedOrder === "Wallet"
+                    ? `Added to your wallet on ${formatDay(voucher.claimedOn)}. Its value is part of your balance now — the wallet's statement shows where it goes from here.`
+                    : `Spent on order ${voucher.claimedOrder || "one of yours"} on ${formatDay(voucher.claimedOn)}.`
+                  : "Add it to your wallet and the full value joins your balance, to be spent a rupee at a time across as many orders as it takes."}
               </Dialog.Description>
             </div>
             <Dialog.Close aria-label="Close" className="io-modal__close">
@@ -83,7 +87,7 @@ export function RedeemVoucherDialog({
               <span
                 className={`io-badge ${claimed ? "" : "io-badge--ok"} io-voucher__state`}
               >
-                {claimed ? "Claimed" : "Active"}
+                {claimed ? "Added" : "Ready"}
               </span>
             </div>
 
@@ -97,15 +101,15 @@ export function RedeemVoucherDialog({
                 <dd>{formatDay(voucher.issuedOn)}</dd>
               </div>
               <div>
-                <dt>{claimed ? "Redeemed" : "Redeem before"}</dt>
+                <dt>{claimed ? "Added" : "Add before"}</dt>
                 <dd>{formatDay(claimed ? voucher.claimedOn : voucher.expiresOn)}</dd>
               </div>
             </dl>
 
             {!claimed && (
               <p className="io-voucher__rule">
-                It is a one-time code, so spend it in a single order — the whole value comes off
-                that order, up to whatever the order is worth.
+                It is added once. From then on the money lives in your wallet, comes off your
+                orders automatically, and whatever a small order does not use stays there.
               </p>
             )}
           </div>

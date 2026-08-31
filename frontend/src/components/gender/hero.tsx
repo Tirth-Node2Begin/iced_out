@@ -5,7 +5,8 @@ import Link from "next/link";
 import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
 import { useRef } from "react";
 
-import { CROPS, FACES, type AudienceContent } from "@/components/gender/data";
+import { CROPS, type AudienceContent } from "@/components/gender/data";
+import { HeroProof } from "@/components/gender/hero-proof";
 import { EASE_OUT, SplitHeading } from "@/components/gender/motion";
 
 /**
@@ -103,18 +104,7 @@ export function GenderHero({ content }: { content: AudienceContent }) {
             initial={reduce ? { opacity: 0 } : { opacity: 0, y: 12 }}
             transition={reduce ? { duration: 0.2 } : { duration: 0.7, delay: T.proof, ease: EASE_OUT }}
           >
-            <div aria-hidden className="gx-hero__faces">
-              {FACES.map((face) => (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img alt="" className="gx-hero__face" key={face} src={face} />
-              ))}
-              {/* a fourth chip closes the cluster, as in the reference */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img alt="" className="gx-hero__face" src={FACES[0]} />
-            </div>
-            <p className="gx-hero__proofText">
-              Join with <b>{hero.proofCount}</b> {hero.proofTail}
-            </p>
+            <HeroProof audience={content.audience} />
           </motion.div>
         </motion.div>
 

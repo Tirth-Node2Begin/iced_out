@@ -25,12 +25,16 @@ import type { Product } from "@/features/02-products/types/product";
 /* -------------------------------------------------------------------------- */
 
 /**
- * The piece's own URL segment.
+ * A piece's URL segment, derived from its name.
  *
- * `piece.slug` cannot be it: twenty tiles share four fixture slugs, so routing
- * on that collapses the release to four pages and makes "which piece is this"
- * unanswerable. The name is unique across the release, so it is the key — and
- * it keeps the fixture slugs pointing at the storefront PDP they always did.
+ * This was the key the detail route resolved on, back when the release was
+ * twenty hardcoded tiles sharing four fixture slugs — routing on `piece.slug`
+ * then collapsed the release to four pages.
+ *
+ * It stays the key `pieceHref` writes: the backend slugifies a product's name
+ * the same way this does (`SkuMinter::slugify`), so the two agree for every
+ * product whose name is unique, and every link already in the wild still names
+ * the piece it always did.
  */
 export function productSlug(piece: Piece) {
   return piece.name
@@ -46,9 +50,18 @@ export function productSlug(piece: Piece) {
  * catalogue is the database's now and arrives over the network — see
  * `components/gender/use-pieces.ts`. A module-level constant could only ever be
  * the twenty pieces that were written into the source.
+ *
+ * The record's own slug is tried first and the name-slug second. They are the
+ * same string for almost every product — both are the name, slugified — but not
+ * for the two that collide: the catalogue mints `jet-overshirt-2` for the second
+ * "Jet Overshirt" while the name still slugifies to `jet-overshirt`. Reading the
+ * real slug first is what makes a link built from the record land on it.
  */
 export function pieceForSlug(pieces: Piece[], slug: string) {
-  return pieces.find((piece) => productSlug(piece) === slug);
+  return (
+    pieces.find((piece) => piece.slug === slug) ??
+    pieces.find((piece) => productSlug(piece) === slug)
+  );
 }
 
 /* -------------------------------------------------------------------------- */
@@ -131,6 +144,76 @@ export const SHIPPING = {
   arrival: "12 — 14 Aug 2026",
 } as const;
 
+/* -------------------------------------------------------------------------- */
+/* Departments                                                                */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The floor a product page is being read on.
+ *
+ * The detail stack below `/new-man/piece` and `/new-woman/piece` is ONE set of
+ * components: the hero, the panels, the reviews and the related grid are the
+ * same page with a different audience behind it. What actually differs is four
+ * strings — which audience to read the catalogue for, where "back" goes, what
+ * the breadcrumb calls the department, and where a related tile points — so
+ * they travel together as one object rather than as four props.
+ *
+ * Every component that takes one defaults to `DEPTS.men`, which is what /new-man
+ * was doing before this existed. Nothing on that route had to change.
+ */
+export type Dept = {
+  audience: "men" | "women";
+  /** the department's listing route */
+  base: string;
+  /** what the breadcrumb calls it */
+  label: string;
+  /** the id of the grid on that listing — the two floors name theirs differently */
+  editHash: string;
+  /**
+   * Whether pieces cut for everybody belong to this floor.
+   *
+   * It travels with the department rather than being decided at each call site
+   * because the detail page has to agree with the listing that led to it: a
+   * grid that does not show unisex pieces must not recommend them underneath
+   * one, and `?slug=` must resolve against the same set the grid was drawing.
+   * See `useGenderPieces` for why /new-woman is the floor that opts out.
+   */
+  unisex: boolean;
+};
+
+export const DEPTS: Record<"men" | "women", Dept> = {
+  men: {
+    audience: "men",
+    base: "/new-man",
+    label: "Men",
+    editHash: "#edit",
+    unisex: true,
+  },
+  women: {
+    audience: "women",
+    base: "/new-woman",
+    label: "Women",
+    editHash: "#nw-edit",
+    unisex: false,
+  },
+};
+
+/** Where "back" goes: that floor's grid, scrolled to the tile that led here. */
+export function backHref(dept: Dept) {
+  return `${dept.base}${dept.editHash}`;
+}
+
+/**
+ * A piece's own detail page on the floor it is being read from.
+ *
+ * Addressed by NAME rather than by the fixture slug the tile links to — see
+ * `productSlug` — and always under the department the reader is already in, so
+ * a shopper browsing womenswear is never handed a page that breadcrumbs as Men.
+ */
+export function pieceHref(dept: Dept, piece: Piece) {
+  return `${dept.base}/piece?slug=${productSlug(piece)}`;
+}
+
 export const PRODUCT_COPY = {
   featuresHref: "#nmp-details",
   /* There is no `sizeGuideHref`. The size guide is a DIALOG on this page, not a
@@ -138,8 +221,6 @@ export const PRODUCT_COPY = {
      it in the middle of choosing a size, and a link that took them off the page
      to read a table meant losing the picker, the shot and the scroll position to
      get back to exactly where they already were. */
-  /** where "back" goes: the men's grid, scrolled to the tile that led here */
-  backHref: "/new-man#edit",
   /**
    * The two policy lines that do NOT depend on a setting.
    *

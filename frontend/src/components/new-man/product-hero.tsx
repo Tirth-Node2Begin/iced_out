@@ -34,9 +34,12 @@ import { ImageViewer } from "@/components/new-man/image-viewer";
 import { DispatchStrip, ProductFrame } from "@/components/new-man/product-bits";
 import {
   CATEGORY_LABELS,
+  DEPTS,
   PRODUCT_COPY,
+  backHref,
   shippingNote,
   shotsFor,
+  type Dept,
 } from "@/components/new-man/product-deck";
 import { SizeGuide } from "@/components/new-man/size-guide";
 import { useCatalog } from "@/features/02-products";
@@ -110,7 +113,14 @@ function pageRect(element: HTMLElement): Box {
  * never push the page sideways. The only things drawn over the photograph are
  * that photograph's own controls, inside the frame that owns them.
  */
-export function ProductHero({ piece }: { piece: Piece }) {
+export function ProductHero({
+  piece,
+  dept = DEPTS.men,
+}: {
+  piece: Piece;
+  /** which floor this page is being read on — see `Dept` */
+  dept?: Dept;
+}) {
   const reduce = useReducedMotion();
 
   /* The catalogue arrives over the network, so these lookups take it as an
@@ -373,7 +383,7 @@ export function ProductHero({ piece }: { piece: Piece }) {
               has no history to step through, and a Back button that does
               nothing is worse than none. Where it lands is the trail's job to
               say — the control itself just says Back. */}
-          <Link className="nmp-back" href={PRODUCT_COPY.backHref}>
+          <Link className="nmp-back" href={backHref(dept)}>
             <ArrowLeft aria-hidden size={14} />
             Back
           </Link>
@@ -381,9 +391,9 @@ export function ProductHero({ piece }: { piece: Piece }) {
           <nav aria-label="Breadcrumb" className="nmp-trail">
             <Link href="/">Home</Link>
             <span aria-hidden>/</span>
-            <Link href="/new-man">Men</Link>
+            <Link href={dept.base}>{dept.label}</Link>
             <span aria-hidden>/</span>
-            <Link href={PRODUCT_COPY.backHref}>
+            <Link href={backHref(dept)}>
               {CATEGORY_LABELS[piece.category]}
             </Link>
             <span aria-hidden>/</span>

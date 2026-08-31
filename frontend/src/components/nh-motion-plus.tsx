@@ -129,13 +129,16 @@ export function Scramble({
   const ref = useRef<HTMLSpanElement>(null);
   const inView = useInView(ref, { once, amount });
   const reduce = useReducedMotion();
-  const [out, setOut] = useState(reduce ? text : "");
+  /* Only ever holds the ANIMATED frames. What reduced motion should show is
+     `text` itself, and that is decided at render time below rather than pushed
+     into state by the effect — a setState in an effect body is a cascading
+     render, and it also got the two edge cases wrong: it never caught the OS
+     setting being turned on mid-life, and it re-ran on every `text` change to
+     write a value the initialiser had already put there. */
+  const [out, setOut] = useState("");
 
   useEffect(() => {
-    if (!inView || reduce) {
-      if (reduce) setOut(text);
-      return;
-    }
+    if (!inView || reduce) return;
 
     let raf = 0;
     let frame = 0;
@@ -184,7 +187,11 @@ export function Scramble({
 
   return (
     <Tag ref={ref as never} className={cn("nhx-scramble", className)} style={style} aria-label={text}>
-      <span aria-hidden>{out || text.replace(/\S/g, " ")}</span>
+      {/* Reduced motion gets the finished text, never a frame of noise. The
+          fallback for the un-started state is the text's own shape in spaces,
+          so the line holds its width and nothing below it shifts when the
+          scramble begins. */}
+      <span aria-hidden>{reduce ? text : out || text.replace(/\S/g, " ")}</span>
     </Tag>
   );
 }

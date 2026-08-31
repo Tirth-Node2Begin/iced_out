@@ -66,9 +66,11 @@ import {
 } from "@/features/04-cart/india-regions";
 import { useOrders, type PaymentOutcome } from "@/features/07-orders/orders-context";
 import { useVouchers } from "@/features/10-coupons/vouchers-context";
+import { applicableCredit } from "@/features/21-wallet/wallet";
+import { useWallet } from "@/features/21-wallet/wallet-context";
 import { cardLabel, type CardDraft } from "@/features/09-payment/card";
 import { CardPaymentSheet } from "@/features/09-payment/card-payment-sheet";
-import { IS_TEST_KEY, loadRazorpay, openRazorpayCheckout } from "@/features/09-payment/razorpay";
+import { isTestKey, loadRazorpay, openRazorpayCheckout } from "@/features/09-payment/razorpay";
 import { useHydrated } from "@/lib/use-hydrated";
 
 /**
@@ -213,6 +215,7 @@ export function CheckoutFlow({
   const { draft, restored, updateDraft, resetDraft } = useCheckout();
   const { placeOrder } = useOrders();
   const { claim: claimVoucher } = useVouchers();
+  const { wallet, refresh: refreshWallet } = useWallet();
   const { profile, ready: profileReady } = useProfile();
   const { add: addAddress, addresses, defaultAddress, ready: addressesReady } = useAddresses();
   /* The two speeds and what they cost, from the store's settings rather than
@@ -234,6 +237,15 @@ export function CheckoutFlow({
   const [bagOpen, setBagOpen] = useState(false);
   /** Step 01 shows what the account holds until the shopper asks to change it. */
   const [editingContact, setEditingContact] = useState(false);
+  /**
+   * Whether to spend the wallet on this order.
+   *
+   * On by default, because a shopper holding credit almost always means to use
+   * it and hunting for a switch to spend your own money is a strange errand.
+   * Off is still offered: saving it for a bigger order is a real intention, and
+   * a balance that spends itself with no way to decline is not the shopper's.
+   */
+  const [useCredit, setUseCredit] = useState(true);
 
   const step = STEPS[stepIndex];
   const isLast = stepIndex === STEPS.length - 1;
@@ -252,8 +264,25 @@ export function CheckoutFlow({
   }, [onBusy, status]);
 
   const delivery = deliveryFee(draft.deliveryMethod, subtotal);
+  /** What the order is WORTH. Store credit comes off what is charged, not this. */
   const payable = total + delivery;
   const empty = lines.length === 0;
+
+  /* ---------------------------------------------------------- the wallet */
+  /* Three figures and they are deliberately distinct, because conflating any
+     two of them is a way to charge the wrong number:
+
+       payable     what the order is worth, and what the order record says
+       creditUsed  how much of it the balance covers — never more than either
+       dueNow      what the gateway or the courier is actually asked for
+
+     `applicableCredit` is the same clamp the server applies in
+     `PlaceOrderService::spendWallet`. Having it in both places is on purpose,
+     and the server's is the one that decides: this one is a quote, and the
+     place-order transaction re-reads the balance under a row lock and may
+     still refuse. */
+  const creditUsed = useCredit ? applicableCredit(wallet.balance, payable) : 0;
+  const dueNow = Math.max(0, payable - creditUsed);
 
   /* ------------------------------------------------------------- pre-fill */
   /* Runs once, and only into fields that are EMPTY. The account is a starting
@@ -512,7 +541,14 @@ export function CheckoutFlow({
             fee: delivery,
           },
           payment,
-          money: { subtotal, discount, total: payable, couponCode: coupon?.code ?? null },
+          money: {
+            subtotal,
+            discount,
+            // The order's own value, which is what the server cross-checks.
+            total: payable,
+            walletApplied: creditUsed,
+            couponCode: coupon?.code ?? null,
+          },
         });
       } catch (refusal) {
         setFailure(
@@ -536,6 +572,16 @@ export function CheckoutFlow({
          promotional code; only a voucher can be claimed. */
       if (coupon && discount > 0 && payment.outcome !== "failed") {
         claimVoucher(coupon.code, order.number);
+      }
+
+      /* The balance moved on the server, inside the transaction that wrote the
+         order. Re-read rather than subtracted locally: the server decides what
+         was actually spent — it may have been less than this page quoted, or
+         the order may have been refused after the quote — and a browser holding
+         its own opinion of a balance is how a shopper is offered credit that is
+         already gone. */
+      if (creditUsed > 0 && payment.outcome !== "failed") {
+        void refreshWallet();
       }
 
       /* `status` is latched first, or emptying the bag repaints this screen as
@@ -569,6 +615,7 @@ export function CheckoutFlow({
       claimVoucher,
       clearCart,
       coupon,
+      creditUsed,
       delivery,
       discount,
       draft,
@@ -576,6 +623,7 @@ export function CheckoutFlow({
       onClose,
       payable,
       placeOrder,
+      refreshWallet,
       resetDraft,
       router,
       subtotal,
@@ -605,17 +653,21 @@ export function CheckoutFlow({
        destination and belongs in the book if it was asked to be. */
     commitNewAddress();
 
-    /* A voucher can cover the whole bag, which no promotional code could — the
-       best of those is a percentage, and a flat one has a minimum above its own
-       value. So there is now a real path where nothing is left to pay, and
-       neither the gateway nor a courier should be handed a bill for ₹0. The
-       order is placed settled, against the credit that settled it. */
-    if (payable <= 0) {
+    /* Nothing left to pay, and there are two ways to get here: a wallet that
+       covers the bag outright, or a discount that does. Neither the gateway nor
+       a courier should be handed a bill for ₹0, so the order is placed settled
+       against whatever settled it — and the method names which, because
+       "Store credit" on a receipt for an order the wallet paid is the line a
+       shopper will look for when they wonder where their balance went. */
+    if (dueNow <= 0) {
       complete({
-        method: "Store credit",
-        reference: coupon?.code ?? "Voucher",
+        method: creditUsed > 0 ? "Wallet · store credit" : "Store credit",
+        reference: creditUsed > 0 ? "Paid from wallet" : (coupon?.code ?? "Voucher"),
         outcome: "captured",
-        note: "Paid in full with store credit",
+        note:
+          creditUsed > 0
+            ? `Paid in full from your wallet balance (${formatPrice(creditUsed)}).`
+            : "Paid in full with store credit",
       });
       return;
     }
@@ -671,7 +723,9 @@ export function CheckoutFlow({
        no-ops on an unmounted tree. Every outcome — paid, dismissed, declined —
        ends on the order screen, which is where a second attempt belongs. */
     const result = await openRazorpayCheckout({
-      amount: payable,
+      // The remainder, not the order's value: the wallet has already paid its
+      // part, and charging the full figure would take that money twice.
+      amount: dueNow,
       description: `${itemCount} ${itemCount === 1 ? "piece" : "pieces"} · Iced_out`,
       customer: { name: draft.name, email: draft.email, contact: draft.mobile },
       notes: { destination: `${draft.city}, ${draft.state}`, delivery: option.label },
@@ -699,12 +753,13 @@ export function CheckoutFlow({
     commitNewAddress,
     complete,
     coupon,
+    creditUsed,
     draft,
+    dueNow,
     empty,
     focusFirstError,
     itemCount,
     onClose,
-    payable,
     scrollToTop,
   ]);
 
@@ -1159,7 +1214,7 @@ export function CheckoutFlow({
 
                   {draft.paymentMethod === "cod" && (
                     <p className="co-card__foot">
-                      The order is placed now and {formatPrice(payable)} is collected at the door.
+                      The order is placed now and {formatPrice(dueNow)} is collected at the door.
                       Keep the exact amount if you can — couriers rarely carry change.
                     </p>
                   )}
@@ -1182,7 +1237,7 @@ export function CheckoutFlow({
                         placed only once the gateway answers.
                       </p>
 
-                      {IS_TEST_KEY && (
+                      {isTestKey() && (
                         <section className="co-testcard">
                           <h3>
                             <ShieldCheck aria-hidden size={14} strokeWidth={1.7} />
@@ -1304,11 +1359,52 @@ export function CheckoutFlow({
                   <dt>Tax</dt>
                   <dd>Included</dd>
                 </div>
+                {/* Below the tax line and above the total, because it is the
+                    last thing that happens to the money: everything above is
+                    what the order costs, and this is what has already been paid
+                    towards it. Styled like the discount row — both are figures
+                    coming off — but labelled as the wallet, never folded into
+                    the discount, because the shop did not sell for less. */}
+                {creditUsed > 0 && (
+                  <div className="io-off">
+                    <dt>Wallet</dt>
+                    <dd>−{formatPrice(creditUsed)}</dd>
+                  </div>
+                )}
                 <div className="co-summary__total">
                   <dt>{draft.paymentMethod === "cod" ? "Due on delivery" : "Payable"}</dt>
-                  <dd>{formatPrice(payable)}</dd>
+                  <dd>{formatPrice(dueNow)}</dd>
                 </div>
               </dl>
+
+              {/* Spending the balance, and the option not to.
+                  It sits with the money rather than in the payment step: this
+                  is a decision about the total, the total is here, and a switch
+                  that changes the figure two panels away from it is a switch
+                  people press twice to see what it did. */}
+              {wallet.balance > 0 && (
+                <label className="co-wallet" data-on={useCredit ? "" : undefined}>
+                  <input
+                    checked={useCredit}
+                    disabled={status === "paying"}
+                    onChange={(event) => setUseCredit(event.target.checked)}
+                    type="checkbox"
+                  />
+                  <span className="co-wallet__glyph">
+                    <Wallet aria-hidden size={15} strokeWidth={1.7} />
+                  </span>
+                  <span className="co-wallet__body">
+                    <strong>Use your wallet</strong>
+                    <small>
+                      {creditUsed > 0
+                        ? `${formatPrice(creditUsed)} of your ${formatPrice(wallet.balance)} balance comes off this order${
+                            dueNow > 0 ? `, leaving ${formatPrice(dueNow)} to pay.` : " — nothing left to pay."
+                          }`
+                        : `${formatPrice(wallet.balance)} available. Saving it for later is fine.`}
+                    </small>
+                  </span>
+                </label>
+              )}
 
               {/* ------------------------------------------------------ checkout */}
               {/* The one button that finishes the order, available from every
@@ -1335,7 +1431,7 @@ export function CheckoutFlow({
                   </>
                 ) : (
                   <>
-                    Checkout · {formatPrice(payable)}
+                    Checkout · {formatPrice(dueNow)}
                     <ArrowRight aria-hidden size={15} />
                   </>
                 )}

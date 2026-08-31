@@ -1,6 +1,12 @@
 # Iced_out backend
 
-Core PHP 8.2+ JSON API for the Iced_out storefront and console. No framework, no
+**This is one of two backends against one database.** The console and CRM API
+lives in `../iced-out-crm/backend/` and answers `/admin/**`; this one answers the
+customer surface and nothing else. The kernel, middleware, repositories,
+services and presenters below the route table are shared code, present in both
+copies — a fix to them has to land in both. See [../README.md](../README.md).
+
+Core PHP 8.2+ JSON API for the Iced_out storefront. No framework, no
 ORM, no SSR — it serves `/api/v1/**` and nothing else.
 
 The authoritative build specification is [`../backend_setup.md`](../backend_setup.md):

@@ -11,6 +11,7 @@ import { CheckoutModalProvider } from "@/features/04-cart/checkout-modal-context
 import { WishlistProvider } from "@/features/05-wishlist/wishlist-context";
 import { ReviewsProvider } from "@/features/11-reviews/reviews-context";
 import { VouchersProvider } from "@/features/10-coupons/vouchers-context";
+import { WalletProvider } from "@/features/21-wallet/wallet-context";
 import { OrdersProvider } from "@/features/07-orders/orders-context";
 import { AuthProvider } from "@/features/20-auth-security/auth-context";
 import { RouteGuard } from "@/features/20-auth-security/components/route-guard";
@@ -33,6 +34,12 @@ export function AppProviders({ children }: { children: ReactNode }) {
                   back into a live balance on the way in — and because the console
                   issues credit into the same store the storefront spends from. */}
               <VouchersProvider>
+                {/* Above the bag as well, and for a sharper reason than the
+                    vouchers below it: the wallet is spent DURING checkout — the
+                    summary quotes what the balance will cover and the order
+                    carries the figure — so the store has to be readable from
+                    inside the cart, not beside it. */}
+                <WalletProvider>
                 <CartProvider>
                   <CheckoutProvider>
                     {/* Above the guard, because the archive outlives a single screen:
@@ -54,6 +61,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
                     </OrdersProvider>
                   </CheckoutProvider>
                 </CartProvider>
+                </WalletProvider>
               </VouchersProvider>
             </WishlistProvider>
           </ReviewsProvider>

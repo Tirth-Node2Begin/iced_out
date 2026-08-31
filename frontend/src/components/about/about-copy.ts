@@ -26,7 +26,10 @@ export const ABOUT_COPY: SiteCopy = {
 
   philosophy: {
     eyebrow: "The standard",
-    body: "Every release starts with one question: will this still earn its place after the moment has passed? If the answer is uncertain it does not make the cut. That standard buys us room to slow down, refine the construction, and keep the runs small enough to stay accountable for every one of them",
+    /* The question alone. It was the first clause of a three-sentence field,
+       which buried the one line here worth reading twice. */
+    heading: "Will this still earn its place after the moment has\u00A0passed?",
+    body: "Every release starts with that question, and if the answer is uncertain it does not make the cut. That standard buys us room to slow down, refine the construction, and keep the runs small enough to stay accountable for every one of\u00A0them.",
     main: {
       src: "/images/home-v2/philosophy-main.jpg",
       alt: "Two figures in a concrete underpass after dark",
@@ -102,33 +105,8 @@ export const ABOUT_COPY: SiteCopy = {
     ],
   },
 
+  /* Heading only — the quotes under it are real reviews, fetched. */
   testimonials: {
     heading: ["What the", "wearers say"],
-    items: [
-      {
-        index: "01",
-        quote:
-          "Two winters in and the hood still holds its shape. It has stopped being a purchase and started being the thing I reach for without thinking.",
-        name: "Rhea Menon",
-        role: "Drop 001 · Monolith Hood",
-        src: "/images/home-v2/person-01.jpg",
-      },
-      {
-        index: "02",
-        quote:
-          "The weight is the point. It hangs properly, it moves properly, and it does not look tired after a hundred wears.",
-        name: "Marco Devlin",
-        role: "Drop 001 · Ballast Cargo Pant",
-        src: "/images/home-v2/person-04.jpg",
-      },
-      {
-        index: "03",
-        quote:
-          "Nothing shouts on it. That is exactly why it works — it disappears when I wear it and people still ask where it is from.",
-        name: "Sara Whitfield",
-        role: "Field test 003",
-        src: "/images/home-v2/person-03.jpg",
-      },
-    ],
   },
 };

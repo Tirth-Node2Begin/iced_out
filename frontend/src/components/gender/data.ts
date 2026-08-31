@@ -96,6 +96,41 @@ export function spellCount(count: number): string {
   return COUNT_WORDS[count] ?? String(count);
 }
 
+/**
+ * The run of page numbers a pager draws: always the first and the last, always
+ * the current one and its two neighbours, and a single gap marker standing in
+ * for whatever falls between.
+ *
+ * Shared vocabulary rather than a helper on either listing, because both
+ * catalogues page the same catalogue — /new-man eight tiles at a time, and
+ * /new-woman nine — and two copies of this is two places for the elision rule
+ * to drift apart.
+ *
+ * Nothing is elided at today's release; the window is here because a catalogue
+ * is a thing an operator adds to, and a bar that grows one button per page
+ * stops fitting.
+ */
+export function pageRun(current: number, count: number): Array<number | "gap"> {
+  if (count <= 7) return Array.from({ length: count }, (_, i) => i + 1);
+
+  const wanted = [1, count, current - 1, current, current + 1].filter(
+    (n) => n >= 1 && n <= count,
+  );
+  const pages = [...new Set(wanted)].sort((a, b) => a - b);
+
+  const run: Array<number | "gap"> = [];
+  pages.forEach((n, i) => {
+    const prev = pages[i - 1];
+    if (i > 0 && n - prev > 1) {
+      /* A gap of exactly one is not worth a marker — "1 … 3" costs the same
+         width as "1 2 3" and hides a page instead of offering it. */
+      run.push(n - prev === 2 ? prev + 1 : "gap");
+    }
+    run.push(n);
+  });
+  return run;
+}
+
 export type Category =
   | "outerwear"
   | "knitwear"
@@ -106,11 +141,27 @@ export type Category =
 export type Piece = {
   id: string;
   name: string;
-  /** the storefront slug this tile links to; all four fixtures are real routes */
+  /**
+   * The product's own slug, straight off the record (`use-pieces.ts`).
+   *
+   * It used to be one of four fixture slugs shared across twenty tiles, which
+   * is why the detail route resolves on the NAME instead (`pieceHref`). Now
+   * that it is the record's own slug, `pieceForSlug` accepts it too.
+   */
   slug: string;
   category: Category;
   /** the chip in the tile's top-right corner */
   tag: string;
+  /**
+   * The collection the product is filed under, when it has one.
+   *
+   * Optional because the fixture rows below predate it and a product can be
+   * published without one. It exists so a surface can say which collections it
+   * is actually showing rather than asserting a drop — see the women's hero
+   * ledger, which used to print Drop 001's edition size over a grid that spans
+   * all three.
+   */
+  collection?: string;
   /** paise-free rupees, formatted at render */
   price: number;
   compareAt?: number;
@@ -218,10 +269,18 @@ export type LookPin = {
   /** percentage coordinates on the stage image */
   x: number;
   y: number;
+  /**
+   * The garment this pin is on, by name.
+   *
+   * It is the key as well as the caption: the link resolves it against the live
+   * catalogue (`pieceForPin`). A `slug` used to sit beside it, and it held one
+   * of four storefront fixtures rather than this piece — so a pin captioned
+   * "Underpass Shell · ₹16,200" opened the Bone Utility Overshirt at ₹11,400.
+   * A route the copy deck asserts is a route nothing can keep true.
+   */
   name: string;
   meta: string;
   price: number;
-  slug: string;
   crop: CropKey;
 };
 
@@ -251,8 +310,6 @@ export type AudienceContent = {
     sub: string;
     primary: { label: string; href: string };
     secondary: { label: string; href: string };
-    proofCount: string;
-    proofTail: string;
     /** three columns, cycled into an infinite marquee */
     columns: HeroTile[][];
   };
@@ -360,8 +417,6 @@ export const MEN: AudienceContent = {
     sub: "Heavyweight silhouettes, engineered volume and utility layers cut for the hours between midnight and morning. Numbered, limited, never restocked.",
     primary: { label: "Shop the Edit", href: "#gx-edit" },
     secondary: { label: "Explore Lookbook", href: "#gx-lookbook" },
-    proofCount: "2100+ Members",
-    proofTail: "and shop Drop 001 before the release closes",
     columns: HERO_COLUMNS_MEN,
   },
 
@@ -426,9 +481,9 @@ export const MEN: AudienceContent = {
         copy: "Shell over heavyweight fleece, wide-leg cargo, chain hardware. The default after-dark uniform.",
         crop: "campWide",
         pins: [
-          { id: "p1", x: 74, y: 30, name: "Underpass Shell", meta: "Outerwear", price: 16200, slug: "bone-utility-overshirt", crop: "campMan" },
-          { id: "p2", x: 71, y: 62, name: "Shadow Cargo 02", meta: "Trousers", price: 9800, slug: "shadow-cargo-02", crop: "cargo" },
-          { id: "p3", x: 76, y: 88, name: "Signal Boot", meta: "Footwear", price: 15400, slug: "core-heavy-tee", crop: "campBoots" },
+          { id: "p1", x: 74, y: 30, name: "Underpass Shell", meta: "Outerwear", price: 16200, crop: "campMan" },
+          { id: "p2", x: 71, y: 62, name: "Shadow Cargo 02", meta: "Trousers", price: 9800, crop: "cargo" },
+          { id: "p3", x: 76, y: 88, name: "Signal Boot", meta: "Footwear", price: 15400, crop: "campBoots" },
         ],
       },
       {
@@ -438,9 +493,9 @@ export const MEN: AudienceContent = {
         copy: "Zip hood over a boxy tee, drop-shoulder through the body, cargo cut long over the boot.",
         crop: "heroWide",
         pins: [
-          { id: "p1", x: 74, y: 32, name: "Concrete Zip Hood", meta: "Knitwear", price: 10400, slug: "afterdark-hoodie", crop: "heroMan" },
-          { id: "p2", x: 72, y: 55, name: "Core Heavy Tee", meta: "Tops", price: 4200, slug: "core-heavy-tee", crop: "tee" },
-          { id: "p3", x: 75, y: 76, name: "Ballast Cargo Pant", meta: "Trousers", price: 9200, slug: "shadow-cargo-02", crop: "stillCargo" },
+          { id: "p1", x: 74, y: 32, name: "Concrete Zip Hood", meta: "Knitwear", price: 10400, crop: "heroMan" },
+          { id: "p2", x: 72, y: 55, name: "Core Heavy Tee", meta: "Tops", price: 4200, crop: "tee" },
+          { id: "p3", x: 75, y: 76, name: "Ballast Cargo Pant", meta: "Trousers", price: 9200, crop: "stillCargo" },
         ],
       },
       {
@@ -450,10 +505,10 @@ export const MEN: AudienceContent = {
         copy: "The pieces off the body — fleece, canvas overshirt, cargo and the full hardware set laid out as shipped.",
         crop: "stillFlat",
         pins: [
-          { id: "p1", x: 40, y: 46, name: "Gravel Wash Hoodie", meta: "Knitwear", price: 8600, slug: "afterdark-hoodie", crop: "stillHoodie" },
-          { id: "p2", x: 71, y: 34, name: "Bone Field Jacket", meta: "Outerwear", price: 13900, slug: "bone-utility-overshirt", crop: "stillJacket" },
-          { id: "p3", x: 68, y: 76, name: "Ballast Cargo Pant", meta: "Trousers", price: 9200, slug: "shadow-cargo-02", crop: "stillCargo" },
-          { id: "p4", x: 20, y: 84, name: "Vault Carry Pouch", meta: "Accessories", price: 3800, slug: "core-heavy-tee", crop: "stillPouch" },
+          { id: "p1", x: 40, y: 46, name: "Gravel Wash Hoodie", meta: "Knitwear", price: 8600, crop: "stillHoodie" },
+          { id: "p2", x: 71, y: 34, name: "Bone Field Jacket", meta: "Outerwear", price: 13900, crop: "stillJacket" },
+          { id: "p3", x: 68, y: 76, name: "Ballast Cargo Pant", meta: "Trousers", price: 9200, crop: "stillCargo" },
+          { id: "p4", x: 20, y: 84, name: "Vault Carry Pouch", meta: "Accessories", price: 3800, crop: "stillPouch" },
         ],
       },
     ],
@@ -489,8 +544,6 @@ export const WOMEN: AudienceContent = {
     sub: "Deliberate proportion, uncompromising monochrome and layers built to hold their shape. Cut once, numbered, and released in a single run.",
     primary: { label: "Shop the Edit", href: "#gx-edit" },
     secondary: { label: "Explore Lookbook", href: "#gx-lookbook" },
-    proofCount: "2100+ Members",
-    proofTail: "and shop Drop 001 before the release closes",
     columns: HERO_COLUMNS_WOMEN,
   },
 
@@ -555,9 +608,9 @@ export const WOMEN: AudienceContent = {
         copy: "Bone long coat over a washed fleece, volume trouser cut to break on the boot.",
         crop: "campWide",
         pins: [
-          { id: "p1", x: 57, y: 34, name: "Bone Long Coat", meta: "Outerwear", price: 19800, slug: "bone-utility-overshirt", crop: "campWoman" },
-          { id: "p2", x: 55, y: 62, name: "Volume Cargo 02", meta: "Trousers", price: 9800, slug: "shadow-cargo-02", crop: "cargo" },
-          { id: "p3", x: 58, y: 87, name: "Signal Boot", meta: "Footwear", price: 15400, slug: "core-heavy-tee", crop: "campBoots" },
+          { id: "p1", x: 57, y: 34, name: "Bone Long Coat", meta: "Outerwear", price: 19800, crop: "campWoman" },
+          { id: "p2", x: 55, y: 62, name: "Volume Cargo 02", meta: "Trousers", price: 9800, crop: "cargo" },
+          { id: "p3", x: 58, y: 87, name: "Signal Boot", meta: "Footwear", price: 15400, crop: "campBoots" },
         ],
       },
       {
@@ -567,9 +620,9 @@ export const WOMEN: AudienceContent = {
         copy: "Structured zip hood over a boxy tee, drape trouser, chain at the waist.",
         crop: "heroWide",
         pins: [
-          { id: "p1", x: 60, y: 32, name: "Structured Zip Hood", meta: "Knitwear", price: 10400, slug: "afterdark-hoodie", crop: "heroWoman" },
-          { id: "p2", x: 58, y: 54, name: "Sculpt Boxy Tee", meta: "Tops", price: 4400, slug: "core-heavy-tee", crop: "teeWide" },
-          { id: "p3", x: 60, y: 76, name: "Drape Cargo Pant", meta: "Trousers", price: 8800, slug: "shadow-cargo-02", crop: "cargoWide" },
+          { id: "p1", x: 60, y: 32, name: "Structured Zip Hood", meta: "Knitwear", price: 10400, crop: "heroWoman" },
+          { id: "p2", x: 58, y: 54, name: "Sculpt Boxy Tee", meta: "Tops", price: 4400, crop: "teeWide" },
+          { id: "p3", x: 60, y: 76, name: "Drape Cargo Pant", meta: "Trousers", price: 8800, crop: "cargoWide" },
         ],
       },
       {
@@ -579,10 +632,10 @@ export const WOMEN: AudienceContent = {
         copy: "The pieces off the body — fleece, ivory work jacket, wide trouser and the full hardware set as shipped.",
         crop: "stillFlat",
         pins: [
-          { id: "p1", x: 40, y: 46, name: "Washed Crop Hoodie", meta: "Knitwear", price: 8600, slug: "afterdark-hoodie", crop: "stillHoodie" },
-          { id: "p2", x: 71, y: 34, name: "Ivory Work Jacket", meta: "Outerwear", price: 13900, slug: "bone-utility-overshirt", crop: "stillJacket" },
-          { id: "p3", x: 68, y: 76, name: "Deadstock Wide Trouser", meta: "Trousers", price: 9400, slug: "shadow-cargo-02", crop: "stillCargo" },
-          { id: "p4", x: 20, y: 84, name: "Vault Clutch", meta: "Accessories", price: 3800, slug: "core-heavy-tee", crop: "stillPouch" },
+          { id: "p1", x: 40, y: 46, name: "Washed Crop Hoodie", meta: "Knitwear", price: 8600, crop: "stillHoodie" },
+          { id: "p2", x: 71, y: 34, name: "Ivory Work Jacket", meta: "Outerwear", price: 13900, crop: "stillJacket" },
+          { id: "p3", x: 68, y: 76, name: "Deadstock Wide Trouser", meta: "Trousers", price: 9400, crop: "stillCargo" },
+          { id: "p4", x: 20, y: 84, name: "Vault Clutch", meta: "Accessories", price: 3800, crop: "stillPouch" },
         ],
       },
     ],
@@ -606,13 +659,6 @@ export const WOMEN: AudienceContent = {
     stamp: "Est. 2024 / Bengaluru",
   },
 };
-
-/** The three faces stacked in the hero's social-proof cluster. */
-export const FACES = [
-  "/images/avatar-1.jpg",
-  "/images/avatar-2.jpg",
-  "/images/avatar-3.jpg",
-];
 
 export const FOOT_COLUMNS = [
   {

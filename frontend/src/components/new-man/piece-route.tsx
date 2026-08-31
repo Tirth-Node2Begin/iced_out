@@ -7,10 +7,15 @@ import { ProductHero } from "@/components/new-man/product-hero";
 import { ProductPanels } from "@/components/new-man/product-panels";
 import { ProductRelated } from "@/components/new-man/product-related";
 import { ProductReviews } from "@/components/new-man/product-reviews";
-import { pieceForSlug } from "@/components/new-man/product-deck";
+import { DEPTS, pieceForSlug, type Dept } from "@/components/new-man/product-deck";
 
 /**
- * One men's piece, resolved from the catalogue in the browser.
+ * One piece, resolved from the catalogue in the browser.
+ *
+ * `dept` is which floor it is being read on — it decides which audience the
+ * catalogue is filtered to and what the breadcrumb, the back link and the
+ * related tiles point at. It defaults to menswear, which is what this route
+ * did before /new-woman had a detail page of its own.
  *
  * It was a `[slug]` segment whose `generateStaticParams` listed the twenty pieces
  * written into the source — so a product the console added afterwards had no page
@@ -23,19 +28,21 @@ import { pieceForSlug } from "@/components/new-man/product-deck";
  * both are the name slugified, so an old `/new-man/afterdark-hoodie` link and
  * `?slug=afterdark-hoodie` name the same garment.
  */
-export function PieceRoute() {
+export function PieceRoute({ dept = DEPTS.men }: { dept?: Dept } = {}) {
   const slug = useSearchParams().get("slug") ?? "";
-  const { pieces, loading, error, loaded } = useGenderPieces("men");
+  const { pieces, loading, error, loaded } = useGenderPieces(dept.audience, {
+    unisex: dept.unisex,
+  });
 
   const piece = pieceForSlug(pieces, slug);
 
   if (piece) {
     return (
       <main className="nmp" id="main-content">
-        <ProductHero piece={piece} />
+        <ProductHero dept={dept} piece={piece} />
         <ProductPanels piece={piece} />
-        <ProductReviews piece={piece} />
-        <ProductRelated piece={piece} />
+        <ProductReviews dept={dept} piece={piece} />
+        <ProductRelated dept={dept} piece={piece} />
       </main>
     );
   }

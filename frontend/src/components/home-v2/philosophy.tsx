@@ -35,12 +35,32 @@ export function Philosophy() {
           <p className="hv2-eyebrow" data-aos="hv2-rise">
             {philosophy.eyebrow}
           </p>
-          <ScrollWords
-            className="hv2-philosophy__statement"
-            offset={["start 0.85", "center 0.55"]}
-            spread={2.2}
-            text={philosophy.body}
-          />
+
+          {/* Heading and paragraph are wrapped as ONE child of the copy column,
+              which is what lets `justify-content: space-between` still do its
+              top-and-tail job: the eyebrow holds the top line, this block holds
+              the bottom. Three loose children would have been spread evenly and
+              opened a gap between the claim and its own evidence. */}
+          <div className="hv2-philosophy__text">
+            {/* The claim, and the only thing here set in the display weight.
+                Still `ScrollWords`, so it keeps the per-word ink scrub it has
+                always had — the reveal was never the problem, the uniform
+                weight underneath it was. */}
+            <ScrollWords
+              as="h2"
+              className="hv2-philosophy__heading"
+              offset={["start 0.85", "center 0.6"]}
+              spread={2.2}
+              text={philosophy.heading}
+            />
+            {/* The detail, in a real paragraph at a real reading weight. It
+                rises with the section rather than scrubbing word by word: two
+                competing reveals in one column is one too many, and the numbers
+                in here are meant to be read, not performed. */}
+            <p className="hv2-philosophy__body" data-aos="hv2-rise" data-aos-delay="120">
+              {philosophy.body}
+            </p>
+          </div>
         </div>
 
         <motion.div

@@ -2,20 +2,17 @@
 
 declare(strict_types=1);
 
-use Iced\Controller\Console\MediaController;
+use Iced\Controller\System\MediaController;
 use Iced\Kernel\Route;
 
-/** Spec §8.31 — media upload (staff) and the public read that serves it. */
+/**
+ * Spec §8.31 — media, READ half.
+ *
+ * POST /admin/media moved to the CRM backend with the rest of the console. The
+ * storefront only ever reads: the CRM writes the bytes into the shared
+ * MEDIA_ROOT and this serves them to shoppers.
+ */
 return [
-    [
-        'method' => 'POST',
-        'path' => '/admin/media',
-        'handler' => [MediaController::class, 'upload'],
-        'audience' => Route::AUDIENCE_STAFF,
-        'permission' => 'media.upload',
-        'rate_limit' => 'console_write',
-        'name' => 'admin.media.upload',
-    ],
     [
         'method' => 'GET',
         'path' => '/media/{id}',

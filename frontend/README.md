@@ -21,23 +21,39 @@ npm run build
 
 ### Payments
 
-Checkout hands the amount to **Razorpay Checkout** in test mode. Nothing needs
-configuring to try it — the build falls back to Razorpay's own public test key —
-but a deployment should set its own:
+Checkout hands the amount to **Razorpay Checkout**. A key is required — there is
+deliberately no built-in default, because the published demo key everyone reaches
+for is an account with every payment method switched off, and a checkout opened
+against it dies on *"No appropriate payment method found"*.
+
+The key is public (it appears in the page source of every Razorpay checkout there
+is), and there are two places to put it:
 
 ```bash
-# .env.local
+# backend/.env — preferred. Served to the storefront by GET /config/storefront,
+# so changing accounts needs no frontend rebuild. The SECRET belongs here and
+# ONLY here.
+RAZORPAY_KEY_ID=rzp_test_xxxxxxxxxxxx
+RAZORPAY_KEY_SECRET=xxxxxxxxxxxxxxxxxxxxxxxx
+
+# frontend/.env.local — optional override, for a preview pointed at another
+# Razorpay account.
 NEXT_PUBLIC_RAZORPAY_KEY_ID=rzp_test_xxxxxxxxxxxx
 ```
 
 Test instruments: card `4111 1111 1111 1111` with any future expiry and CVV, OTP
 `1234`; or UPI id `success@razorpay`. No money moves on a `rzp_test_` key.
 
-> **Before taking real payments** the order must be created server-side and the
-> `razorpay_signature` verified there. This build is a static export with no
-> server, so it uses the amount-only checkout and treats the browser's success
-> callback as a claim — which is fine for a test key and never fine for a live
-> one. See `src/features/09-payment/razorpay.ts`.
+With the secret set, the API creates the Razorpay order before the gateway opens
+(`POST /checkout/payments/razorpay/order`) and verifies `razorpay_signature`
+afterwards (`POST /checkout/payments/razorpay/verify`) — so the amount is stated
+by the server and the result is checked rather than taken on the browser's word.
+
+> **With no API reachable** the checkout falls back to the amount-only flow: the
+> real gateway still opens and still takes a real test payment, but the success
+> callback is a CLAIM the browser made and the result carries `verified: false`.
+> Fine for a test key; never fine for a live one. See
+> `src/features/09-payment/razorpay.ts`.
 
 ## Structure
 

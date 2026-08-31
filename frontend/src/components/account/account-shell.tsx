@@ -9,6 +9,7 @@ import {
   Package,
   Ticket,
   UserRound,
+  Wallet,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -17,19 +18,21 @@ import type { ReactNode } from "react";
 import { BrandMark } from "@/components/brand/brand-mark";
 import { ProfileIdentity } from "@/components/account/profile-identity";
 import { PageFrame } from "@/components/layout/page-frame";
+import { formatPrice } from "@/features/02-products/utils/format-price";
 import { useProfile } from "@/features/01-users/profile-context";
 import { useOrders } from "@/features/07-orders/orders-context";
 import { useCart } from "@/features/04-cart/cart-context";
 import { isClaimed } from "@/features/10-coupons/vouchers";
 import { useVouchers } from "@/features/10-coupons/vouchers-context";
+import { useWallet } from "@/features/21-wallet/wallet-context";
 import { useWishlist } from "@/features/05-wishlist/wishlist-context";
 
 /**
  * The frame every `/account` route is served in.
  *
- * `title` is the word the page's headline ends on, so each section reads as
- * one sentence — "Your orders", "Your security" — rather than a breadcrumb
- * pasted above a heading.
+ * The headline stays fixed as "Your profile" on every tab. The rail tells the
+ * shopper where they are, while the frame keeps the account identity steady as
+ * they move between orders, addresses, support and security.
  *
  * The rail is two cards rather than a column of links floating on the page:
  * who the session belongs to, then where it can go. `count` is only declared
@@ -42,17 +45,24 @@ import { useWishlist } from "@/features/05-wishlist/wishlist-context";
 const ROOT = "/account/profile";
 
 const LINKS = [
-  { href: ROOT, label: "Profile", title: "profile", icon: UserRound },
-  { href: "/account/orders", label: "Orders", title: "orders", icon: Package, count: "orders" },
+  { href: ROOT, label: "Profile", icon: UserRound },
+  { href: "/account/orders", label: "Orders", icon: Package, count: "orders" },
   /* Under Orders, because that is what it comes from and what it goes back
      into: a return settles into credit here, and the credit is spent on the
-     next order. The count is money the shop owes, so it is worth a number. */
-  { href: "/account/vouchers", label: "Vouchers", title: "vouchers", icon: Ticket, count: "vouchers" },
-  { href: "/account/addresses", label: "Addresses", title: "addresses", icon: MapPin },
-  { href: "/account/feedback", label: "Feedback", title: "feedback", icon: MessageSquareText },
-  { href: "/account/notifications", label: "Notifications", title: "notifications", icon: Bell },
-  { href: "/account/support", label: "Support", title: "support", icon: LifeBuoy },
-  { href: "/account/security", label: "Security", title: "security", icon: LockKeyhole },
+     next order.
+
+     The wallet leads and the vouchers tab follows it, which is the order the
+     money actually travels in now: a return credits the BALANCE, and a voucher
+     is a code that pours into the same balance rather than a thing spent on its
+     own. The rail's number is the balance in rupees — for a menu row about
+     money, what is in it beats how many pieces of paper it came in. */
+  { href: "/account/wallet", label: "Wallet", icon: Wallet, count: "wallet" },
+  { href: "/account/vouchers", label: "Vouchers", icon: Ticket, count: "vouchers" },
+  { href: "/account/addresses", label: "Addresses", icon: MapPin },
+  { href: "/account/feedback", label: "Feedback", icon: MessageSquareText },
+  { href: "/account/notifications", label: "Notifications", icon: Bell },
+  { href: "/account/support", label: "Support", icon: LifeBuoy },
+  { href: "/account/security", label: "Security", icon: LockKeyhole },
 ] as const;
 
 /**
@@ -69,10 +79,6 @@ const HOUSE = [
   { label: "Market", value: "India · INR" },
   { label: "Care", value: "support@iced-out.example" },
 ] as const;
-
-/** Routes with a headline but no rail entry — a return is opened from an order,
-    never from the menu, and without this it inherited "Your account". */
-const EXTRA_TITLES = [{ href: "/account/returns", title: "return" }];
 
 /**
  * Where "go back" goes, for every account screen except the landing one.
@@ -109,18 +115,16 @@ export function AccountShell({ children }: { children: ReactNode }) {
   const { orders } = useOrders();
   const { profile } = useProfile();
   const { vouchers } = useVouchers();
+  const { wallet } = useWallet();
 
   const counts = {
     orders: orders.length,
-    /* Only the ones still waiting to be redeemed — a claimed voucher is a
-       record, not a thing waiting to be used. */
+    wallet: wallet.balance,
+    /* Only the ones still waiting to be added — a voucher already poured into
+       the wallet is a record of where the money came from, not a thing still
+       waiting to be used. */
     vouchers: vouchers.filter((voucher) => !isClaimed(voucher)).length,
   };
-
-  const title =
-    LINKS.find((link) => isCurrent(link.href, pathname))?.title ??
-    EXTRA_TITLES.find((entry) => isCurrent(entry.href, pathname))?.title ??
-    LINKS[0].title;
 
   return (
     <PageFrame
@@ -134,7 +138,7 @@ export function AccountShell({ children }: { children: ReactNode }) {
       ]}
       title={
         <>
-          Your <em>{title}</em>
+          Your <em>profile</em>
         </>
       }
     >
@@ -197,7 +201,12 @@ export function AccountShell({ children }: { children: ReactNode }) {
               <div className="io-side__links">
                 {LINKS.map((link) => {
                   const { href, label, icon: Icon } = link;
-                  const count = "count" in link ? counts[link.count] : undefined;
+                  /* The KEY is kept, not just the number: the wallet's count is
+                     money and the others are tallies, and they are printed
+                     differently. Narrowed once here so the JSX below does not
+                     have to repeat the `in` check to stay typed. */
+                  const countKey = "count" in link ? link.count : undefined;
+                  const count = countKey ? counts[countKey] : undefined;
 
                   return (
                     /* `scroll={false}`: the rail is a tab bar, and a tab bar
@@ -215,7 +224,12 @@ export function AccountShell({ children }: { children: ReactNode }) {
                       {label}
                       {count ? (
                         <span className="io-side__count">
-                          {String(count).padStart(2, "0")}
+                          {/* Money is printed as money; everything else is a
+                              two-digit tally. A balance zero-padded to "04600"
+                              would read as a count of something. */}
+                          {countKey === "wallet"
+                            ? formatPrice(count)
+                            : String(count).padStart(2, "0")}
                         </span>
                       ) : (
                         <span />

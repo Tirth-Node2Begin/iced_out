@@ -153,9 +153,9 @@ export const COLLECTIONS = [
 ] as const;
 
 /**
- * Hover content for the three rail items with real substructure. Keyed by
- * href so a NavItem can look itself up — links with no entry here (About,
- * Contact) just navigate, no panel.
+ * Hover content for the two rail items with real substructure. Keyed by
+ * href so a NavItem can look itself up — links with no entry here (New drop,
+ * About, Contact) just navigate, no panel.
  */
 export type MegaMenuColumn = {
   heading: string;
@@ -210,20 +210,6 @@ export const MEGA_MENU: Record<string, MegaMenuConfig> = {
       tag: "Open archive",
       href: "/collections/view?slug=after-hours",
       image: SHOTS.still,
-    },
-  },
-  "/new-drop": {
-    columns: [
-      {
-        heading: "Collections",
-        links: [{ label: "View all collections", href: "/collections" }, ...collectionLinks],
-      },
-    ],
-    feature: {
-      label: "Drop 001",
-      tag: "320 numbered units",
-      href: "/collections/view?slug=drop-001",
-      image: SHOTS.drop,
     },
   },
 };

@@ -11,6 +11,7 @@ import { useCallback, useEffect, useState } from "react";
 import "@/styles/checkout.css";
 
 import { CheckoutFlow } from "@/features/04-cart/components/checkout-flow";
+import { lockScroll } from "@/lib/scroll-lock";
 
 /**
  * Checkout, as a surface rather than a destination.
@@ -46,6 +47,11 @@ export function CheckoutModal({
   /* Stable, because the flow reports through it from an effect — a new function
      every render would make that effect fire on every render with it. */
   const handleBusy = useCallback((next: boolean) => setBusy(next), []);
+
+  useEffect(() => {
+    if (!open) return;
+    return lockScroll();
+  }, [open]);
 
   /**
    * Back closes it.
@@ -86,6 +92,7 @@ export function CheckoutModal({
         <Dialog.Content
           aria-describedby={undefined}
           className="io-modal io-modal--checkout"
+          data-lenis-prevent
           onEscapeKeyDown={(event) => {
             if (busy) event.preventDefault();
           }}

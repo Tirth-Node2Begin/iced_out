@@ -61,7 +61,10 @@ export const MANIFESTO = {
 
 export const PHILOSOPHY = {
   eyebrow: "Philosophy",
-  body: "Every project is shaped through proportion, light, texture, and spatial balance. We believe great design should feel natural over time, creating environments that are both functional and emotionally connected to everyday life",
+  /* Split at the capture's own sentence break — the transcription is not
+     reworded, only given the heading/paragraph split the section now draws. */
+  heading: "Every project is shaped through proportion, light, texture, and spatial\u00A0balance.",
+  body: "We believe great design should feel natural over time, creating environments that are both functional and emotionally connected to everyday life.",
   main: { src: "/images/home-v2/philosophy-main.jpg", alt: "Two figures in a concrete underpass" },
   inset: { src: "/images/home-v2/philosophy-inset.jpg", alt: "Folded garments in raking light" },
 } as const;
@@ -168,34 +171,10 @@ export const CLIENTS = {
   ],
 } as const;
 
+/* Heading only. The quotes are reviews, and reviews come from `GET /reviews`
+   at render time — see `testimonials.tsx`. */
 export const TESTIMONIALS = {
   heading: ["What our", "clients say"],
-  items: [
-    {
-      index: "01",
-      quote:
-        "The team created a home that feels calm, timeless, and deeply personal. Every detail was thoughtfully considered from start to finish.",
-      name: "Emma Larson",
-      role: "Private residence client",
-      src: "/images/home-v2/person-01.jpg",
-    },
-    {
-      index: "02",
-      quote:
-        "They understood the brief before we could articulate it. The result is a space that still feels considered three years on.",
-      name: "Marco Devlin",
-      role: "Hospitality group",
-      src: "/images/home-v2/person-04.jpg",
-    },
-    {
-      index: "03",
-      quote:
-        "Precise, unhurried, and completely transparent. The material choices alone changed how we use the building every day.",
-      name: "Sara Whitfield",
-      role: "Property developer",
-      src: "/images/home-v2/person-03.jpg",
-    },
-  ],
 } as const;
 
 export const FOOTER = {

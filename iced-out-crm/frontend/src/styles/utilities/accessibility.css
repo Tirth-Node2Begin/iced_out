@@ -1,0 +1,33 @@
+.skip-link:focus-visible {
+  transform: translateY(0);
+}
+
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  border-radius: var(--radius-sm);
+  outline: 2px solid var(--accent-brand);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .signal-strip__track {
+    animation: none !important;
+    transform: none !important;
+  }
+
+  .product-sprite {
+    transform: none !important;
+  }
+}

@@ -1,0 +1,349 @@
+/* =============================================================== the wallet
+   The account's store-credit tab.
+
+   Built on the account chrome rather than beside it: `.io-panel`, `.io-btn`,
+   `.io-badge`, `.io-field` and the `--nh-*` tokens all come from chrome.css,
+   and everything here is the handful of things a ledger needs that a settings
+   screen does not — a balance worth reading across a room, and rows that say
+   which way the money went before they say how much.
+
+   Motion is the same vocabulary as the rest of the account: a short rise on
+   `--nh-ease`, played once on mount. `.io-scope` carries the reduced-motion
+   guard from chrome.css §9, and this whole tab renders inside it, so nothing
+   here repeats it.
+   ========================================================================= */
+
+/* ---- the balance -------------------------------------------------------- */
+/* The one figure the tab exists for, so it is the only thing at this size on
+   the screen. The sheen is a single soft highlight rather than a gradient
+   across the whole card: at 26px the numerals are the light in the panel, and a
+   busy plate behind them makes a balance harder to read, not more valuable. */
+.wa-hero {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  gap: clamp(1.1rem, 2.4vw, 1.75rem);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.wa-hero::after {
+  position: absolute;
+  top: -55%;
+  right: -12%;
+  width: 340px;
+  height: 340px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.055), transparent 68%);
+  content: "";
+  pointer-events: none;
+}
+
+@media (min-width: 820px) {
+  .wa-hero {
+    align-items: center;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}
+
+.wa-hero__label {
+  display: flex;
+  align-items: center;
+  margin: 0 0 12px;
+  color: var(--nh-muted);
+  font-size: 10px;
+  gap: 8px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+/* `font-variant-numeric: tabular-nums` matters more here than anywhere else on
+   the site: this figure changes under the reader — a voucher added, an order
+   placed — and proportional digits make it jump sideways as it does. */
+.wa-hero__amount {
+  display: flex;
+  align-items: baseline;
+  margin: 0;
+  gap: 10px;
+  font-size: clamp(2.4rem, 6vw, 3.4rem);
+  font-weight: 300;
+  font-stretch: 108%;
+  letter-spacing: -0.04em;
+  line-height: 0.95;
+  font-variant-numeric: tabular-nums;
+}
+
+.wa-hero__amount em {
+  color: var(--nh-muted);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 400;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.wa-hero__copy {
+  max-width: 46ch;
+  margin: 12px 0 0;
+  color: var(--nh-muted);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+/* Earned and spent, side by side with the balance on a wide screen and under it
+   on a narrow one. Two figures, because "what has this wallet ever been worth"
+   and "what is left" are different questions and the second one alone reads as
+   the first. */
+.wa-hero__totals {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(120px, 1fr));
+}
+
+.wa-total {
+  display: grid;
+  align-content: start;
+  padding: 13px 15px;
+  border-radius: var(--nh-radius-card);
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.035);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.wa-total dt {
+  color: var(--nh-muted-2);
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.wa-total dd {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.wa-total--in dd {
+  color: #79d4a3;
+}
+
+/* ---- adding a code ------------------------------------------------------ */
+.wa-add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.wa-add .io-field {
+  flex: 1 1 220px;
+}
+
+/* The code itself is monospaced and tracked out. A voucher code is read a
+   character at a time — off a screen, out of an email — and `IOV072` in the
+   body face is one word the eye has to take apart. */
+.wa-add input {
+  font-family: var(--font-mono);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.wa-add__error {
+  flex: 1 0 100%;
+  margin: 0;
+  color: #ffb4b4;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* Vouchers already on the account, offered as one press each — because asking
+   someone to retype a code the shop already knows they hold is a form for the
+   shop's benefit, not theirs. */
+.wa-pending {
+  display: grid;
+  margin-top: 14px;
+  gap: 8px;
+}
+
+.wa-pending__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: var(--nh-radius-card);
+  gap: 12px;
+  background: var(--nh-card-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  transition:
+    background-color 0.3s var(--nh-ease),
+    transform 0.3s var(--nh-ease);
+}
+
+.wa-pending__row:hover {
+  background: #1f2224;
+  transform: translateY(-1px);
+}
+
+.wa-pending__code {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  letter-spacing: 0.12em;
+}
+
+.wa-pending__what {
+  flex: 1 1 160px;
+  min-width: 0;
+  color: var(--nh-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.wa-pending__amount {
+  font-size: 14px;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- the statement ------------------------------------------------------ */
+.wa-month {
+  display: flex;
+  align-items: center;
+  padding: 11px 16px;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--nh-muted);
+  font-size: 9.5px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  box-shadow: inset 0 -1px 0 0 var(--nh-hairline);
+}
+
+.wa-month:not(:first-child) {
+  box-shadow:
+    inset 0 1px 0 0 var(--nh-hairline),
+    inset 0 -1px 0 0 var(--nh-hairline);
+}
+
+/* A ledger row. Grid rather than a table because the middle column is the only
+   one that may wrap, and a table would either let the amount wrap with it or
+   force the note onto one crushed line. */
+.wa-entry {
+  display: grid;
+  align-items: center;
+  padding: 14px 16px;
+  gap: 14px;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  box-shadow: inset 0 -1px 0 0 rgba(255, 255, 255, 0.07);
+  /* Staggered by index — see `--i` in the component. Capped there, not here:
+     a fortieth row arriving three seconds late is an animation nobody asked
+     for. */
+  animation: wa-entry-in 0.34s var(--nh-ease) both;
+  animation-delay: calc(var(--i, 0) * 32ms);
+}
+
+.wa-entry:last-child {
+  box-shadow: none;
+}
+
+@keyframes wa-entry-in {
+  from {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+}
+
+/* The glyph says which way the money went before any of the words do, and it is
+   backed by the sign and by the colour — three signals, because colour alone is
+   not one everybody has. */
+.wa-entry__glyph {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--nh-muted);
+  place-items: center;
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.wa-entry[data-direction="credit"] .wa-entry__glyph {
+  background: rgba(86, 190, 133, 0.13);
+  color: #79d4a3;
+  box-shadow: inset 0 0 0 1px rgba(86, 190, 133, 0.28);
+}
+
+.wa-entry__title {
+  display: block;
+  font-size: 13px;
+  letter-spacing: -0.005em;
+}
+
+.wa-entry__note {
+  display: block;
+  margin-top: 3px;
+  color: var(--nh-muted-2);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+.wa-entry__money {
+  display: grid;
+  gap: 3px;
+  justify-items: end;
+  text-align: right;
+}
+
+.wa-entry__amount {
+  font-size: 14px;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.wa-entry[data-direction="credit"] .wa-entry__amount {
+  color: #79d4a3;
+}
+
+/* What the balance stood at afterwards. The spine of a statement: without it
+   the reader has to add the column up to answer "so what did I have then". */
+.wa-entry__after {
+  color: var(--nh-muted-2);
+  font-size: 10.5px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 560px) {
+  .wa-entry {
+    grid-template-columns: 28px minmax(0, 1fr) auto;
+    gap: 11px;
+    padding: 13px 13px;
+  }
+
+  .wa-entry__glyph {
+    width: 28px;
+    height: 28px;
+    border-radius: 9px;
+  }
+}
+
+/* The statement panel is `--flush` so its rows can run edge to edge; the header
+   inside it therefore has to bring its own padding back. */
+.wa-statement__head {
+  margin: 0;
+  padding: 18px 18px 14px;
+}
+
+/* Matches `.co-spin` in checkout.css — the same rate, so a wallet adding a
+   voucher and a checkout taking a payment do not read as two different waits.
+   The reduced-motion guard on `.io-scope` stops it for anyone who asked. */
+.wa-spin {
+  animation: wa-spin 0.9s linear infinite;
+}
+
+@keyframes wa-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

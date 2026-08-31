@@ -43,6 +43,121 @@
   --nh-surface-3: #0a0b0c;
 }
 
+/* Checkout can open from route groups that deliberately do not load
+   `chrome.css` (notably `/new-man`), so the modal primitives it depends on
+   live here too. On chrome routes these match the shared rules; elsewhere they
+   are the difference between a fixed dialog with an internal scroller and a
+   tall block that lets the page behind it move. */
+.io-modal__overlay,
+.io-modal {
+  --nh-surface-2: #16181a;
+  --nh-card-bg: #1a1c1e;
+  --nh-ink: #f1f3f3;
+  --nh-ink-soft: #d5d9da;
+  --nh-muted: #8f9598;
+  --nh-muted-2: #6e7477;
+  --nh-solid-bg: #f2f4f4;
+  --nh-solid-fg: #0d0e10;
+  --nh-solid-bg-hover: #ffffff;
+  --nh-ghost-bg: rgba(255, 255, 255, 0.08);
+  --nh-ghost-bg-hover: rgba(255, 255, 255, 0.15);
+  --nh-hairline: rgba(255, 255, 255, 0.13);
+  --nh-radius-lg: 22px;
+  --nh-radius-card: 16px;
+  --nh-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.io-modal__overlay {
+  position: fixed;
+  z-index: 140;
+  inset: 0;
+  background: rgba(6, 7, 8, 0.62);
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+  animation: io-fade-in 0.32s var(--nh-ease);
+}
+
+.io-modal {
+  position: fixed;
+  z-index: 141;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  width: min(540px, calc(100vw - 32px));
+  max-height: min(640px, calc(100vh - 48px));
+  flex-direction: column;
+  border-radius: var(--nh-radius-lg);
+  background: var(--nh-surface-2);
+  color: var(--nh-ink);
+  font-family: var(--font-archivo), "Archivo", system-ui, sans-serif;
+  letter-spacing: -0.01em;
+  transform: translate(-50%, -50%);
+  box-shadow:
+    inset 0 0 0 1px var(--nh-hairline),
+    0 44px 110px -34px rgba(0, 0, 0, 0.96);
+  animation: io-modal-in 0.4s var(--nh-ease);
+}
+
+@keyframes io-modal-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% + 14px)) scale(0.98);
+  }
+}
+
+.io-modal__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 22px 22px 18px;
+  gap: 16px;
+  box-shadow: inset 0 -1px 0 0 var(--nh-hairline);
+}
+
+.io-modal__title {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+
+.io-modal__note {
+  max-width: 46ch;
+  margin: 6px 0 0;
+  color: var(--nh-muted);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.io-modal__close {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: none;
+  color: var(--nh-muted);
+  cursor: pointer;
+  transition:
+    background-color 0.35s var(--nh-ease),
+    color 0.35s var(--nh-ease);
+}
+
+.io-modal__close:hover {
+  background: var(--nh-ghost-bg);
+  color: var(--nh-ink);
+}
+
+.io-modal__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 20px 22px;
+}
+
 .io-modal.io-modal--checkout {
   width: min(1180px, calc(100vw - 32px));
   max-height: min(880px, calc(100vh - 40px));
@@ -2023,4 +2138,93 @@
   .co-field :is(input, select) {
     transition-duration: 0.01ms;
   }
+}
+
+/* ------------------------------------------------------ spending the wallet */
+/* The switch that puts store credit on the order, in the summary rather than in
+   the payment step: it changes the total, the total is here, and a control that
+   moves a figure two panels away is one people press twice to see what it did.
+
+   Built on the `.co-choice` grammar — the same 34px glyph, the same card, the
+   same visually-hidden input — because it is the same kind of thing: a money
+   decision made by pressing a row. It is a checkbox rather than a radio, so the
+   selected state is `[data-on]` rather than `[data-selected]`. */
+.co-wallet {
+  position: relative;
+  display: grid;
+  align-items: center;
+  margin-top: 12px;
+  padding: 13px 15px;
+  border-radius: var(--nh-radius-card);
+  gap: 13px;
+  grid-template-columns: 32px minmax(0, 1fr);
+  background: var(--nh-card-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  cursor: pointer;
+  transition:
+    background-color 0.3s var(--nh-ease-soft),
+    box-shadow 0.3s var(--nh-ease-soft);
+}
+
+.co-wallet:hover {
+  background: #1f2224;
+}
+
+/* On is the green of every other "money coming off" figure in this summary —
+   `.io-off` on the discount row — so the eye reads the switch and the deduction
+   it caused as one thing. */
+.co-wallet[data-on] {
+  box-shadow: inset 0 0 0 1px rgba(86, 190, 133, 0.36);
+}
+
+.co-wallet input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.co-wallet:has(input:focus-visible) {
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.6);
+}
+
+.co-wallet:has(input:disabled) {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.co-wallet__glyph {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: var(--nh-ghost-bg);
+  color: var(--nh-ink-soft);
+  place-items: center;
+  transition:
+    background-color 0.3s var(--nh-ease-soft),
+    color 0.3s var(--nh-ease-soft);
+}
+
+.co-wallet[data-on] .co-wallet__glyph {
+  background: rgba(86, 190, 133, 0.16);
+  color: #79d4a3;
+}
+
+.co-wallet__body {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.co-wallet__body strong {
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+}
+
+.co-wallet__body small {
+  color: var(--nh-muted);
+  font-size: 11.5px;
+  line-height: 1.45;
 }

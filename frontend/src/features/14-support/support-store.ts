@@ -2,10 +2,9 @@
 
 import { useCallback, useMemo, useSyncExternalStore } from "react";
 
-import { adminClient, customerClient } from "@/api/clients";
-import { refreshQueues } from "@/features/15-dashboard/dashboard-api";
+import { customerClient } from "@/api/clients";
 import type { SupportQuery } from "@/features/14-support/data/support-queries";
-import { createRemoteRecord, createRemoteStore } from "@/lib/remote-store";
+import { createRemoteRecord } from "@/lib/remote-store";
 
 /**
  * Support, on both sides of the desk.
@@ -16,22 +15,20 @@ import { createRemoteRecord, createRemoteStore } from "@/lib/remote-store";
  * real customer sent reached nobody, and a reply an operator wrote went to a
  * record only they could see.
  *
- * Two audiences, two endpoints, one table:
+ * THE SHOPPER'S HALF ONLY. The desk an operator answers from is
+ * `GET /admin/support/queries`, and that lives in the CRM now — with its own
+ * copy of this file holding the other half. Two audiences, two deployments, one
+ * `support_queries` table.
  *
- *   the shopper — `GET /me/support` (their threads, plus the topics they may
- *                 pick) and `POST /support/queries`
- *   the console — `GET /admin/support/queries`, with `resolve` and `reopen`
+ * What is left here:
+ *
+ *   `GET /me/support`      their threads, plus the topics they may pick
+ *   `POST /support/queries` a new question
  *
  * The topics come from the server because they are a settings vocabulary the
- * console owns: one added there appears in the shopper's dropdown without a
- * deploy, and the form cannot offer one the server would refuse.
+ * CRM owns: one added there appears in the shopper's dropdown without a deploy,
+ * and the form cannot offer one the server would refuse.
  */
-
-/** The console's queue. Shared by every screen in `/admin/support`. */
-const consoleStore = createRemoteStore<SupportQuery>(async () => {
-  const response = await adminClient.get<{ data: SupportQuery[] }>("/admin/support/queries");
-  return response.data.data;
-});
 
 /**
  * The shopper's own threads AND the topics they may pick, which arrive together
@@ -47,48 +44,6 @@ const inboxRecord = createRemoteRecord<Inbox>(async () => {
   const response = await customerClient.get<{ data: Inbox }>("/me/support");
   return response.data.data;
 });
-
-/* --------------------------------------------------------------- the console */
-
-export type SupportDesk = {
-  queries: SupportQuery[];
-  ready: boolean;
-  loading: boolean;
-  error: string | null;
-  /** Answering IS resolving — the store has one verb here, not two. */
-  resolve: (reference: string, reply: string) => Promise<void>;
-  /** Undo, for a query closed too early. The reply written so far is kept. */
-  reopen: (reference: string) => Promise<void>;
-};
-
-export function useSupportDesk(): SupportDesk {
-  const state = useSyncExternalStore(
-    consoleStore.subscribe,
-    consoleStore.getSnapshot,
-    consoleStore.getServerSnapshot,
-  );
-
-  const act = useCallback(async (reference: string, verb: string, body?: unknown) => {
-    await adminClient.post(
-      `/admin/support/queries/${encodeURIComponent(reference)}/${verb}`,
-      body ?? {},
-    );
-    /* And the queue counts, which the rail's badges read. */
-    await Promise.all([consoleStore.refresh(), refreshQueues()]);
-  }, []);
-
-  return useMemo(
-    () => ({
-      queries: state.data,
-      ready: state.loaded,
-      loading: state.loading,
-      error: state.error,
-      resolve: (reference, reply) => act(reference, "resolve", { reply }),
-      reopen: (reference) => act(reference, "reopen"),
-    }),
-    [act, state],
-  );
-}
 
 /* --------------------------------------------------------------- the shopper */
 
@@ -133,12 +88,18 @@ export function useSupportInbox(enabled = true): SupportInbox {
 
       const query = response.data.data;
 
-      /* Re-read so the reference the confirmation quotes is the record the server
-         actually wrote, and the console's own queue is dropped so an operator
-         watching it sees the new thread on its next read rather than after a
-         manual reload. */
+      /* Re-read so the reference the confirmation quotes is the record the
+         server actually wrote.
+
+         This used to drop the console's own queue as well, so an operator
+         watching it saw the new thread without reloading. That call cannot do
+         anything from here any more: the desk is a different origin in a
+         different tab with its own module memory, so there is no store in this
+         process to invalidate. The CRM re-reads `/admin/support/queries` on its
+         next load and picks the thread up then — which is what actually
+         happened before too, unless the operator and the shopper were the same
+         person in the same browser. */
       await inboxRecord.reload();
-      consoleStore.reset();
 
       return query;
     },

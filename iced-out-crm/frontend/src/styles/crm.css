@@ -1,0 +1,565 @@
+/* ============================================================================
+   ICED_OUT CRM — the relationship modules
+
+   What the operations console never had: the pipeline board, the task queue,
+   and the storefront import.
+
+   Every token here comes from shell.css. Nothing declares a colour of its own —
+   the tones on a card, a flag or a column head are the same mint/amber/rose/sky
+   the rest of the console uses, and they land on the GLYPH or on text, never on
+   a fill. That rule is what keeps a board of forty cards reading as one surface.
+
+   ORDER
+     1  the pipeline board
+     2  the task list
+     3  the import sheet
+     4  dialogs
+     5  responsive
+   ========================================================================= */
+
+/* ========================================================= 1. the board */
+/* A horizontal run of columns that scrolls INSIDE itself, so the page's own
+   scroll stays vertical. A board that scrolls the page sideways takes the rail
+   and the bar with it. */
+.crm-board {
+  position: relative;
+  display: grid;
+  gap: 14px;
+  grid-auto-columns: minmax(268px, 1fr);
+  grid-auto-flow: column;
+  margin-top: var(--aui-stack);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding-bottom: 12px;
+}
+
+.crm-col {
+  display: flex;
+  min-height: 220px;
+  flex-direction: column;
+  border-radius: var(--nh-radius-lg);
+  background: var(--nh-surface-2);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline-soft);
+  transition: box-shadow 200ms var(--nh-ease-soft);
+}
+
+/* The drop target. The edge brightens and nothing moves — no lift, no scale,
+   and no colour, because a column that turns green on hover has told you it is
+   a Won column when it is only a column you are over. */
+.crm-col[data-over="true"] {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+}
+
+.crm-col__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex: none;
+  gap: 10px;
+  padding: 14px 14px 10px;
+}
+
+.crm-col__head p {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--nh-ink);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.crm-col__head p span {
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--nh-muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  text-align: center;
+}
+
+.crm-col__head b {
+  color: var(--nh-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+/* The two terminal columns are the only ones that carry a tone, and it is on
+   the HEADING — a whole column tinted mint would drown the cards in it. */
+.crm-col[data-kind="WON"] .crm-col__head p {
+  color: var(--aui-mint);
+}
+
+.crm-col[data-kind="LOST"] .crm-col__head p {
+  color: var(--aui-muted, var(--nh-muted));
+}
+
+.crm-col__body {
+  display: flex;
+  min-height: 120px;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 10px 12px;
+  scrollbar-width: thin;
+}
+
+.crm-col__empty {
+  padding: 18px 4px;
+  color: var(--nh-muted-2);
+  font-size: 11.5px;
+  text-align: center;
+}
+
+/* ---- 1.1 the card -------------------------------------------------------- */
+.crm-card {
+  position: relative;
+  display: grid;
+  gap: 7px;
+  padding: 12px;
+  border-radius: var(--nh-radius-card);
+  background: var(--nh-card-bg);
+  box-shadow:
+    inset 0 0 0 1px var(--nh-hairline-soft),
+    0 1px 2px rgba(0, 0, 0, 0.35);
+  cursor: grab;
+  transition:
+    box-shadow 200ms var(--nh-ease-soft),
+    opacity 200ms var(--nh-ease-soft);
+}
+
+.crm-card:hover {
+  box-shadow:
+    inset 0 0 0 1px var(--nh-hairline),
+    0 1px 2px rgba(0, 0, 0, 0.4),
+    0 12px 28px -18px rgba(0, 0, 0, 0.9);
+}
+
+.crm-card:active {
+  cursor: grabbing;
+}
+
+/* A settled deal is history. It stays legible and stops competing for the eye
+   with the ones still in play. */
+.crm-card[data-settled="true"] {
+  opacity: 0.72;
+}
+
+.crm-card[data-settled="true"]:hover {
+  opacity: 1;
+}
+
+/* The whole card opens the deal, but the hit area is a real button underneath
+   it rather than a click handler on the article: a div that opens a dialog is
+   invisible to a keyboard, and `draggable` on a <button> is not reliable across
+   browsers. This is the arrangement that gives both. */
+.crm-card__open {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.crm-card__open:focus-visible {
+  box-shadow: inset 0 0 0 2px rgba(241, 243, 243, 0.4);
+}
+
+.crm-card__title {
+  color: var(--nh-ink);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.35;
+}
+
+.crm-card__who {
+  color: var(--nh-muted);
+  font-size: 11.5px;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.crm-card__foot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 1px;
+}
+
+.crm-card__foot b {
+  color: var(--nh-ink);
+  font-size: 13.5px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.crm-card__chance {
+  color: var(--nh-muted-2);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.crm-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  margin-top: 2px;
+}
+
+.crm-card__meta span {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--nh-muted);
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.crm-card__meta span[data-tone="task"] {
+  color: var(--aui-amber);
+}
+
+/* ====================================================== 2. the task list */
+.crm-tasks {
+  display: grid;
+  gap: 1px;
+}
+
+.crm-task {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 12px;
+  border-radius: var(--nh-radius-card);
+  transition: background-color 200ms var(--nh-ease-soft);
+}
+
+.crm-task:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.crm-tasks--tight .crm-task {
+  padding-block: 9px;
+}
+
+.crm-task__glyph {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  place-items: center;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--nh-muted);
+}
+
+/* Colour on the glyph, never on the row. A whole row tinted rose reads as an
+   error state; a rose glyph reads as "this one is late". */
+.crm-task[data-overdue="true"] .crm-task__glyph {
+  color: var(--aui-rose);
+}
+
+.crm-task[data-done="true"] .crm-task__glyph {
+  color: var(--aui-mint);
+}
+
+.crm-task__body {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 2px;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.crm-task__body strong {
+  color: var(--nh-ink);
+  font-size: 12.5px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.crm-task__body small {
+  color: var(--nh-muted);
+  font-size: 10.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A finished task keeps its words — struck through, not greyed to nothing. The
+   outcome written on it is often the only record of what happened. */
+.crm-task[data-done="true"] .crm-task__body strong {
+  color: var(--nh-muted);
+  text-decoration: line-through;
+  text-decoration-color: var(--nh-muted-2);
+}
+
+.crm-task__flag {
+  flex: none;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(239, 122, 128, 0.14);
+  color: var(--aui-rose);
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.crm-task__flag[data-tone="high"] {
+  background: rgba(232, 183, 101, 0.14);
+  color: var(--aui-amber);
+}
+
+.crm-task__flag[data-tone="quiet"] {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--nh-muted);
+}
+
+/* ==================================================== 3. the import sheet */
+.crm-import {
+  display: grid;
+  max-height: 46vh;
+  gap: 1px;
+  margin-top: 6px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
+}
+
+.crm-import__row {
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: var(--nh-radius-card);
+  transition: background-color 200ms var(--nh-ease-soft);
+}
+
+.crm-import__row:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.crm-import__spend {
+  display: grid;
+  flex: none;
+  gap: 1px;
+  margin-left: auto;
+  text-align: right;
+}
+
+.crm-import__spend b {
+  color: var(--nh-ink);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.crm-import__spend small {
+  color: var(--nh-muted-2);
+  font-size: 9.5px;
+}
+
+/* ============================================================= 4. dialogs */
+/* The destructive verb sits at the FAR LEFT of the footer, with the confirm
+   pair on the right. Putting it beside "Save" is how a mis-click removes a
+   deal somebody spent three weeks on. */
+.crm-dialog__delete {
+  margin-right: auto;
+}
+
+/* ========================================================== 5. responsive */
+@media (max-width: 780px) {
+  .crm-board {
+    grid-auto-columns: minmax(240px, 78vw);
+  }
+
+  .crm-task {
+    flex-wrap: wrap;
+  }
+
+  .crm-task__body {
+    flex-basis: 100%;
+    order: 3;
+  }
+}
+
+/* A board is a pointer interaction. Below the shell breakpoint the columns are
+   still readable and still scroll — dragging a card on a touch screen is not
+   the way anyone moves a deal, so the stage select on the card's own dialog is
+   the route there. */
+@media (pointer: coarse) {
+  .crm-card {
+    cursor: pointer;
+  }
+}
+
+/* ====================================================== 6. record screens */
+/* Three panels across on a wide screen, stacked below it. Not a ¼ / ¾ split:
+   the details, the orders and the deals are three answers of similar weight,
+   and giving one of them three quarters of the width would say the other two
+   are footnotes. */
+.crm-detail {
+  display: grid;
+  gap: var(--aui-inset);
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  align-items: start;
+}
+
+/* A row of linked records — an order, a deal, a person at a company. The whole
+   row is the link; the status chip rides at its end. */
+.crm-linked {
+  display: grid;
+  gap: 1px;
+}
+
+.crm-linked a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--nh-radius-card);
+  transition: background-color 200ms var(--nh-ease-soft);
+}
+
+.crm-linked a:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.crm-linked span {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 1px;
+}
+
+.crm-linked strong {
+  color: var(--nh-ink);
+  font-size: 12.5px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.crm-linked small {
+  color: var(--nh-muted);
+  font-size: 10.5px;
+}
+
+.crm-linked b {
+  flex: none;
+  color: var(--nh-ink-soft);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+/* An inline link inside a detail list — a company name, a customer id. */
+.aui-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--nh-ink);
+  text-decoration-color: transparent;
+  text-underline-offset: 3px;
+  transition: text-decoration-color 200ms var(--nh-ease-soft);
+}
+
+.aui-link:hover {
+  text-decoration: underline;
+  text-decoration-color: var(--nh-muted);
+}
+
+.aui-link svg {
+  color: var(--nh-muted);
+}
+
+/* ------------------------------------------------------------------ notes */
+.crm-note-form {
+  display: grid;
+  gap: 8px;
+  justify-items: end;
+  margin-bottom: 14px;
+}
+
+.crm-note-form textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: var(--nh-radius-card);
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline-soft);
+  color: var(--nh-ink);
+  font-size: 12.5px;
+  resize: vertical;
+  transition: box-shadow 200ms var(--nh-ease-soft);
+}
+
+.crm-note-form textarea::placeholder {
+  color: var(--nh-muted-2);
+}
+
+.crm-note-form textarea:focus {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+  outline: none;
+}
+
+.crm-notes {
+  display: grid;
+  gap: 8px;
+}
+
+.crm-note {
+  padding: 11px 13px;
+  border-radius: var(--nh-radius-card);
+  background: rgba(255, 255, 255, 0.03);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline-soft);
+}
+
+/* A pinned note is the one fact that must survive scrolling. It gets a brighter
+   edge, not a fill — the same rule the rest of the console follows. */
+.crm-note[data-pinned="true"] {
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.crm-note p {
+  color: var(--nh-ink-soft);
+  font-size: 12.5px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.crm-note footer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.crm-note footer span {
+  flex: 1;
+  color: var(--nh-muted-2);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+
+/* The pin reads as ON when the note is pinned, and the tone is the only thing
+   that says so — the glyph is the same either way. */
+.crm-note[data-pinned="true"] footer .aui-iconbtn:first-of-type {
+  color: var(--aui-amber);
+}

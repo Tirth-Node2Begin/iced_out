@@ -12,40 +12,12 @@ import {
   type Piece,
   type SortValue,
 } from "@/components/new-man/data";
-import { spellCount } from "@/components/gender/data";
+import { pageRun, spellCount } from "@/components/gender/data";
 import { useGenderPieces } from "@/components/gender/use-pieces";
 import { FilterBar } from "@/components/new-man/filter-bar";
 import { ProductGrid } from "@/components/new-man/product-grid";
 import { QuickAdd } from "@/components/new-man/quick-add";
 import { Reveal, SplitHeading } from "@/components/new-home/motion-primitives";
-
-/**
- * The run of page numbers to draw: always the first and the last, always the
- * current one and its two neighbours, and a single gap marker standing in for
- * whatever falls between. Seventeen pieces is three pages, so nothing is
- * elided today — the window is here because the catalogue is a thing an
- * operator adds to, and a bar that grows one button per page stops fitting.
- */
-function pageRun(current: number, count: number): Array<number | "gap"> {
-  if (count <= 7) return Array.from({ length: count }, (_, i) => i + 1);
-
-  const wanted = [1, count, current - 1, current, current + 1].filter(
-    (n) => n >= 1 && n <= count,
-  );
-  const pages = [...new Set(wanted)].sort((a, b) => a - b);
-
-  const run: Array<number | "gap"> = [];
-  pages.forEach((n, i) => {
-    const prev = pages[i - 1];
-    if (i > 0 && n - prev > 1) {
-      /* A gap of exactly one is not worth a marker — "1 … 3" costs the same
-         width as "1 2 3" and hides a page instead of offering it. */
-      run.push(n - prev === 2 ? prev + 1 : "gap");
-    }
-    run.push(n);
-  });
-  return run;
-}
 
 /**
  * 03 — the men's catalogue: section head → sticky filter bar → product grid.

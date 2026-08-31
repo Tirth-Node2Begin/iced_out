@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Iced\Controller\Customer\OrderController;
+use Iced\Controller\Customer\WalletController;
 use Iced\Controller\Customer\ProfileController;
 use Iced\Kernel\Route;
 
@@ -70,6 +71,27 @@ return [
         'method' => 'GET', 'path' => '/me/vouchers',
         'handler' => [OrderController::class, 'vouchers'],
         'audience' => Route::AUDIENCE_CUSTOMER, 'name' => 'me.vouchers.index',
+    ],
+
+    /* The wallet. Store credit stopped being a coupon and became a balance —
+       see WalletService — so it reads and tops up here rather than through the
+       cart's redemption path. Spending it is NOT an endpoint: credit only ever
+       leaves a wallet inside the place-order transaction, weighed against an
+       order being created in the same breath. */
+    [
+        'method' => 'GET', 'path' => '/me/wallet',
+        'handler' => [WalletController::class, 'show'],
+        'audience' => Route::AUDIENCE_CUSTOMER, 'name' => 'me.wallet.show',
+    ],
+    [
+        'method' => 'POST', 'path' => '/me/wallet/redeem',
+        'handler' => [WalletController::class, 'redeem'],
+        'audience' => Route::AUDIENCE_CUSTOMER,
+        // A double-tap on a slow connection must not try to add the code twice.
+        'idempotent' => true,
+        'rate_limit' => 'payments',
+        'name' => 'me.wallet.redeem',
+        'rules' => ['code' => 'required|string|min:3|max:40'],
     ],
 
     $customer('GET', '/me/addresses', 'addresses', 'me.addresses.index'),

@@ -22,7 +22,14 @@ export function ReturnDetail({ item }: { item: CustomerReturn }) {
      from the live catalogue rather than from anything stored on the return. */
   const { data: catalogue } = useCatalog();
 
-  const settled = item.status === "Voucher issued" || item.status === "Exchange on its way";
+  /* Three settled words, not two. A return used to end as "Voucher issued";
+     it now ends as "Credited to wallet", and rows settled before the wallet
+     existed keep the word they were settled with — see migration 0027. All
+     three mean the same thing to this screen: the return is done. */
+  const settled =
+    item.status === "Credited to wallet" ||
+    item.status === "Voucher issued" ||
+    item.status === "Exchange on its way";
   const swap = item.outcome === "Exchange" && Boolean(item.replacement);
   const balance = swap ? balanceOf(item.amount, item.replacement, catalogue) : null;
 
@@ -121,15 +128,15 @@ export function ReturnDetail({ item }: { item: CustomerReturn }) {
                   ? `${item.replacement} sent`
                   : `${item.replacement} reserved`
                 : settled
-                  ? "Voucher issued"
-                  : "Voucher on the way"}
+                  ? "Credited to your wallet"
+                  : "Credit on the way"}
             </strong>
             <small>
               {swap
                 ? balance?.customerSentence
                 : settled
-                  ? `${formatPrice(item.amount)} on your account as ${item.destination}`
-                  : "Issued as soon as your item reaches us"}
+                  ? `${formatPrice(item.amount)} is in your wallet — it comes off your next order, and whatever a small order does not use stays there.`
+                  : "Credited as soon as your item reaches us"}
             </small>
           </p>
         </div>

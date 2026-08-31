@@ -68,6 +68,7 @@ function pieceOf(product: Product): Piece {
        corner chip should say something, and "Heavyweight fleece" is better than
        an empty pill. */
     tag: product.badge || product.category || "Drop 001",
+    collection: product.collection || undefined,
     price: product.price,
     compareAt: product.compareAtPrice,
     crop: CROP_FOR_POSITION[product.imagePosition] ?? "hoodie",
@@ -80,14 +81,45 @@ function pieceOf(product: Product): Piece {
 }
 
 /**
+ * The catalogue piece a lookbook pin is captioning, matched on the name it shows.
+ *
+ * A pin used to carry its own `slug`, and that slug was one of four storefront
+ * fixtures written into the copy deck: the pin reading "Underpass Shell ·
+ * ₹16,200" linked to `bone-utility-overshirt`, so tapping it opened a different
+ * garment at a different price. The name a pin puts on screen is the only thing
+ * about it a shopper can check, so it is the thing that resolves the link.
+ *
+ * Returns `undefined` while the catalogue is still in flight, and for a pin
+ * naming a piece that has since been renamed or retired — callers send those to
+ * the listing rather than to a product page that is not there.
+ */
+export function pieceForPin(pieces: Piece[], pin: { name: string }) {
+  const wanted = pin.name.trim().toLowerCase();
+  return pieces.find((piece) => piece.name.trim().toLowerCase() === wanted);
+}
+
+/**
  * The published catalogue for one audience, as tiles.
  *
- * `men` and `women` both include `unisex`, which is the rule the whole storefront
- * uses (see `matchesDestination`) — a piece cut for everybody belongs on both
- * pages, and duplicating it in the data to achieve that is what the old fixture
- * did.
+ * `unisex` decides whether pieces cut for everybody count as part of that
+ * audience. It defaults to true, which is the rule the rest of the storefront
+ * applies (see `matchesDestination`) — a piece cut for everybody belongs on
+ * both pages, and duplicating it in the data to achieve that is what the old
+ * fixture did.
+ *
+ * /new-woman opts out. That floor is a womenswear edit rather than "everything
+ * a woman could buy": with `unisex` on, seven of its eighteen tiles were the
+ * same garments, under the same names, that the men's grid was showing — so the
+ * two departments read as one catalogue shown twice. Every category has a
+ * genuine women's cut behind it (a Bone Long Coat against the men's Bone Field
+ * Jacket, a Washed Crop Hoodie against the Gravel Wash Hoodie), which is what
+ * makes narrowing it possible without leaving a filter that matches nothing.
  */
-export function useGenderPieces(audience: "men" | "women"): {
+export function useGenderPieces(
+  audience: "men" | "women",
+  /** whether pieces cut for everybody count as part of this audience */
+  { unisex = true }: { unisex?: boolean } = {},
+): {
   pieces: Piece[];
   loading: boolean;
   error: string | null;
@@ -98,9 +130,13 @@ export function useGenderPieces(audience: "men" | "women"): {
   const pieces = useMemo(
     () =>
       data
-        .filter((product) => product.audience === audience || product.audience === "unisex")
+        .filter(
+          (product) =>
+            product.audience === audience ||
+            (unisex && product.audience === "unisex"),
+        )
         .map(pieceOf),
-    [audience, data],
+    [audience, data, unisex],
   );
 
   return { pieces, loading, error, loaded };

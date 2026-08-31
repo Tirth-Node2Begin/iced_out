@@ -614,65 +614,117 @@
 }
 
 /* ========================================================================== */
-/* 6 · THE FOOT PILL — shadcn Button, re-skinned                              */
+/* 6 · THE PAGER — shadcn Button, re-skinned                                  */
 /* ========================================================================== */
 
-.gxd-foot {
+/**
+ * The release, eight tiles at a time.
+ *
+ * It replaces a single foot pill that read "View all 20 pieces" and left the
+ * page for an unfiltered collection view — so the filter rail above could
+ * narrow the grid but never the thing you left for. The steps are the filter's
+ * pills at the same size and weight, because they are the same kind of control
+ * on the same page: pick which of these tiles I am looking at.
+ */
+.gxd-pager {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   justify-content: center;
+  gap: 6px;
   margin-top: clamp(1.75rem, 3vw, 2.75rem);
 }
 
-.gxd-foot .gxd-pill {
-  height: 44px;
-  padding: 0 8px 0 24px;
-  gap: 0.85rem;
+.gxd-pager__pages {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0.35rem;
+}
+
+/* one rule for both kinds of step — the numbers and the two directions differ
+   only in what sits inside them */
+.gxd-pager .gxd-pager__step,
+.gxd-pager .gxd-pager__page {
+  height: 34px;
+  min-width: 34px;
+  padding: 0 14px;
+  gap: 0.5rem;
   border: 0;
   border-radius: var(--gxd-radius-pill);
   background: transparent;
   box-shadow: inset 0 0 0 1px var(--nh-hairline);
-  color: var(--nh-ink);
+  color: var(--nh-muted);
   font-family: inherit;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 400;
-  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
   transition:
     background-color 0.3s var(--nh-ease-soft),
     color 0.3s var(--nh-ease-soft);
 }
 
-.gxd-foot .gxd-pill:hover {
+/* a number is a square pill; the padding above is for the worded steps */
+.gxd-pager .gxd-pager__page {
+  padding: 0 8px;
+}
+
+.gxd-pager .gxd-pager__step:hover:not(:disabled),
+.gxd-pager .gxd-pager__page:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--nh-ink);
+}
+
+/* the page you are on inverts — the same move the filter's selected step makes,
+   so "which one is live" reads identically in both rails */
+.gxd-pager .gxd-pager__page[data-on="true"] {
   background: var(--nh-solid-bg);
   box-shadow: none;
   color: var(--nh-solid-fg);
 }
 
-/* the inverted circle tucked inside the pill (new_style.md §5.8 foot) */
-.gxd-pill__dot {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  border-radius: var(--gxd-radius-pill);
-  background: rgba(255, 255, 255, 0.1);
-  color: var(--nh-ink);
-  transition:
-    background-color 0.3s var(--nh-ease-soft),
-    color 0.3s var(--nh-ease-soft),
-    transform 0.4s var(--nh-ease);
+/* At either end the direction is spent. It stays in the layout rather than
+   disappearing, so the control does not resize as you page through it. */
+.gxd-pager .gxd-pager__step:disabled {
+  opacity: 0.34;
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  cursor: default;
 }
 
-.gxd-foot .gxd-pill:hover .gxd-pill__dot {
-  background: var(--nh-solid-fg);
-  color: var(--nh-solid-bg);
-  transform: translateX(2px);
+.gxd-pager .gxd-pager__step:focus-visible,
+.gxd-pager .gxd-pager__page:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 2px;
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
 }
 
-.gxd-foot .gxd-pill:focus-visible {
-  outline: 2px solid rgba(255, 255, 255, 0.72);
-  outline-offset: 3px;
+.gxd-pager__gap {
+  padding: 0 2px;
+  color: var(--nh-muted);
+  font-size: 12px;
+  line-height: 1;
+}
+
+/* The count the old pill carried, kept as plain text — it reports, it does not
+   go anywhere. On its own line so the steps stay centred on the grid. */
+.gxd-pager__count {
+  flex-basis: 100%;
+  margin: 0.85rem 0 0;
+  color: var(--nh-muted);
+  font-size: 11.5px;
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+@media (max-width: 560px) {
+  /* the worded steps lose their words before the numbers lose their row */
+  .gxd-pager .gxd-pager__step {
+    padding: 0 10px;
+    font-size: 0;
+    gap: 0;
+  }
 }
 
 /* ========================================================================== */

@@ -15,9 +15,11 @@ import {
 } from "@/components/new-man/data";
 import { ProductFrame, Stars } from "@/components/new-man/product-bits";
 import {
+  DEPTS,
   PRODUCT_COPY,
-  productSlug,
+  pieceHref,
   relatedTo,
+  type Dept,
 } from "@/components/new-man/product-deck";
 
 /** the widest the grid ever runs — the cascade has to agree with the stylesheet */
@@ -28,10 +30,18 @@ const COLUMNS = 4;
  * first. Each tile carries the reference's meta block — rating, price, struck
  * MRP, discount badge — and links to that piece's own detail page.
  */
-export function ProductRelated({ piece }: { piece: Piece }) {
+export function ProductRelated({
+  piece,
+  dept = DEPTS.men,
+}: {
+  piece: Piece;
+  /** which floor this page is being read on — see `Dept` */
+  dept?: Dept;
+}) {
   /* The rest of the release, from the database — so a piece the console added
-     can be recommended and one it took down cannot. */
-  const { pieces } = useGenderPieces("men");
+     can be recommended and one it took down cannot. Read for the floor the
+     reader is on: a womenswear page must not recommend the men's release. */
+  const { pieces } = useGenderPieces(dept.audience, { unisex: dept.unisex });
   const related = useMemo(() => relatedTo(pieces, piece), [pieces, piece]);
 
   return (
@@ -46,7 +56,7 @@ export function ProductRelated({ piece }: { piece: Piece }) {
 
         <div className="nmp-rel__grid">
           {related.map((item, index) => (
-            <RelatedCard index={index} key={item.id} piece={item} />
+            <RelatedCard dept={dept} index={index} key={item.id} piece={item} />
           ))}
         </div>
       </div>
@@ -54,7 +64,15 @@ export function ProductRelated({ piece }: { piece: Piece }) {
   );
 }
 
-function RelatedCard({ piece, index }: { piece: Piece; index: number }) {
+function RelatedCard({
+  piece,
+  index,
+  dept,
+}: {
+  piece: Piece;
+  index: number;
+  dept: Dept;
+}) {
   const reduce = useReducedMotion();
   const frame = useMemo(() => frameFor(piece), [piece]);
   const price = useMemo(() => pricingFor(piece), [piece]);
@@ -90,7 +108,7 @@ function RelatedCard({ piece, index }: { piece: Piece; index: number }) {
       <Link
         aria-label={`${piece.name}, ${formatPrice(price.price)}`}
         className="nmp-card__frame"
-        href={`/new-man/piece?slug=${productSlug(piece)}`}
+        href={pieceHref(dept, piece)}
       >
         <ProductFrame alt={piece.name} frame={frame} />
 
@@ -106,7 +124,7 @@ function RelatedCard({ piece, index }: { piece: Piece; index: number }) {
       </Link>
 
       <div className="nmp-card__info">
-        <Link className="nmp-card__name" href={`/new-man/piece?slug=${productSlug(piece)}`}>
+        <Link className="nmp-card__name" href={pieceHref(dept, piece)}>
           {piece.name}
         </Link>
 

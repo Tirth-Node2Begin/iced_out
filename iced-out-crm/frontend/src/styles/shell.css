@@ -1,0 +1,1000 @@
+/* ============================================================================
+   ICED_OUT CRM — tokens + floating chrome
+
+   The layout grammar is the one in `updated style.md`: floating chrome on a
+   deeper canvas, an 18px gutter shared by the rail and the bar, a 68→272px
+   hover-expand rail, a 54px bar, and `<main>` as the real scroll container.
+
+   The PALETTE is not that document's. It is the storefront's own — the `--nh-*`
+   list declared in styles/chrome.css and new-home.css, unchanged. That is the
+   whole translation: N2B's shell geometry wearing Iced Out's dark skin.
+
+   What that means concretely, against §2 of the style guide:
+     "floating chrome, deeper canvas"   → chrome #16181a on canvas #101113
+     "the tint lives in the background" → hairlines are white at 7–13%, never a hue
+     "colour carries meaning"           → mint/amber/rose/sky land on the GLYPH
+     "weight is the hierarchy"          → size stays flat, tone does the work
+     "no hover lift, no glow"           → hover recolours or deepens the same black
+     ...and "light only" is inverted, because this shop is dark everywhere.
+
+   Namespaced `aui-*` so the component sheet that follows this one (tables,
+   cards, forms — the parts that already wore this palette) needs no rewrite.
+
+   Every 1px edge is an inset box-shadow, never a border: a border eats a pixel
+   of the control's content box and shifts the row it sits in.
+
+   ORDER
+     1  tokens
+     2  the app frame
+     3  the rail
+     4  the bar
+   ========================================================================= */
+
+/* =============================================================== 1. tokens */
+/* Declared on the shell AND on every surface Radix lifts out of it. A portalled
+   dialog is appended to <body>, so it inherits nothing from `.aui-app`: every
+   var() inside it resolves to an invalid value and the rule drops. That is how
+   a modal ends up with square corners and no surface colour while looking fine
+   in the stylesheet. */
+.aui-app,
+.aui-overlay,
+.aui-modal,
+.aui-palette,
+.aui-drawer,
+.aui-datepop,
+.aui-selectmenu {
+  /* ---- palette — the storefront's, verbatim ---- */
+  --nh-surface: #101113;
+  --nh-surface-2: #16181a;
+  --nh-surface-3: #0a0b0c;
+  --nh-card-bg: #1a1c1e;
+  --nh-ink: #f1f3f3;
+  --nh-ink-soft: #d5d9da;
+  --nh-muted: #8f9598;
+  --nh-muted-2: #6e7477;
+  --nh-solid-bg: #f2f4f4;
+  --nh-solid-fg: #0d0e10;
+  --nh-solid-bg-hover: #ffffff;
+  --nh-ghost-bg: rgba(255, 255, 255, 0.08);
+  --nh-ghost-bg-hover: rgba(255, 255, 255, 0.15);
+  --nh-hairline: rgba(255, 255, 255, 0.13);
+  --nh-hairline-soft: rgba(255, 255, 255, 0.07);
+  --nh-panel: rgba(15, 17, 19, 0.76);
+  --nh-chip-bg: rgba(22, 25, 27, 0.72);
+
+  /* ---- shape ----
+     26px is the floating-chrome signature of style guide §6: rail, glass cards,
+     boot skeleton. The bar is 20px because it is only 54px tall and 26 would
+     read as a lozenge. Both sit inside the storefront's own 14/22/28 family, so
+     nothing here is a foreign radius. */
+  --nh-radius-card: 14px;
+  --nh-radius-lg: 22px;
+  --nh-radius-xl: 28px;
+  --aui-radius-chrome: 26px;
+  --aui-radius-bar: 20px;
+
+  /* ---- motion ----
+     Two curves, and they are not interchangeable. `--nh-ease` is the shop's own
+     and everything inside a page uses it. `--aui-shell-curve` belongs to the
+     chrome: it is the style guide's shell curve, and the rail's width, the
+     content margin and the label reveal all ride it so that pinning reads as
+     ONE gesture rather than three things that happen to move together. */
+  --nh-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --nh-ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
+  --aui-shell-curve: cubic-bezier(0.32, 0.72, 0, 1);
+  --aui-shell-ms: 260ms;
+
+  /* ---- chrome geometry (style guide §5.2) ----
+     ONE gutter. The rail is inset by it on all four sides and the bar pads
+     itself by the same number, so the two share a left edge and a page wrapper
+     at --aui-page-max lines its card edges up with the bar above it.
+
+     --aui-sb is the RESERVED column: the collapsed width, or the expanded width
+     while pinned. A hover-expand deliberately does NOT change it — the panel
+     overlays the content instead, because a cursor passing over the rail must
+     never reflow the page. */
+  --aui-gutter-chrome: 18px;
+  --aui-rail-collapsed: 68px;
+  --aui-rail-expanded: 272px;
+  --aui-icon-slot: 44px;
+  --aui-bar-h: 54px;
+  --aui-sb: var(--aui-rail-collapsed);
+  --aui-rail-w: var(--aui-rail-collapsed);
+  --aui-page-max: 1760px;
+
+  /* ---- page rhythm (kept from the component sheet below) ---- */
+  --aui-inset: 16px;
+  --aui-gutter: clamp(1.15rem, 2.4vw, 2.25rem);
+  --aui-stack: clamp(1.15rem, 2.2vw, 1.85rem);
+
+  /* ---- lift ----
+     The console's one shadow, and the dark answer to the style guide's
+     two-layer chrome shadow: a tight contact shadow plus a wide soft ambient.
+     On a white page those are slate at 4%/18%; on #101113 only black reads, and
+     it has to go deeper to be seen at all. Cards are separated by an inset
+     hairline — the drop only sits them off the page, it never tints them. */
+  --aui-lift: 0 1px 2px rgba(0, 0, 0, 0.4), 0 22px 48px -32px rgba(0, 0, 0, 0.95);
+  --aui-lift-hover: 0 1px 2px rgba(0, 0, 0, 0.45), 0 30px 64px -34px rgba(0, 0, 0, 1);
+
+  /* ---- semantic glyph tones ----
+     Colour lands on the GLYPH and on status text, never on a chip fill or a
+     card background. That is what keeps a near-monochrome page reading as one
+     surface while still telling good news from bad at a glance. */
+  --aui-ink-rgb: 241, 243, 243;
+  --aui-mint: #6fdba4;
+  --aui-mint-rgb: 111, 219, 164;
+  --aui-amber: #e8b765;
+  --aui-amber-rgb: 232, 183, 101;
+  --aui-rose: #ef7a80;
+  --aui-rose-rgb: 239, 122, 128;
+  --aui-sky: #79b8e8;
+  --aui-sky-rgb: 121, 184, 232;
+  --aui-violet: #a892e8;
+  --aui-violet-rgb: 168, 146, 232;
+
+  color: var(--nh-ink);
+  font-family: var(--font-ui), "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  letter-spacing: -0.01em;
+}
+
+/* ========================================================== 2. the app frame */
+/* The shell of style guide §5.1, with one correction for this stack: the frame
+   is `h-screen overflow-hidden` and `<main>` scrolls, NOT the document. Anything
+   that locks scroll or positions a fixed overlay has to account for that. */
+.aui-app {
+  display: flex;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--nh-surface);
+}
+
+.aui-app *,
+.aui-app *::before,
+.aui-app *::after,
+.aui-modal *,
+.aui-modal *::before,
+.aui-modal *::after,
+.aui-palette *,
+.aui-palette *::before,
+.aui-palette *::after,
+.aui-drawer *,
+.aui-drawer *::before,
+.aui-drawer *::after,
+.aui-datepop *,
+.aui-datepop *::before,
+.aui-datepop *::after,
+.aui-selectmenu *,
+.aui-selectmenu *::before,
+.aui-selectmenu *::after {
+  box-sizing: border-box;
+}
+
+.aui-app :is(h1, h2, h3, h4, p, figure, dl, dd, ol, ul),
+.aui-modal :is(h1, h2, h3, h4, p, figure, dl, dd, ol, ul),
+.aui-palette :is(h1, h2, h3, h4, p, figure, dl, dd, ol, ul),
+.aui-drawer :is(h1, h2, h3, h4, p, figure, dl, dd, ol, ul) {
+  margin: 0;
+}
+
+.aui-app :is(ol, ul),
+.aui-modal :is(ol, ul),
+.aui-drawer :is(ol, ul) {
+  padding: 0;
+  list-style: none;
+}
+
+.aui-app :is(button, input, select, textarea),
+.aui-modal :is(button, input, select, textarea),
+.aui-palette :is(button, input, select, textarea),
+.aui-drawer :is(button, input, select, textarea) {
+  font: inherit;
+  letter-spacing: inherit;
+}
+
+.aui-app a,
+.aui-modal a,
+.aui-palette a,
+.aui-drawer a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* The column beside the rail. Its margin tracks the RESERVED width only, on the
+   shared shell curve, so pinning moves the page and hovering does not. */
+.aui-frame {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  margin-left: 0;
+  overflow: hidden;
+  transition: margin-left var(--aui-shell-ms) var(--aui-shell-curve);
+}
+
+/* ★ THE SCROLL CONTAINER. Not <body>. */
+.aui-stage {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* The presence dot every "live" label shares — the rail's scope line, the bar's
+   environment chip, the hero's freshness line. One dot, one meaning: this
+   number is being refreshed. */
+.aui-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 999px;
+  background: var(--aui-mint);
+  box-shadow: 0 0 0 3px rgba(111, 219, 164, 0.14);
+}
+
+/* ================================================================ 3. the rail */
+/* A card, not a wall: inset by the gutter on all four sides with the canvas
+   showing around it, no border, the chrome shadow doing the lifting.
+
+   Width is a CSS variable rather than an inline width so the mobile drawer can
+   keep a FIXED width while it slides. Animating 68→272px at the same time as
+   the slide-in made the panel visibly grow while it travelled. */
+.aui-rail {
+  position: fixed;
+  z-index: 50;
+  top: var(--aui-gutter-chrome);
+  bottom: var(--aui-gutter-chrome);
+  left: var(--aui-gutter-chrome);
+  display: flex;
+  width: var(--aui-rail-w);
+  flex-direction: column;
+  padding: 0 12px 12px;
+  border-radius: var(--aui-radius-chrome);
+  background: var(--nh-surface-2);
+  box-shadow:
+    inset 0 0 0 1px var(--nh-hairline),
+    var(--aui-lift);
+  transition:
+    width var(--aui-shell-ms) var(--aui-shell-curve),
+    transform var(--aui-shell-ms) var(--aui-shell-curve),
+    box-shadow var(--aui-shell-ms) var(--aui-shell-curve);
+}
+
+/* Expanded: hovered, pinned, or open as a drawer. The escalated shadow is the
+   same black, deepened — never a hue, and never a lift. */
+.aui-rail[data-expanded="true"] {
+  box-shadow:
+    inset 0 0 0 1px var(--nh-hairline),
+    var(--aui-lift-hover);
+}
+
+/* ---- 3.1 the brand slot — fixed height, so nothing below it reflows ------- */
+.aui-rail__brand {
+  display: flex;
+  height: 68px;
+  align-items: center;
+  flex: none;
+  gap: 10px;
+  overflow: hidden;
+  padding-inline: 0;
+}
+
+/* The glyph is parked in the same 44px slot as every nav icon, which is what
+   keeps the wordmark and the lane labels on one optical left edge whether the
+   rail is open or shut. */
+.aui-rail__mark {
+  display: grid;
+  width: var(--aui-icon-slot);
+  height: 34px;
+  flex: none;
+  place-items: center;
+  color: var(--nh-ink);
+}
+
+.aui-rail__mark i {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 11px;
+  background: var(--nh-solid-bg);
+  color: var(--nh-solid-fg);
+}
+
+.aui-rail__brand b {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.aui-rail__brand small {
+  display: block;
+  color: var(--nh-muted);
+  font-size: 9.5px;
+  letter-spacing: 0.18em;
+  line-height: 1.5;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* ---- 3.2 Reveal — one motion for every collapsible text run -------------- */
+/* Nav label, group heading, brand block, profile name: all the same component,
+   so the card reads as ONE movement rather than four things easing separately.
+   `will-change` is load-bearing — without it the text re-rasterises every frame
+   and shimmers. No padding: max-w-0 clips text, but padding still adds real
+   width and would overflow the 68px rail. */
+.aui-reveal {
+  display: block;
+  max-width: 190px;
+  overflow: hidden;
+  opacity: 1;
+  transform: translateX(0);
+  transition:
+    max-width var(--aui-shell-ms) var(--aui-shell-curve) 60ms,
+    opacity var(--aui-shell-ms) var(--aui-shell-curve) 60ms,
+    transform var(--aui-shell-ms) var(--aui-shell-curve) 60ms;
+  white-space: nowrap;
+  will-change: max-width, opacity, transform;
+}
+
+/* Closing has no delay — the label should be gone before the card finishes
+   narrowing, or it clips visibly against the edge on the way out. */
+.aui-rail[data-expanded="false"] .aui-reveal {
+  max-width: 0;
+  opacity: 0;
+  transform: translateX(-4px);
+  transition-delay: 0ms;
+}
+
+/* ---- 3.3 the search field ------------------------------------------------ */
+.aui-rail__search {
+  display: flex;
+  height: 52px;
+  align-items: center;
+  flex: none;
+}
+
+.aui-rail__search button {
+  display: flex;
+  width: 100%;
+  height: 40px;
+  align-items: center;
+  gap: 0;
+  padding: 0;
+  border-radius: 12px;
+  background: var(--nh-ghost-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline-soft);
+  color: var(--nh-muted);
+  cursor: pointer;
+  overflow: hidden;
+  transition:
+    background-color 200ms var(--nh-ease-soft),
+    box-shadow 200ms var(--nh-ease-soft),
+    color 200ms var(--nh-ease-soft);
+}
+
+.aui-rail__search button:hover {
+  background: var(--nh-ghost-bg-hover);
+  color: var(--nh-ink);
+}
+
+.aui-rail__search i {
+  display: grid;
+  width: var(--aui-icon-slot);
+  height: 40px;
+  flex: none;
+  place-items: center;
+}
+
+.aui-rail__search span {
+  font-size: 12.5px;
+  letter-spacing: 0;
+}
+
+.aui-rail__search kbd {
+  margin-left: auto;
+  margin-right: 8px;
+  padding: 3px 6px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline-soft);
+  color: var(--nh-muted-2);
+  font-family: inherit;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+}
+
+/* ---- 3.4 the lane list --------------------------------------------------- */
+/* `overscroll-contain` stops a flick past the last lane from chaining into the
+   page behind the mobile backdrop. The scrollbar is hidden because the card is
+   68px wide half the time and a gutter would eat the icons. */
+.aui-rail__nav {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  touch-action: pan-y;
+}
+
+.aui-rail__nav::-webkit-scrollbar {
+  display: none;
+}
+
+/* A group heading is a label when open and a CENTRED 4px hairline when shut —
+   the grouping survives the collapse instead of vanishing with the words. */
+.aui-rail__group {
+  display: flex;
+  height: 18px;
+  align-items: center;
+  flex: none;
+  margin-top: 12px;
+  color: var(--nh-muted-2);
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.aui-rail__group::before {
+  width: var(--aui-icon-slot);
+  flex: none;
+  content: "";
+}
+
+.aui-rail[data-expanded="false"] .aui-rail__group::before {
+  height: 1px;
+  margin-inline: 20px;
+  width: 4px;
+  background: var(--nh-hairline);
+}
+
+.aui-rail__group:first-child {
+  margin-top: 0;
+}
+
+/* The nav row. Monochrome by design: no border, no ring, no accent bar, in any
+   state. Weight and tone carry the hierarchy — which is the style guide's one
+   deliberate inversion of the app's heavy default, and the calm IS the design. */
+.aui-rail__nav a {
+  position: relative;
+  display: flex;
+  height: 40px;
+  align-items: center;
+  flex: none;
+  border-radius: 12px;
+  color: var(--nh-muted);
+  font-size: 13.5px;
+  font-weight: 400;
+  outline: none;
+  overflow: hidden;
+  transition:
+    background-color 200ms var(--nh-ease-soft),
+    color 200ms var(--nh-ease-soft);
+}
+
+.aui-rail__nav a > svg {
+  width: var(--aui-icon-slot);
+  flex: none;
+  color: var(--nh-muted-2);
+  transition: color 200ms var(--nh-ease-soft);
+}
+
+.aui-rail__nav a:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--nh-ink);
+}
+
+.aui-rail__nav a:hover > svg {
+  color: var(--nh-ink-soft);
+}
+
+.aui-rail__nav a:focus-visible {
+  box-shadow: inset 0 0 0 2px rgba(241, 243, 243, 0.28);
+}
+
+.aui-rail__nav a[aria-current="page"] {
+  background: rgba(255, 255, 255, 0.09);
+  color: var(--nh-ink);
+  font-weight: 500;
+}
+
+.aui-rail__nav a[aria-current="page"] > svg {
+  color: var(--nh-ink);
+}
+
+/* The active-row spotlight.
+ *
+ * The active row already wears its settled fill, so hover has nothing left to
+ * change and reads dead. This adds a cursor-tracked light ON TOP.
+ *
+ * The pointer position is written to --aui-spot-x/y on the row itself, never to
+ * React state: a setState per mousemove would re-render the whole nav ~60×/s.
+ * The style guide's version is a violet+indigo halo on pale chrome; here the
+ * surface is near-black, so a hue at 7% would not survive — it is the ink
+ * colour instead, at an alpha low enough to have no perceptible edge.
+ * The fade is slow on purpose. A quick fade on something this faint flickers. */
+.aui-rail__nav a[aria-current="page"]::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  opacity: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    120px circle at var(--aui-spot-x, 50%) var(--aui-spot-y, 50%),
+    rgba(255, 255, 255, 0.07),
+    transparent 72%
+  );
+  transition: opacity 450ms var(--nh-ease-soft);
+}
+
+.aui-rail__nav a[aria-current="page"]:hover::after {
+  opacity: 1;
+}
+
+/* Work waiting in that area, counted by the server. Absent when the queue is
+   empty, never a "00": a badge on every lane saying nothing is needed is just
+   furniture, and it teaches an operator to stop reading the ones that matter. */
+.aui-rail__count {
+  margin-left: auto;
+  margin-right: 10px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--nh-ink);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+.aui-rail__count[data-tone="overdue"] {
+  background: rgba(239, 122, 128, 0.16);
+  color: var(--aui-rose);
+}
+
+/* Collapsed, the badge has nowhere to sit — it becomes a dot on the icon. */
+.aui-rail[data-expanded="false"] .aui-rail__count {
+  position: absolute;
+  top: 7px;
+  left: 30px;
+  min-width: 8px;
+  height: 8px;
+  margin: 0;
+  padding: 0;
+  font-size: 0;
+}
+
+/* ---- 3.5 the pin ---------------------------------------------------------- */
+.aui-rail__pin {
+  position: absolute;
+  top: 26px;
+  right: -12px;
+  display: none;
+  width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--nh-surface-2);
+  box-shadow:
+    inset 0 0 0 1px var(--nh-hairline),
+    0 2px 8px -2px rgba(0, 0, 0, 0.8);
+  color: var(--nh-muted);
+  cursor: pointer;
+  transition:
+    color 200ms var(--nh-ease-soft),
+    transform var(--aui-shell-ms) var(--aui-shell-curve);
+}
+
+.aui-rail__pin:hover {
+  color: var(--nh-ink);
+}
+
+.aui-rail__pin[data-pinned="true"] svg {
+  transform: rotate(180deg);
+}
+
+/* ---- 3.6 the foot -------------------------------------------------------- */
+.aui-rail__foot {
+  display: grid;
+  flex: none;
+  gap: 1px;
+  margin-top: 10px;
+  padding-top: 10px;
+  box-shadow: inset 0 1px 0 0 var(--nh-hairline-soft);
+}
+
+.aui-rail__foot a,
+.aui-rail__foot button {
+  display: flex;
+  height: 38px;
+  align-items: center;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--nh-muted);
+  cursor: pointer;
+  font-size: 12.5px;
+  overflow: hidden;
+  text-align: left;
+  transition:
+    background-color 200ms var(--nh-ease-soft),
+    color 200ms var(--nh-ease-soft);
+}
+
+.aui-rail__foot a > svg,
+.aui-rail__foot button > svg {
+  width: var(--aui-icon-slot);
+  flex: none;
+}
+
+.aui-rail__foot a:hover,
+.aui-rail__foot button:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--nh-ink);
+}
+
+/* ---- 3.7 the mobile backdrop --------------------------------------------- */
+/* ALWAYS mounted so it can fade both ways — conditional mounting gives a
+   fade-in and then a hard cut. `backdrop-filter` is attached only while open: a
+   permanently live one costs a compositor pass even at opacity 0. */
+.aui-scrim {
+  position: fixed;
+  z-index: 40;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  padding: 0;
+  background: rgba(0, 0, 0, 0.55);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 260ms var(--nh-ease-soft);
+}
+
+.aui-scrim[data-open="true"] {
+  backdrop-filter: blur(2px);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* =============================================================== 4. the bar */
+/* A floating rounded bar, padded by the SAME 18px as the rail's inset, so the
+   two share one left edge. No border — the shadow alone lifts it.
+   20px radius rather than 26: it is 54px tall, and 26 reads as a lozenge. */
+.aui-topbar {
+  flex: none;
+  padding: 12px 12px 10px;
+}
+
+.aui-topbar__inner {
+  display: flex;
+  width: 100%;
+  max-width: var(--aui-page-max);
+  height: var(--aui-bar-h);
+  align-items: center;
+  gap: 6px;
+  margin-inline: auto;
+  padding-inline: 8px;
+  border-radius: var(--aui-radius-bar);
+  background: var(--nh-surface-2);
+  box-shadow:
+    inset 0 0 0 1px var(--nh-hairline),
+    var(--aui-lift);
+}
+
+/* The hamburger lives INSIDE the bar, not as a fixed button at the same inset —
+   there it landed straight on top of the breadcrumb. */
+.aui-railbtn {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: none;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--nh-muted);
+  cursor: pointer;
+  transition:
+    background-color 200ms var(--nh-ease-soft),
+    color 200ms var(--nh-ease-soft);
+}
+
+.aui-railbtn:hover {
+  background: var(--nh-ghost-bg);
+  color: var(--nh-ink);
+}
+
+/* ---- 4.1 the breadcrumb -------------------------------------------------- */
+/* Where you are, NOT the page title: every screen renders its own head card, and
+   repeating it in the bar wastes the one horizontal run the console has.
+   Derived purely from the URL, so a route added later needs no registration.
+   No chevron glyphs and no icons anywhere in the trail — a plain light slash. */
+.aui-crumbs {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  padding-left: 6px;
+}
+
+.aui-crumbs a,
+.aui-crumbs span {
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.aui-crumbs a {
+  color: var(--nh-muted);
+  transition: color 200ms var(--nh-ease-soft);
+}
+
+.aui-crumbs a:hover {
+  color: var(--nh-ink-soft);
+}
+
+.aui-crumbs i {
+  color: var(--nh-muted-2);
+  font-size: 13px;
+  font-style: normal;
+  font-weight: 300;
+}
+
+.aui-crumbs strong {
+  color: var(--nh-ink);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The page you are on always survives; its parents fold away first. */
+.aui-crumbs__parent {
+  display: none;
+}
+
+/* ---- 4.2 the action cluster ---------------------------------------------- */
+.aui-topbar__tools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.aui-topbar__divider {
+  display: none;
+  width: 1px;
+  height: 24px;
+  flex: none;
+  margin-inline: 2px;
+  background: var(--nh-hairline);
+}
+
+/* The one circular action button, and the whole hover vocabulary for it: the
+   ghost fill arrives, the glyph brightens. No hue, no lift. */
+.aui-iconbtn {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: none;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  box-shadow: inset 0 0 0 1px transparent;
+  color: var(--nh-muted);
+  cursor: pointer;
+  transition:
+    background-color 200ms var(--nh-ease-soft),
+    box-shadow 200ms var(--nh-ease-soft),
+    color 200ms var(--nh-ease-soft);
+}
+
+.aui-iconbtn:hover {
+  background: var(--nh-ghost-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  color: var(--nh-ink);
+}
+
+/* ---- 4.3 the identity chip ----------------------------------------------- */
+/* Folds away below `sm`: at phone widths the bar cannot seat it without
+   starving the breadcrumb, and the profile is one tap away in the drawer. */
+.aui-account {
+  position: relative;
+  display: none;
+}
+
+.aui-me {
+  display: flex;
+  height: 38px;
+  align-items: center;
+  gap: 9px;
+  padding: 3px 12px 3px 3px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  box-shadow: inset 0 0 0 1px transparent;
+  color: inherit;
+  cursor: pointer;
+  transition:
+    background-color 200ms var(--nh-ease-soft),
+    box-shadow 200ms var(--nh-ease-soft);
+}
+
+.aui-me:hover,
+.aui-account[data-open="true"] .aui-me {
+  background: var(--nh-ghost-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.aui-me > span {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--nh-solid-bg);
+  color: var(--nh-solid-fg);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.aui-me p {
+  display: grid;
+  text-align: left;
+}
+
+.aui-me strong {
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.aui-me small {
+  color: var(--nh-muted);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  line-height: 1.4;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.aui-me__caret {
+  color: var(--nh-muted-2);
+  transition: transform 200ms var(--nh-ease-soft);
+}
+
+.aui-account[data-open="true"] .aui-me__caret {
+  transform: rotate(180deg);
+}
+
+.aui-account__menu {
+  position: absolute;
+  z-index: 60;
+  top: calc(100% + 8px);
+  right: 0;
+  display: grid;
+  min-width: 210px;
+  gap: 1px;
+  padding: 6px;
+  border-radius: 16px;
+  background: var(--nh-card-bg);
+  box-shadow:
+    inset 0 0 0 1px var(--nh-hairline),
+    var(--aui-lift-hover);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-4px);
+  transition:
+    opacity 180ms var(--nh-ease-soft),
+    transform 180ms var(--nh-ease-soft);
+}
+
+.aui-account[data-open="true"] .aui-account__menu {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.aui-account__menu a,
+.aui-account__menu button {
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-radius: 11px;
+  padding-inline: 10px;
+  background: transparent;
+  color: var(--nh-ink-soft);
+  cursor: pointer;
+  font-size: 12.5px;
+  text-align: left;
+  transition:
+    background-color 200ms var(--nh-ease-soft),
+    color 200ms var(--nh-ease-soft);
+}
+
+.aui-account__menu a:hover,
+.aui-account__menu button:hover {
+  background: var(--nh-ghost-bg);
+  color: var(--nh-ink);
+}
+
+.aui-account__menu svg {
+  color: var(--nh-muted);
+}
+
+/* ============================================================ 5. responsive */
+/* `lg` (1024px) is the shell breakpoint: above it the rail is a reserved column
+   and the frame margin applies; below it the rail is a drawer and the margin is
+   zero. Every bar control that folds does so at `sm` or `lg`. */
+@media (min-width: 640px) {
+  .aui-topbar {
+    padding: var(--aui-gutter-chrome) var(--aui-gutter-chrome) 10px;
+  }
+
+  .aui-topbar__inner {
+    gap: 12px;
+    padding-inline: 16px;
+  }
+
+  .aui-crumbs__parent {
+    display: inline;
+  }
+
+  .aui-topbar__divider,
+  .aui-account {
+    display: flex;
+  }
+
+  .aui-topbar__tools {
+    gap: 8px;
+  }
+}
+
+@media (min-width: 1024px) {
+  /* The rail is inset by the gutter on the left, so the column it occupies is
+     the gutter plus its own width — plus the gutter again, to leave the same
+     air between the card and the content as there is to its left. */
+  .aui-frame {
+    margin-left: calc(var(--aui-sb) + var(--aui-gutter-chrome) * 2);
+  }
+
+  .aui-railbtn {
+    display: none;
+  }
+
+  .aui-rail__pin {
+    display: flex;
+  }
+}
+
+/* Below the shell breakpoint the rail is a fixed-width drawer that only ever
+   translates. It never animates its width there — see the note on --aui-rail-w. */
+@media (max-width: 1023px) {
+  .aui-rail {
+    width: 272px;
+    max-width: calc(100vw - 36px);
+    transform: translateX(-120%);
+  }
+
+  .aui-rail[data-drawer="true"] {
+    transform: translateX(0);
+  }
+}

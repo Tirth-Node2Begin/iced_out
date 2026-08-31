@@ -8,6 +8,7 @@ import { toast } from "sonner";
 
 import { EASE_OUT, Reveal } from "@/components/new-home/motion-primitives";
 import { Stars } from "@/components/new-man/product-bits";
+import { DEPTS, type Dept } from "@/components/new-man/product-deck";
 import type { Piece } from "@/components/new-man/data";
 import { useReviews } from "@/features/11-reviews/reviews-context";
 import { reviewByline, type Review } from "@/features/11-reviews/reviews";
@@ -37,7 +38,14 @@ import { useAuth } from "@/features/20-auth-security/auth-context";
 /** What the picker offers, worst to best read top-down in the markup. */
 const FIT_ANSWERS = ["Runs small", "True to size", "Runs large"];
 
-export function ProductReviews({ piece }: { piece: Piece }) {
+export function ProductReviews({
+  piece,
+  dept = DEPTS.men,
+}: {
+  piece: Piece;
+  /** which floor this page is being read on — see `Dept` */
+  dept?: Dept;
+}) {
   const reduce = useReducedMotion();
   const { published, mine, submit, refreshMine } = useReviews();
   const { isAuthenticated, sessionReady } = useAuth();
@@ -317,7 +325,7 @@ export function ProductReviews({ piece }: { piece: Piece }) {
                 </p>
                 <Link
                   className="nmp-write__signin"
-                  href={`/auth/login?returnTo=${encodeURIComponent(`/new-man/piece?slug=${piece.slug}`)}`}
+                  href={`/auth/login?returnTo=${encodeURIComponent(`${dept.base}/piece?slug=${piece.slug}`)}`}
                 >
                   Sign in
                 </Link>

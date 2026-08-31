@@ -1,0 +1,1990 @@
+/* ============================================================================
+   ICED_OUT — /new-woman
+   ----------------------------------------------------------------------------
+   The women's floor. A separate sheet from new-home.css and new-man.css: this
+   surface renders its own sections rather than borrowing the home page's, and
+   nothing here should be able to reach /new-home, /new-man or About.
+
+   Every rule is additive and scoped under `.nw-root`, a class the women's
+   layout carries ALONGSIDE `.nh-root` — so the palette, easing and gutter
+   tokens declared there resolve unchanged and the two can never collide.
+
+   WHERE IT DIVERGES FROM THE MEN'S FLOOR, AND WHY
+   The two departments share a brand, not a layout. /new-man is symmetric — a
+   centred hero, a centred section head, a frosted filter capsule, four equal
+   tracks of rounded tiles. This one is built on the opposite instincts:
+
+     · the hero is asymmetric — copy left, a stack of three frames right;
+     · the accent is warm (rose / champagne) against the same cool dark base,
+       so it reads as the same shop on a different floor;
+     · a section travels sideways under a vertical scroll instead of down;
+     · the tiles are arched rather than rectangular, three to a row rather than
+       four, and the middle track is dropped half a card so the grid reads as a
+       layout rather than a table;
+     · every filter sits on a hairline rail, not inside a pill.
+   ========================================================================= */
+
+.nw-root {
+  /* --------------------------------------------------------------------
+     WARM ACCENT SET
+     The base surfaces stay exactly as `.nh-root` declares them — this is the
+     same shop, and a second dark grey would only read as a mistake. What is
+     added here is the warm side: a rose and a champagne, used for the accent
+     rule, the live counters, the section marks and the two blooms behind the
+     hero. Nothing below this block hardcodes a literal.
+     -------------------------------------------------------------------- */
+  --nw-rose: #e7b9be;
+  --nw-rose-dim: #b98d92;
+  --nw-champ: #dfc9a4;
+
+  /* lines and plates carry the same warm cast, at a strength you read as
+     "not quite grey" rather than as pink */
+  --nw-line: rgba(255, 238, 240, 0.11);
+  --nw-line-soft: rgba(255, 238, 240, 0.07);
+  --nw-line-hi: rgba(231, 185, 190, 0.42);
+  --nw-fill: rgba(255, 244, 246, 0.045);
+  --nw-fill-hi: rgba(255, 244, 246, 0.095);
+  --nw-plate: rgba(23, 20, 21, 0.74);
+
+  /* the two blooms behind the hero */
+  --nw-glow-rose: rgba(231, 185, 190, 0.13);
+  --nw-glow-champ: rgba(223, 201, 164, 0.09);
+
+  /* The arch. One number, read by every frame that carries one, so the tiles,
+     the hero's lead frame and the line panels all curve on the same radius
+     rather than three separately-tuned ones. */
+  --nw-arch: 44% 44% 16px 16px / 21% 21% 16px 16px;
+  --nw-arch-sm: 44% 44% 12px 12px / 19% 19% 12px 12px;
+
+  /* How much room the hero's reflection takes under the plinth. Read by both,
+     because the plinth has to sit exactly on the hem: the reflection is the gap
+     between the rule and the bottom of the stage, so one number decides where
+     the rule goes and how tall the mirrored copy is. */
+  --nw-reflect: clamp(52px, 10svh, 116px);
+
+  /* The hero's wide background word. A step darker than the editorial's, which
+     is set to carry a section on its own — here it is depth behind a garment
+     and must not compete with it. */
+  --nw-hero-ghost: #2b3034;
+}
+
+/* ---------------------------------------------------------------- primitives */
+
+/**
+ * A cropped photograph.
+ *
+ * `op` is the object-position AND the transform-origin: the two must resolve to
+ * the same point or a zoom walks the frame off the subject it was measured
+ * against. This is the same rule the shared crop library states and the same
+ * one `.nh-mcard__media img` implements — restated here because these frames
+ * are drawn by `BlindsImage`, whose own `img` rule would otherwise win.
+ */
+.nw-root .nw-fit {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: var(--nw-op, 50% 50%);
+  transform: scale(var(--nw-zoom, 1));
+  transform-origin: var(--nw-op, 50% 50%);
+}
+
+/* The kicker: a rose bullet, then spec-register type. Used at the head of
+   every section, which is what tells a reader they are still on this floor. */
+.nw-root .nw-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--nh-muted);
+}
+
+.nw-root .nw-kicker::before {
+  content: "";
+  flex: none;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--nw-rose);
+}
+
+.nw-root .nw-lede {
+  max-width: 46ch;
+  margin: 0;
+  font-size: clamp(13.5px, 1.05vw, 15.5px);
+  line-height: 1.62;
+  color: var(--nh-ink-soft);
+}
+
+/* The two buttons. Deliberately NOT `.nh-pill` — those are the home page's
+   capsules, and this floor's controls are squarer, taller and carry a rule
+   under the label rather than a fill around it. */
+.nw-root .nw-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 46px;
+  padding: 0 26px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  text-decoration: none;
+  transition:
+    background-color 0.4s var(--nh-ease-soft),
+    color 0.4s var(--nh-ease-soft),
+    box-shadow 0.4s var(--nh-ease-soft),
+    transform 0.4s var(--nh-ease);
+}
+
+.nw-root .nw-btn__arrow {
+  display: inline-grid;
+  place-items: center;
+  transition: transform 0.4s var(--nh-ease);
+}
+
+.nw-root .nw-btn:hover .nw-btn__arrow {
+  transform: translateX(3px);
+}
+
+.nw-root .nw-btn--solid {
+  color: var(--nh-solid-fg);
+  background: var(--nh-solid-bg);
+}
+
+.nw-root .nw-btn--solid:hover {
+  background: var(--nh-solid-bg-hover);
+  transform: translateY(-2px);
+}
+
+.nw-root .nw-btn--ghost {
+  color: var(--nh-ink);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--nw-line);
+}
+
+.nw-root .nw-btn--ghost:hover {
+  background: var(--nw-fill);
+  box-shadow: inset 0 0 0 1px var(--nw-line-hi);
+  transform: translateY(-2px);
+}
+
+/* ================================================================== 01 hero */
+
+/* ----------------------------------------------------------------------------
+   THE STAGE
+
+   Built on the house hero's grammar rather than on a landing-page split. The
+   root's hero (`.hv2-fashion-hero`) is one dark stage with a single cut-out
+   garment standing inside an oversized wordmark, lit from behind, its furniture
+   pinned to the far corners — and /new-man is the same idea with a figure in
+   place of the garment. This is that stage, with three things changed:
+
+     · the type SANDWICHES the garment instead of flanking it. Two words split
+       left and right at its shoulders, and a third, far wider word runs
+       edge-to-edge behind it. The garment occludes all three, so the depth is
+       front-to-back rather than left-to-right;
+     · the light is a runway column with a pool on the floor rather than a
+       radial burst — only the near-vertical rays survive;
+     · the garment stands on a plinth and casts a reflection, and it is the
+       cream knit rather than the root's black hoodie. A light subject on a dark
+       stage is the inverse of the home page at a glance, which is what stops
+       two full-bleed hero stages reading as the same screen twice.
+   ------------------------------------------------------------------------- */
+
+.nw-root .nw-hero {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  /* `clip`, never `hidden`: this page has a sticky pinned section further down,
+     and `overflow-x: hidden` on an ancestor turns the page into a scroll
+     container, which un-pins it. */
+  overflow: clip;
+  /* One screen, measured from the top of the DOCUMENT rather than from under
+     the bar. `.nh-nav-scope` is a sticky 92px strip in normal flow, so a plain
+     `100svh` here would start below it and run 92px past the fold — which is
+     exactly where the ledger and the buttons ended up. Pulling the section up
+     by the bar's height and paying it back as padding is what `.nh-hero` does
+     on /new-man for the same reason: the stage owns the whole first screen and
+     the bar floats on it. */
+  min-height: 100svh;
+  margin-top: calc(var(--nh-nav-h, 92px) * -1);
+  padding-top: var(--nh-nav-h, 92px);
+}
+
+/* ------------------------------------------------------------------- light */
+
+/* The column, the pool and the cast, as three gradients rather than one: a beam
+   falling from above the garment, an ellipse where it lands, and a wide low
+   wash that lifts the bottom corners off flat black. */
+.nw-root .nw-hero__field {
+  position: absolute;
+  inset: 0;
+  z-index: -3;
+  pointer-events: none;
+  background:
+    radial-gradient(38% 62% at 50% 30%, rgba(231, 216, 199, 0.16) 0%, transparent 72%),
+    radial-gradient(26% 12% at 50% 82%, rgba(231, 185, 190, 0.14) 0%, transparent 70%),
+    radial-gradient(120% 70% at 50% 106%, rgba(223, 201, 164, 0.07) 0%, transparent 68%);
+}
+
+/* A vignette, so the stage has edges and the type never floats on flat black. */
+.nw-root .nw-hero__field::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(78% 66% at 50% 44%, transparent 42%, rgba(6, 7, 8, 0.72) 100%);
+}
+
+.nw-root .nw-hero__rayClip {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* The fan, narrowed. The root throws sixteen rays across a half circle; these
+   are the six steepest, so the stage reads as lit from directly above rather
+   than as a starburst. */
+.nw-root .nw-hero__rays {
+  position: absolute;
+  left: 50%;
+  top: 19%;
+  width: 1px;
+  height: 1px;
+}
+
+.nw-root .nw-hero__ray {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 128vmax;
+  height: 1px;
+  transform-origin: 0 50%;
+  background: linear-gradient(
+    90deg,
+    rgba(231, 216, 199, 0.17) 0%,
+    rgba(231, 216, 199, 0.05) 32%,
+    transparent 74%
+  );
+}
+
+/* -------------------------------------------------------------------- type */
+
+.nw-root .nw-hero__kicker {
+  position: relative;
+  z-index: 4;
+  display: flex;
+  justify-content: center;
+  padding: clamp(1.25rem, 3.5vh, 2.5rem) var(--nh-gutter) 0;
+}
+
+/* The two words the garment stands between. They sit BEHIND it — the inner
+   edge of each is meant to be cut off by the silhouette, which is the whole
+   reason the composition reads as depth rather than as a row of three things. */
+.nw-root .nw-hero__title {
+  position: absolute;
+  inset: clamp(2.5rem, 8vh, 6rem) var(--nh-gutter) auto;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: clamp(1rem, 4vw, 4rem);
+  margin: 0;
+  pointer-events: none;
+}
+
+/* Each word rises out of its own overflow box, as the root's wordmark does. */
+.nw-root .nw-hero__word {
+  display: block;
+  overflow: hidden;
+  padding-bottom: 0.08em;
+}
+
+.nw-root .nw-hero__wordInner {
+  display: block;
+  font-size: clamp(3rem, 13.5vw, 12rem);
+  font-weight: 700;
+  line-height: 0.82;
+  letter-spacing: -0.045em;
+  text-transform: uppercase;
+  color: var(--nh-ink);
+  white-space: nowrap;
+}
+
+/* The wide word behind everything. Recessed a step from the page rather than
+   set in the ink colour — it is depth, not a heading, and the garment has to
+   stay the thing the eye lands on. */
+.nw-root .nw-hero__ghost {
+  position: absolute;
+  left: 50%;
+  top: 56%;
+  z-index: 0;
+  margin: 0;
+  /* `translate` rather than `transform` — see the garment above. */
+  translate: -50% -50%;
+  font-size: clamp(2rem, 8.6vw, 8rem);
+  font-weight: 300;
+  font-stretch: 112%;
+  line-height: 0.9;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  color: var(--nw-hero-ghost);
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* ----------------------------------------------------------------- garment */
+
+.nw-root .nw-hero__stage {
+  position: relative;
+  z-index: 2;
+  flex: 1 1 auto;
+  min-height: clamp(300px, 46svh, 580px);
+}
+
+.nw-root .nw-hero__garment {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  z-index: 2;
+  width: clamp(260px, 48vw, 700px);
+  /* Centred with `translate`, not `transform`: Motion writes `transform` into
+     this element's style attribute for the scroll drift, and a `transform` here
+     would simply be overwritten — the garment would jump half its width left
+     the moment the page was scrolled. The two properties compose. */
+  translate: -50% 0;
+  pointer-events: none;
+}
+
+/* The halo directly behind the cloth, so a cream garment never meets the
+   vignette's darkest ring on a hard edge. */
+.nw-root .nw-hero__aura {
+  position: absolute;
+  left: 50%;
+  top: 44%;
+  z-index: -1;
+  width: 155%;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+  background: radial-gradient(closest-side, rgba(236, 226, 212, 0.14), transparent 72%);
+}
+
+.nw-root .nw-hero__garmentImg {
+  display: block;
+  width: 100%;
+  height: clamp(210px, 42svh, 470px);
+  object-fit: contain;
+  object-position: 50% 100%;
+  filter: drop-shadow(0 34px 46px rgba(0, 0, 0, 0.62));
+}
+
+/* The garment again, upside down and dying out — a real product-photography
+   reflection rather than a blur under the hem.
+   ---------------------------------------------------------------------------
+   The mirrored copy is drawn at the SAME height as the garment above it and
+   then clipped to a shallow band by this wrapper. That is what makes the band
+   show the hem: flipped, the image's top edge IS the garment's bottom edge, so
+   the first 100px of the flipped picture is the last 100px of the real one.
+
+   Cropping the source instead — `object-fit: cover` on a short box — was the
+   first attempt and it does not work: cover fits a square garment to a 5:1 box
+   by scale, so what lands in the band is a smear of whatever happens to fall
+   across the middle, and the hem never appears at all. */
+.nw-root .nw-hero__reflectionClip {
+  display: block;
+  overflow: hidden;
+  height: var(--nw-reflect);
+  /* masked rather than faded with opacity, so it thins gradually down its own
+     length instead of everywhere at once */
+  -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.85), transparent 88%);
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.85), transparent 88%);
+}
+
+.nw-root .nw-hero__reflection {
+  display: block;
+  width: 100%;
+  /* the same figure `.nw-hero__garmentImg` uses — they mirror or they do not */
+  height: clamp(210px, 42svh, 470px);
+  object-fit: contain;
+  object-position: 50% 100%;
+  transform: scaleY(-1);
+  opacity: 0.3;
+}
+
+/* The rule it stands on, and the pool of light around that rule. */
+.nw-root .nw-hero__plinth {
+  position: absolute;
+  left: 50%;
+  /* exactly the reflection's height, so the rule lands on the hem with the
+     mirrored copy falling away beneath it */
+  bottom: var(--nw-reflect);
+  z-index: 3;
+  width: clamp(240px, 42vw, 640px);
+  height: 1px;
+  /* `translate` centres it; `transform` is left free for the draw-in, which
+     scales this rule out from its middle. */
+  translate: -50% 0;
+  transform-origin: 50% 50%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--nw-line-hi) 34%,
+    var(--nw-rose) 50%,
+    var(--nw-line-hi) 66%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+
+.nw-root .nw-hero__plinth::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 100%;
+  height: clamp(44px, 6vw, 88px);
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+  background: radial-gradient(closest-side, rgba(231, 185, 190, 0.15), transparent 72%);
+}
+
+/* --------------------------------------------------------------- furniture */
+
+/* Three slots on one row, pinned to the bottom edge — the same rhythm the root
+   hero keeps (a cluster bottom-left, the call to action centred, a card
+   bottom-right), carrying this floor's own facts instead. */
+.nw-root .nw-hero__foot {
+  position: relative;
+  z-index: 4;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: end;
+  gap: clamp(1rem, 3vw, 2.5rem);
+  padding: clamp(1rem, 2.5vh, 2rem) var(--nh-gutter) clamp(1.25rem, 3vh, 2.5rem);
+}
+
+.nw-root .nw-hero__aside {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.nw-root .nw-hero__aside--right {
+  justify-items: end;
+  text-align: right;
+}
+
+.nw-root .nw-hero__lede {
+  margin: 0;
+  max-width: 30ch;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--nh-muted);
+}
+
+/* The ledger: the live count and the size run, on one rule. */
+.nw-root .nw-hero__ledger {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nw-root .nw-hero__stat {
+  min-width: 0;
+  padding-inline: clamp(0.7rem, 1.2vw, 1.1rem);
+}
+
+.nw-root .nw-hero__stat:first-child {
+  padding-inline-start: 0;
+}
+
+.nw-root .nw-hero__stat + .nw-hero__stat {
+  border-inline-start: 1px solid var(--nw-line);
+}
+
+.nw-root .nw-hero__statValue {
+  display: block;
+  font-size: clamp(1.05rem, 1.5vw, 1.5rem);
+  font-weight: 300;
+  font-stretch: 112%;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--nh-ink);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.nw-root .nw-hero__statLabel {
+  display: block;
+  margin-top: 6px;
+  font-size: 10px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--nh-muted-2);
+  white-space: nowrap;
+}
+
+.nw-root .nw-hero__ctas {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+/* The spec label, in the register the root and /new-man both pin to their own
+   corners: two short lines, a bullet, nothing else. */
+.nw-root .nw-hero__spec {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  font-size: 10.5px;
+  line-height: 1.5;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--nh-muted);
+}
+
+.nw-root .nw-hero__specDot {
+  flex: none;
+  width: 5px;
+  height: 5px;
+  margin-top: 5px;
+  border-radius: 999px;
+  background: var(--nw-rose);
+}
+
+.nw-root .nw-hero__specLine {
+  display: block;
+}
+
+/* ------------------------------------------------------------- 01b  ribbon */
+
+/* The marquee under the hero. It runs on its own, and the page's scroll
+   velocity adds to it — so it reads as something the scroll is driving rather
+   than a loop playing beside it. */
+.nw-root .nw-ribbon {
+  position: relative;
+  overflow: hidden;
+  padding: clamp(13px, 1.4vw, 18px) 0;
+  border-block: 1px solid var(--nw-line);
+  background: var(--nh-surface-3);
+}
+
+.nw-root .nw-ribbon__track {
+  display: flex;
+  width: max-content;
+  will-change: transform;
+}
+
+.nw-root .nw-ribbon__group {
+  display: flex;
+  align-items: center;
+  flex: none;
+}
+
+.nw-root .nw-ribbon__item {
+  display: inline-flex;
+  align-items: center;
+  gap: clamp(1.1rem, 2vw, 2.2rem);
+  padding-inline-end: clamp(1.1rem, 2vw, 2.2rem);
+  font-size: clamp(12px, 1.15vw, 15px);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--nh-ink-soft);
+  white-space: nowrap;
+}
+
+.nw-root .nw-ribbon__item::after {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--nw-rose);
+}
+
+/* ================================================================== 02 line */
+
+.nw-root .nw-line {
+  position: relative;
+  background: var(--nh-surface);
+}
+
+/* The viewport the strip travels inside. Sticky rather than fixed, so the
+   section's own height is what decides how long the travel lasts. */
+.nw-root .nw-line__pin {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: clamp(1.5rem, 3vw, 2.75rem);
+  height: 100svh;
+  overflow: hidden;
+  padding-block: clamp(2rem, 4vw, 3.5rem);
+}
+
+.nw-root .nw-line__head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 1rem;
+}
+
+.nw-root .nw-line__title {
+  margin: 0.75rem 0 0;
+  font-size: clamp(1.5rem, 3vw, 2.9rem);
+  text-transform: uppercase;
+}
+
+.nw-root .nw-line__hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--nh-muted-2);
+  white-space: nowrap;
+}
+
+.nw-root .nw-line__hintBar {
+  display: block;
+  width: clamp(38px, 5vw, 76px);
+  height: 1px;
+  background: var(--nw-line);
+  overflow: hidden;
+}
+
+.nw-root .nw-line__hintFill {
+  display: block;
+  height: 100%;
+  background: var(--nw-rose);
+  transform-origin: 0 50%;
+}
+
+.nw-root .nw-line__viewport {
+  overflow: hidden;
+  /* the track is moved by a transform, so nothing here scrolls natively —
+     see the small-screen block at the foot of this sheet, where it does */
+  overscroll-behavior-x: contain;
+}
+
+/* Nothing is driving the track — see `data-still` in the-line.tsx. The row
+   becomes a native swipe so every panel stays reachable, and the pin is
+   released so the section is not a screen of frozen strip. */
+.nw-root .nw-line[data-still] .nw-line__pin {
+  position: static;
+  height: auto;
+}
+
+.nw-root .nw-line[data-still] .nw-line__viewport {
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.nw-root .nw-line[data-still] .nw-line__viewport::-webkit-scrollbar {
+  display: none;
+}
+
+.nw-root .nw-line[data-still] .nw-panel {
+  scroll-snap-align: start;
+}
+
+.nw-root .nw-line__track {
+  display: flex;
+  gap: clamp(14px, 1.6vw, 26px);
+  width: max-content;
+  padding-inline: var(--nh-gutter);
+  will-change: transform;
+}
+
+/* A spread, not a card: the photograph holds the left half and the copy the
+   right, so a panel is as wide as it is tall. Two reasons, both practical —
+   the shots are portrait, and a portrait frame is the only way to read one
+   without cropping the figure off at the waist; and four wide panels give the
+   strip roughly a screen's worth of travel, where four narrow ones barely
+   moved before the pin released. */
+.nw-root .nw-panel {
+  flex: none;
+  width: clamp(280px, 46vw, 660px);
+  display: grid;
+  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+  gap: clamp(14px, 1.6vw, 26px);
+  align-items: center;
+}
+
+.nw-root .nw-panel__frame {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 3 / 4;
+  /* The ratio decides the frame's height from its width, which on a narrow
+     window leaves a short panel floating in the middle of a full-height pin.
+     The floor is read off the viewport instead, so the strip fills the screen
+     it is pinned to rather than sitting in a band of empty page. The photograph
+     is `cover`, so a frame taller than its ratio crops rather than stretches. */
+  min-height: clamp(220px, 40svh, 480px);
+  /* the same arch the tiles carry, one step tighter — it is what ties this
+     section to the edit below it */
+  border-radius: var(--nw-arch-sm);
+  background: var(--nh-card-bg);
+  box-shadow: inset 0 0 0 1px var(--nw-line-soft);
+}
+
+.nw-root .nw-panel__frame img {
+  display: block;
+}
+
+/* In the copy, not over the photograph. It used to sit in the frame's corner
+   in `mix-blend-mode: overlay`, which on shots this dark resolved to very
+   nearly the photograph itself. */
+.nw-root .nw-panel__index {
+  margin: 0;
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  color: var(--nw-rose-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.nw-root .nw-panel__body {
+  display: grid;
+  gap: 9px;
+  min-width: 0;
+}
+
+.nw-root .nw-panel__title {
+  margin: 0;
+  font-size: clamp(1rem, 1.4vw, 1.35rem);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--nh-ink);
+  text-transform: uppercase;
+}
+
+.nw-root .nw-panel__copy {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--nh-muted);
+  /* four lines is the tallest any of the four panels sets to; clamping keeps
+     one long clause from making its panel taller than its neighbours */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  overflow: hidden;
+}
+
+.nw-root .nw-panel__spec {
+  display: grid;
+  gap: 0;
+  margin: 4px 0 0;
+}
+
+.nw-root .nw-panel__specRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-top: 1px solid var(--nw-line-soft);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.nw-root .nw-panel__specKey {
+  flex: none;
+  color: var(--nh-muted-2);
+}
+
+.nw-root .nw-panel__specValue {
+  min-width: 0;
+  color: var(--nh-ink-soft);
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ================================================================== 03 edit */
+
+.nw-root .nw-edit {
+  position: relative;
+  background: var(--nh-surface);
+  /* Lighter at the top than at the bottom: the pinned strip above already ends
+     in the empty half of its own viewport, and a full section's padding on top
+     of that reads as a missing section rather than as breathing room. */
+  padding: clamp(3rem, 6vw, 6.5rem) 0 clamp(3.5rem, 6vw, 6rem);
+}
+
+/* Left-set, not centred: the men's head is a title with two captions balanced
+   either side of it, and this one is a title with its meta stacked at the end
+   of the same rule. */
+.nw-root .nw-edit__head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 1rem clamp(1.5rem, 3vw, 3rem);
+  padding-bottom: clamp(1.5rem, 3vw, 2.5rem);
+}
+
+.nw-root .nw-edit__title {
+  margin: 0.85rem 0 0;
+  font-size: clamp(1.65rem, 3.5vw, 3.3rem);
+  text-transform: uppercase;
+}
+
+.nw-root .nw-edit__headMeta {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.nw-root .nw-edit__headCount {
+  font-size: clamp(1.1rem, 1.6vw, 1.5rem);
+  font-weight: 300;
+  font-stretch: 112%;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--nh-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------- filter rail */
+
+.nw-root .nw-rail {
+  position: relative;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 0.75rem clamp(1rem, 2vw, 2rem);
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--nw-line);
+  margin-bottom: clamp(1.75rem, 3vw, 2.75rem);
+}
+
+.nw-root .nw-rail__tabs {
+  display: flex;
+  align-items: flex-end;
+  gap: clamp(12px, 1.7vw, 26px);
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.nw-root .nw-rail__tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.nw-root .nw-tab {
+  position: relative;
+  flex: none;
+  padding: 0 0 12px;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: clamp(11.5px, 1vw, 13px);
+  letter-spacing: 0.04em;
+  color: var(--nh-muted);
+  white-space: nowrap;
+  transition: color 0.35s var(--nh-ease-soft);
+}
+
+.nw-root .nw-tab:hover {
+  color: var(--nh-ink-soft);
+}
+
+.nw-root .nw-tab[data-on] {
+  color: var(--nh-ink);
+}
+
+/* One element, moved between tabs by Motion — so switching reads as the mark
+   travelling rather than two rules trading places. */
+.nw-root .nw-tab__mark {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--nw-rose);
+}
+
+.nw-root .nw-rail__tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 8px;
+}
+
+/* The two availability filters. A hairline capsule that fills when it is on —
+   the same affordance as a checkbox, at the weight of the rail it sits on. */
+.nw-root .nw-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 13px;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  color: var(--nh-muted);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--nw-line-soft);
+  white-space: nowrap;
+  transition:
+    color 0.35s var(--nh-ease-soft),
+    background-color 0.35s var(--nh-ease-soft),
+    box-shadow 0.35s var(--nh-ease-soft);
+}
+
+.nw-root .nw-toggle:hover {
+  color: var(--nh-ink-soft);
+  box-shadow: inset 0 0 0 1px var(--nw-line);
+}
+
+.nw-root .nw-toggle[aria-checked="true"] {
+  color: var(--nh-ink);
+  background: var(--nw-fill);
+  box-shadow: inset 0 0 0 1px var(--nw-line-hi);
+}
+
+.nw-root .nw-toggle__box {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 13px;
+  height: 13px;
+  border-radius: 4px;
+  color: var(--nh-solid-fg);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--nw-line);
+  transition: background-color 0.3s var(--nh-ease-soft);
+}
+
+.nw-root .nw-toggle[aria-checked="true"] .nw-toggle__box {
+  background: var(--nw-rose);
+  box-shadow: none;
+}
+
+/* -------------------------------------------------------------- sort menu */
+
+.nw-root .nw-sort {
+  position: relative;
+  flex: none;
+}
+
+.nw-root .nw-sort__button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 13px;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  color: var(--nh-ink-soft);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--nw-line-soft);
+  white-space: nowrap;
+  transition:
+    color 0.35s var(--nh-ease-soft),
+    box-shadow 0.35s var(--nh-ease-soft);
+}
+
+.nw-root .nw-sort__button:hover,
+.nw-root .nw-sort__button[aria-expanded="true"] {
+  color: var(--nh-ink);
+  box-shadow: inset 0 0 0 1px var(--nw-line-hi);
+}
+
+.nw-root .nw-sort__label {
+  color: var(--nh-muted-2);
+}
+
+.nw-root .nw-sort__chevron {
+  display: inline-grid;
+  place-items: center;
+  transition: transform 0.35s var(--nh-ease);
+}
+
+.nw-root .nw-sort__button[aria-expanded="true"] .nw-sort__chevron {
+  transform: rotate(180deg);
+}
+
+.nw-root .nw-sort__menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 40;
+  min-width: 210px;
+  padding: 6px;
+  margin: 0;
+  list-style: none;
+  border-radius: 14px;
+  background: var(--nh-mega-bg);
+  box-shadow:
+    inset 0 0 0 1px var(--nh-mega-edge),
+    0 26px 60px -34px rgba(0, 0, 0, 0.95);
+  transform-origin: 100% 0;
+}
+
+.nw-root .nw-sort__option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  height: 34px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 9px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  letter-spacing: 0.01em;
+  text-align: left;
+  color: var(--nh-mega-muted);
+  background: none;
+  transition:
+    color 0.25s var(--nh-ease-soft),
+    background-color 0.25s var(--nh-ease-soft);
+}
+
+.nw-root .nw-sort__option:hover {
+  color: var(--nh-mega-fg);
+  background: var(--nw-fill);
+}
+
+.nw-root .nw-sort__option[aria-selected="true"] {
+  color: var(--nh-ink);
+}
+
+.nw-root .nw-sort__tick {
+  color: var(--nw-rose);
+}
+
+/* The paging anchor. It sits above the grid so its position never depends on
+   what the grid is currently drawing; the margin keeps the first row clear of
+   the header that is about to slide back over it. */
+.nw-root .nw-edit__gridTop {
+  scroll-margin-top: clamp(16px, 4vw, 56px);
+}
+
+/* ------------------------------------------------------------------- grid */
+
+/* Three tracks, not four, and the middle one dropped half a card. Fewer, wider
+   tiles is what buys the arch its curve — at the men's four-up the radius is
+   too shallow to read as anything but a rounded corner. */
+.nw-root .nw-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(1.75rem, 3vw, 3.25rem) clamp(1rem, 1.8vw, 1.75rem);
+  align-items: start;
+}
+
+.nw-root .nw-grid > :nth-child(3n + 2) {
+  margin-top: clamp(1.5rem, 3.5vw, 4rem);
+}
+
+.nw-root .nw-grid__empty {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  padding: clamp(3.5rem, 8vw, 7rem) 0;
+  text-align: center;
+}
+
+.nw-root .nw-grid__emptyTitle {
+  margin: 0;
+  font-size: clamp(1.3rem, 2.4vw, 2rem);
+  text-transform: uppercase;
+}
+
+/* ------------------------------------------------------------------- card */
+
+.nw-root .nw-card {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.85rem, 1.1vw, 1.1rem);
+  min-width: 0;
+}
+
+/* The arch. Its top corners are unusable, so everything the tile carries —
+   flags, tools, the quick-add — lives along the bottom edge instead of being
+   split between the corners the way the men's rectangular tile splits them. */
+.nw-root .nw-card__frame {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  aspect-ratio: 4 / 5;
+  border-radius: var(--nw-arch);
+  background: var(--nh-card-bg);
+  box-shadow: inset 0 0 0 1px var(--nw-line-soft);
+  transition: box-shadow 0.45s var(--nh-ease-soft);
+}
+
+.nw-root .nw-card:hover .nw-card__frame {
+  box-shadow: inset 0 0 0 1px var(--nw-line-hi);
+}
+
+.nw-root .nw-card__media {
+  position: absolute;
+  inset: 0;
+  display: block;
+  overflow: hidden;
+  transition: transform 0.7s var(--nh-ease);
+}
+
+.nw-root .nw-card:hover .nw-card__media {
+  transform: scale(1.035);
+}
+
+/* The floor under the flags and the tools, so neither depends on the garment
+   behind it being dark. Bottom-anchored, because that is where this tile keeps
+   its furniture. */
+.nw-root .nw-card__frame::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 0;
+  z-index: 1;
+  height: 42%;
+  pointer-events: none;
+  background: linear-gradient(
+    0deg,
+    rgba(6, 7, 8, 0.62) 0%,
+    rgba(6, 7, 8, 0.16) 52%,
+    rgba(6, 7, 8, 0) 100%
+  );
+}
+
+.nw-root .nw-card__hit {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: block;
+  border-radius: inherit;
+  background: transparent;
+}
+
+.nw-root .nw-card__hit:focus-visible {
+  outline: 2px solid var(--nh-solid-bg);
+  outline-offset: -4px;
+}
+
+.nw-root .nw-card__foot {
+  position: absolute;
+  z-index: 4;
+  inset: auto 13px 13px 13px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.nw-root .nw-card__flags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.nw-root .nw-card__flag {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--nh-ink);
+  background: rgba(18, 20, 22, 0.72);
+  box-shadow: inset 0 0 0 1px var(--nw-line);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+
+.nw-root .nw-card__flag--new {
+  color: #23161a;
+  background: var(--nw-rose);
+  box-shadow: none;
+}
+
+.nw-root .nw-card__flag--sold {
+  color: var(--nh-solid-fg);
+  background: var(--nh-solid-bg);
+  box-shadow: none;
+}
+
+.nw-root .nw-card__tools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  pointer-events: auto;
+}
+
+/* Drawn at full strength rather than revealed on hover: there is no hover on a
+   phone, and the quick view is the only way to size a piece without leaving
+   the listing. */
+.nw-root .nw-card__tool {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  color: var(--nh-chip-fg);
+  background: rgba(18, 20, 22, 0.72);
+  box-shadow: inset 0 0 0 1px var(--nw-line);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  transition:
+    color 0.3s var(--nh-ease-soft),
+    background-color 0.3s var(--nh-ease-soft);
+}
+
+.nw-root .nw-card__tool:hover {
+  color: var(--nh-ink);
+  background: rgba(30, 26, 28, 0.9);
+}
+
+.nw-root .nw-card__tool--heart[data-on="true"] {
+  color: var(--nw-rose);
+}
+
+.nw-root .nw-card__tool--heart[data-on="true"] svg {
+  fill: currentColor;
+}
+
+.nw-root .nw-card[data-sold="true"] .nw-card__media img {
+  opacity: 0.45;
+  filter: grayscale(0.72);
+}
+
+/* --------------------------------------------------------------- card meta */
+
+/* Two rows, each a baseline pair: name against price, then category against
+   the reduction. Every cell is single-line and clipped, so a long product name
+   can never push one tile in a row taller than the two beside it. */
+.nw-root .nw-card__meta {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  padding-inline: 2px;
+}
+
+.nw-root .nw-card__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.nw-root .nw-card__name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 13.5px;
+  line-height: 1.35;
+  letter-spacing: -0.005em;
+  color: var(--nh-ink);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color 0.3s var(--nh-ease-soft);
+}
+
+.nw-root .nw-card__name:hover {
+  color: var(--nw-rose);
+}
+
+.nw-root .nw-card__index {
+  flex: none;
+  margin-inline-end: 8px;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--nw-rose-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.nw-root .nw-card__price {
+  flex: none;
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--nh-ink);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.nw-root .nw-card__sub {
+  min-width: 0;
+  font-size: 10.5px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--nh-muted-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nw-root .nw-card__reduction {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  flex: none;
+  white-space: nowrap;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  color: var(--nh-muted-2);
+}
+
+.nw-root .nw-card__mrp {
+  text-decoration-thickness: 1px;
+}
+
+.nw-root .nw-card__off {
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--nw-champ);
+}
+
+/* ------------------------------------------------------------------ pager */
+
+.nw-root .nw-pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: clamp(2.25rem, 4vw, 3.5rem);
+  padding-top: 16px;
+  border-top: 1px solid var(--nw-line);
+}
+
+/* Prev, the numbers and Next travel as one group, with the tally at the far
+   end of the row. */
+.nw-root .nw-pager__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.nw-root .nw-pager__pages {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nw-root .nw-pager__step {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--nh-ink-soft);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--nw-line-soft);
+  transition:
+    color 0.3s var(--nh-ease-soft),
+    box-shadow 0.3s var(--nh-ease-soft);
+}
+
+.nw-root .nw-pager__step:hover:not(:disabled) {
+  color: var(--nh-ink);
+  box-shadow: inset 0 0 0 1px var(--nw-line-hi);
+}
+
+.nw-root .nw-pager__step:disabled {
+  color: var(--nh-muted-2);
+  opacity: 0.5;
+  cursor: default;
+}
+
+.nw-root .nw-pager__page {
+  display: inline-grid;
+  place-items: center;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--nh-muted);
+  background: none;
+  font-variant-numeric: tabular-nums;
+  transition:
+    color 0.3s var(--nh-ease-soft),
+    background-color 0.3s var(--nh-ease-soft);
+}
+
+.nw-root .nw-pager__page:hover {
+  color: var(--nh-ink);
+  background: var(--nw-fill);
+}
+
+.nw-root .nw-pager__page[data-on] {
+  color: var(--nh-solid-fg);
+  background: var(--nh-solid-bg);
+}
+
+.nw-root .nw-pager__gap {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 34px;
+  color: var(--nh-muted-2);
+}
+
+.nw-root .nw-pager__count {
+  margin: 0;
+}
+
+/* ------------------------------------------------------------------ notes */
+
+.nw-root .nw-notes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(1.25rem, 2.5vw, 2.5rem);
+  margin: clamp(3rem, 5vw, 4.5rem) 0 0;
+  padding: clamp(1.5rem, 2.5vw, 2rem) 0 0;
+  list-style: none;
+  border-top: 1px solid var(--nw-line);
+}
+
+.nw-root .nw-note {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.nw-root .nw-note__key {
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  color: var(--nw-rose-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.nw-root .nw-note__title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--nh-ink);
+}
+
+.nw-root .nw-note__body {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--nh-muted);
+  max-width: 34ch;
+}
+
+/* =============================================================== 04 closing */
+
+.nw-root .nw-close {
+  position: relative;
+  background: var(--nh-surface-2);
+  padding: clamp(4rem, 8vw, 8rem) 0 clamp(4rem, 7vw, 7rem);
+}
+
+.nw-root .nw-close__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  gap: clamp(2.5rem, 5vw, 5.5rem);
+  align-items: start;
+}
+
+.nw-root .nw-close__quote {
+  display: grid;
+  gap: clamp(1.25rem, 2vw, 1.75rem);
+  min-width: 0;
+  padding-inline-start: clamp(1rem, 1.6vw, 1.5rem);
+  border-inline-start: 1px solid var(--nw-line-hi);
+}
+
+.nw-root .nw-close__quoteLines {
+  margin: 0;
+  font-size: clamp(1.2rem, 2.1vw, 2rem);
+  font-weight: 300;
+  font-stretch: 108%;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--nh-ink);
+}
+
+/* Each line is its own overflow box, so the rise happens behind an edge. */
+.nw-root .nw-close__line {
+  display: block;
+  overflow: hidden;
+}
+
+.nw-root .nw-close__lineInner {
+  display: block;
+  will-change: transform;
+}
+
+.nw-root .nw-close__credit {
+  font-size: 10.5px;
+  font-style: normal;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--nw-rose-dim);
+}
+
+.nw-root .nw-close__faq {
+  min-width: 0;
+}
+
+.nw-root .nw-faq {
+  margin-top: clamp(1rem, 1.6vw, 1.5rem);
+  border-top: 1px solid var(--nw-line);
+}
+
+.nw-root .nw-faq__item {
+  border-bottom: 1px solid var(--nw-line);
+}
+
+.nw-root .nw-faq__head {
+  display: flex;
+  align-items: center;
+  gap: clamp(0.75rem, 1.5vw, 1.25rem);
+  width: 100%;
+  padding: clamp(1rem, 1.5vw, 1.35rem) 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: clamp(13px, 1.1vw, 15px);
+  letter-spacing: -0.005em;
+  text-align: left;
+  color: var(--nh-ink-soft);
+  transition: color 0.3s var(--nh-ease-soft);
+}
+
+.nw-root .nw-faq__head:hover,
+.nw-root .nw-faq__item[data-open="true"] .nw-faq__head {
+  color: var(--nh-ink);
+}
+
+.nw-root .nw-faq__num {
+  flex: none;
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  color: var(--nw-rose-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.nw-root .nw-faq__q {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* A plus that becomes a minus — one bar rotates, so the two states are the
+   same two elements rather than two icons swapped. */
+.nw-root .nw-faq__sign {
+  position: relative;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px var(--nw-line);
+  transition: background-color 0.3s var(--nh-ease-soft);
+}
+
+.nw-root .nw-faq__head:hover .nw-faq__sign {
+  background: var(--nw-fill);
+}
+
+.nw-root .nw-faq__sign::before,
+.nw-root .nw-faq__sign::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 9px;
+  height: 1px;
+  background: currentColor;
+  transform: translate(-50%, -50%);
+  transition: transform 0.4s var(--nh-ease);
+}
+
+.nw-root .nw-faq__sign::after {
+  transform: translate(-50%, -50%) rotate(90deg);
+}
+
+.nw-root .nw-faq__item[data-open="true"] .nw-faq__sign::after {
+  transform: translate(-50%, -50%) rotate(0deg);
+}
+
+/* Height animated by grid template rather than by max-height: a row of `0fr`
+   to `1fr` interpolates against the content's real height, so a long answer
+   and a short one open at the same speed. */
+.nw-root .nw-faq__body {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.45s var(--nh-ease);
+}
+
+.nw-root .nw-faq__item[data-open="true"] .nw-faq__body {
+  grid-template-rows: 1fr;
+}
+
+.nw-root .nw-faq__bodyInner {
+  overflow: hidden;
+}
+
+.nw-root .nw-faq__bodyInner p {
+  margin: 0;
+  padding: 0 clamp(1.5rem, 3vw, 3rem) clamp(1rem, 1.6vw, 1.4rem) clamp(1.75rem, 3vw, 2.6rem);
+  max-width: 62ch;
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--nh-muted);
+  opacity: 0;
+  transition: opacity 0.4s var(--nh-ease-soft);
+}
+
+.nw-root .nw-faq__item[data-open="true"] .nw-faq__bodyInner p {
+  opacity: 1;
+}
+
+/* -------------------------------------------------------------------- band */
+
+.nw-root .nw-band {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: grid;
+  align-items: end;
+  min-height: clamp(400px, 46vw, 620px);
+  margin-top: clamp(3.5rem, 6vw, 6rem);
+  border-radius: clamp(20px, 2.2vw, 30px);
+  background: var(--nh-surface-3);
+}
+
+/* Three layers under the copy, in this order: the photograph, the oversized
+   word, then the wash over both. The word used to sit ABOVE the wash and to the
+   left, which put it straight through the buttons at full strength. Under the
+   wash it reads as part of the photograph, which is what an oversized word on a
+   band is for. */
+.nw-root .nw-band__media {
+  position: absolute;
+  inset: 0;
+  z-index: -3;
+  overflow: hidden;
+}
+
+/* The wash. Weighted to the left, because that is the half the copy sits in
+   and the photograph's own subject stands in the other one. */
+/* Taller than the frame so the drift never exposes an edge — the frame clips,
+   and 112% at ±6% leaves margin at both ends of the travel. */
+.nw-root .nw-band__media img {
+  display: block;
+  height: 112%;
+  margin-top: -6%;
+}
+
+.nw-root .nw-band__wash {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(10, 11, 12, 0.92) 0%, rgba(10, 11, 12, 0.62) 44%, rgba(10, 11, 12, 0.1) 78%),
+    linear-gradient(0deg, rgba(10, 11, 12, 0.75) 0%, rgba(10, 11, 12, 0) 58%);
+}
+
+.nw-root .nw-band__ghost {
+  position: absolute;
+  /* Started off the left edge so the wash's densest corner does not swallow it
+     whole, and hung past the bottom so only the shoulders of the letters show. */
+  left: 26%;
+  bottom: -9%;
+  z-index: -2;
+  margin: 0;
+  font-size: clamp(6rem, 17vw, 15rem);
+  font-weight: 300;
+  font-stretch: 112%;
+  line-height: 0.8;
+  letter-spacing: -0.045em;
+  color: var(--nh-ghost);
+  pointer-events: none;
+  user-select: none;
+}
+
+.nw-root .nw-band__inner {
+  display: grid;
+  gap: clamp(1rem, 1.8vw, 1.6rem);
+  max-width: 40rem;
+  padding: clamp(2rem, 4vw, 4rem);
+}
+
+.nw-root .nw-band__title {
+  margin: 0;
+  font-size: clamp(1.6rem, 3.4vw, 3.2rem);
+  text-transform: uppercase;
+}
+
+.nw-root .nw-band__ctas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+/* ============================================================== breakpoints */
+
+@media (max-width: 1080px) {
+  .nw-root .nw-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* The stagger is written for three tracks. At two it would drop every second
+     tile forever, which is a zig-zag rather than a layout. */
+  .nw-root .nw-grid > :nth-child(3n + 2) {
+    margin-top: 0;
+  }
+
+  .nw-root .nw-grid > :nth-child(2n) {
+    margin-top: clamp(1.25rem, 3vw, 2.5rem);
+  }
+
+  .nw-root .nw-close__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  /* The two split words stop being a frame around the garment and become a
+     stack above it: at this width the gap between them is narrower than the
+     garment, so left-and-right would read as the type colliding with the cloth
+     rather than standing behind it. */
+  .nw-root .nw-hero__title {
+    inset: clamp(1.5rem, 5vh, 3rem) var(--nh-gutter) auto;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+  }
+
+  .nw-root .nw-hero__wordInner {
+    font-size: clamp(2.6rem, 17vw, 6.5rem);
+  }
+
+  .nw-root .nw-hero__ghost {
+    top: 62%;
+    font-size: clamp(1.6rem, 12vw, 4rem);
+  }
+
+  /* The strip stops being scroll-driven and becomes what it always was
+     underneath: a row of panels you can swipe. The section loses its extra
+     height in the component, which stops setting one below this width. */
+  .nw-root .nw-line__pin {
+    position: static;
+    height: auto;
+  }
+
+  .nw-root .nw-line__viewport {
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .nw-root .nw-line__viewport::-webkit-scrollbar {
+    display: none;
+  }
+
+  .nw-root .nw-line__track {
+    /* the transform is dropped by the component at this width, so the track
+       lays out at its natural offset again */
+    width: max-content;
+  }
+
+  /* Stacked, and narrow enough that the next panel's edge shows — which is
+     what tells a reader the row swipes at all. */
+  .nw-root .nw-panel {
+    width: clamp(240px, 76vw, 380px);
+    grid-template-columns: minmax(0, 1fr);
+    gap: clamp(0.9rem, 3vw, 1.25rem);
+    align-items: start;
+    scroll-snap-align: start;
+  }
+
+  .nw-root .nw-panel__frame {
+    aspect-ratio: 4 / 5;
+    /* no pin to fill down here — the ratio is the whole answer again */
+    min-height: 0;
+  }
+
+  .nw-root .nw-notes {
+    grid-template-columns: minmax(0, 1fr);
+    gap: clamp(1.25rem, 4vw, 1.75rem);
+  }
+
+  .nw-root .nw-note__body {
+    max-width: none;
+  }
+}
+
+@media (max-width: 720px) {
+  /* The three-slot footer becomes one column: the copy, then the buttons, then
+     the spec — in the order they are read rather than the order they are hung. */
+  .nw-root .nw-hero__foot {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: start;
+    gap: clamp(1rem, 4vw, 1.5rem);
+  }
+
+  .nw-root .nw-hero__aside--right {
+    justify-items: start;
+    text-align: left;
+  }
+
+  .nw-root .nw-hero__ctas {
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  .nw-root .nw-hero__lede {
+    max-width: 40ch;
+  }
+
+  .nw-root .nw-edit__head,
+  .nw-root .nw-line__head {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .nw-root .nw-edit__headMeta {
+    justify-items: start;
+    text-align: left;
+  }
+
+  .nw-root .nw-line__hint {
+    display: none;
+  }
+
+  .nw-root .nw-rail {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+  }
+
+  .nw-root .nw-rail__tools {
+    padding-bottom: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .nw-root .nw-rail__tools::-webkit-scrollbar {
+    display: none;
+  }
+
+  .nw-root .nw-sort__menu {
+    right: auto;
+    left: 0;
+    transform-origin: 0 0;
+  }
+
+  .nw-root .nw-pager {
+    justify-content: center;
+  }
+
+  .nw-root .nw-pager__count {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+@media (max-width: 560px) {
+  .nw-root .nw-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: clamp(1.75rem, 6vw, 2.5rem);
+  }
+
+  .nw-root .nw-grid > :nth-child(2n),
+  .nw-root .nw-grid > :nth-child(3n + 2) {
+    margin-top: 0;
+  }
+
+  /* On a phone the ledger is the only thing in the left slot worth the width,
+     so the lede goes and the two figures carry it. */
+  .nw-root .nw-hero__lede {
+    display: none;
+  }
+
+  /* One figure moves both — the garment and the copy of it in the mirror. */
+  .nw-root .nw-hero__garmentImg,
+  .nw-root .nw-hero__reflection {
+    height: clamp(180px, 32svh, 300px);
+  }
+}
+
+/* ============================================================ reduced motion */
+
+@media (prefers-reduced-motion: reduce) {
+  .nw-root .nw-ribbon__track {
+    transform: none !important;
+  }
+
+  .nw-root .nw-card__media,
+  .nw-root .nw-card:hover .nw-card__media,
+  .nw-root .nw-hero__garmentFloat,
+  .nw-root .nw-btn:hover,
+  .nw-root .nw-btn:hover .nw-btn__arrow {
+    transform: none;
+  }
+
+  .nw-root .nw-faq__body {
+    transition-duration: 0.01ms;
+  }
+}

@@ -1,0 +1,3911 @@
+/* ============================================================================
+   ICED_OUT CRM — component sheet
+
+   Everything a page is built from: the head card, stat cards, panels, toolbars,
+   tables, forms, buttons, chips, dialogs and the charts.
+
+   The SHELL (tokens, app frame, rail, bar) is in shell.css and loads first.
+   This sheet declares no tokens of its own — it reads the ones declared there
+   on `.aui-app` and on every surface Radix portals out of it.
+
+   Every 1px edge is an inset box-shadow, never a border: a border eats a pixel
+   of the control's content box and shifts the row it sits in.
+
+   ORDER
+     4  the page frame + head card
+     5  overview cards
+     6  sections, panels, cards
+     7  toolbar, filters, tabs
+     8  tables + row actions
+     9  forms + fields
+    10  buttons, chips, statuses
+    11  dialogs + drawers
+    12  empty / feedback states
+    13  account settings + charts
+    14  responsive
+   ========================================================================= */
+
+/* ======================================================== 4. page frame + head */
+/* `.aui-stage` is declared in shell.css as the scroll container; this only adds
+   the room at the bottom so the last card does not sit flush against the edge.
+   The horizontal inset belongs to the wrapper below, not here — padding on the
+   scroll container itself would put the scrollbar inside it. */
+.aui-stage {
+  padding-bottom: clamp(3rem, 7vw, 5.5rem);
+}
+
+.aui-page {
+  position: relative;
+  isolation: isolate;
+}
+
+/* Chrome-aligned. Same max width and same gutter as the bar above it, so a
+   page's card edges line up with the bar's rather than sitting inside them by
+   an arbitrary amount — style guide §5.2/§5.3. */
+.aui-page__wrap {
+  width: 100%;
+  max-width: var(--aui-page-max);
+  margin-inline: auto;
+  padding-block: 8px 0;
+  padding-inline: 12px;
+}
+
+@media (min-width: 640px) {
+  .aui-page__wrap {
+    padding-inline: var(--aui-gutter-chrome);
+  }
+}
+
+/* Above the head card, not inside it: it is the way out of this screen, and it
+   has to be read before the title. */
+.aui-page__back {
+  display: flex;
+  width: fit-content;
+  align-items: center;
+  margin-bottom: 12px;
+  padding: 7px 13px 7px 11px;
+  border-radius: 999px;
+  color: var(--nh-ink-soft);
+  font-size: 10.5px;
+  gap: 8px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  background: var(--nh-ghost-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  transition:
+    background-color 0.3s var(--nh-ease-soft),
+    color 0.3s var(--nh-ease-soft);
+}
+
+.aui-page__back:hover {
+  background: var(--nh-ghost-bg-hover);
+  color: var(--nh-ink);
+}
+
+.aui-page__back span {
+  padding-left: 9px;
+  color: var(--nh-muted);
+  box-shadow: inset 1px 0 0 0 var(--nh-hairline);
+}
+
+.aui-page__back svg {
+  transition: transform 0.4s var(--nh-ease);
+}
+
+.aui-page__back:hover svg {
+  transform: translateX(-2px);
+}
+
+/* ---- 4.1 the head card --------------------------------------------------- */
+/* Every screen opens on the same banner: a tinted card carrying the badge, the
+   title, one line of copy, and whatever the screen can act on — with the
+   numbers it can prove ruled off underneath.
+
+   It replaced a full-height centred masthead. That treatment is right for a
+   shopper landing on /wishlist once; it is wrong eighty times a day for an
+   operator, where it pushed the actual work below the fold on every screen.
+   Same voice, a quarter of the height. */
+.aui-head {
+  position: relative;
+  display: grid;
+  align-items: center;
+  padding: clamp(1.35rem, 2.6vw, 1.85rem) clamp(1.35rem, 2.6vw, 2rem);
+  border-radius: var(--nh-radius-xl);
+  overflow: hidden;
+  gap: 18px clamp(1.25rem, 2.4vw, 2rem);
+  grid-template-columns: minmax(0, 1fr) auto;
+  isolation: isolate;
+  background: linear-gradient(112deg, #1a1d22 0%, #16181b 46%, #181a21 100%);
+  box-shadow:
+    inset 0 0 0 1px var(--nh-hairline),
+    var(--aui-lift);
+}
+
+/* The two soft orbs. On a light page they are indigo and violet washes; here
+   they are the same two hues at the alpha a dark surface can carry — enough to
+   stop the card going flat, not enough to read as colour. */
+.aui-head::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(38% 120% at 88% -20%, rgba(140, 152, 240, 0.16), transparent 68%),
+    radial-gradient(34% 110% at 28% 130%, rgba(168, 146, 232, 0.11), transparent 70%);
+}
+
+/* The glass edge-light the stat cards carry, so the head reads as the largest
+   card in the same family rather than as a different material. */
+.aui-head::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 40px;
+  left: 40px;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(255, 255, 255, 0.32),
+    transparent
+  );
+}
+
+.aui-head__lead {
+  display: grid;
+  min-width: 0;
+  gap: 11px;
+  justify-items: start;
+}
+
+/* The badge names the area; the title names the screen. Keeping the area up
+   here is what lets the title be one word. */
+.aui-head__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(140, 152, 240, 0.14);
+  color: #a9b3f5;
+  font-size: 9.5px;
+  font-weight: 600;
+  gap: 7px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  box-shadow: inset 0 0 0 1px rgba(140, 152, 240, 0.26);
+}
+
+.aui-head__badge svg {
+  opacity: 0.9;
+}
+
+.aui-head__title {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  font-size: clamp(1.5rem, 2.9vw, 2.1rem);
+  font-weight: 700;
+  gap: 13px;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+  color: #ffffff;
+}
+
+/* The light cut of the house headline, kept so a two-word title still splits —
+   quieter than the masthead's because this one sits at a third of the size. */
+.aui-head__title em {
+  font-style: normal;
+  font-weight: 300;
+  font-stretch: 110%;
+  letter-spacing: -0.02em;
+  color: var(--nh-ink-soft);
+}
+
+/* Bare, not on a chip: at title size a filled tile competes with the word it
+   is introducing. Colour carries it instead. */
+.aui-head__glyph {
+  flex: none;
+  color: #8f9cf0;
+}
+
+.aui-head__lede {
+  max-width: 78ch;
+  color: var(--nh-muted);
+  font-size: 13.5px;
+  line-height: 1.6;
+  text-wrap: pretty;
+}
+
+.aui-head__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 9px;
+}
+
+/* Numbers the screen can prove, ruled off under the copy rather than stacked
+   beside it — inline label/value pairs so the whole head stays one band tall. */
+.aui-head__spec {
+  display: flex;
+  flex-wrap: wrap;
+  grid-column: 1 / -1;
+  padding-top: 15px;
+  gap: 10px 0;
+  box-shadow: inset 0 1px 0 0 var(--nh-hairline-soft);
+}
+
+.aui-head__spec div {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+}
+
+.aui-head__spec div + div {
+  margin-left: clamp(0.9rem, 2vw, 1.6rem);
+  padding-left: clamp(0.9rem, 2vw, 1.6rem);
+  box-shadow: inset 1px 0 0 0 var(--nh-hairline);
+}
+
+.aui-head__spec dt {
+  color: var(--nh-muted-2);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.aui-head__spec dd {
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The page's own content stack. One gap between every block on every screen,
+   so no page has to invent its own rhythm. */
+.aui-page__body {
+  display: grid;
+  gap: var(--aui-stack);
+  padding-top: var(--aui-stack);
+}
+
+/* A grid item's automatic minimum size is its MIN-CONTENT, not zero -- so one
+   child that refuses to shrink does not overflow, it widens the column, and the
+   whole page grows with it. That is how a seven-tab strip at a phone width
+   pushed every band on /inventory/materials 60px past the viewport while the
+   toolbar itself reported no overflow at all: nothing was overflowing, the page
+   had simply become wider than the screen.
+ *
+ * `min-width: 0` restores the intuitive behaviour -- a child too wide for the
+   column scrolls inside its own scroller instead. */
+.aui-page__body > * {
+  min-width: 0;
+}
+
+/* The route-transition fallback — see components/admin/admin-route-loading.tsx.
+   It sits inside the stage, so the rail and the topbar stay put; all it has to
+   do is stand in for the page at roughly the page's size.
+
+   Nothing is visible for the first 140ms. Under that the operator sees an
+   unbroken stage and reads the hop as instant; over it the placeholders fade
+   up to say the wait is real. */
+.aui-loading__head,
+.aui-loading__block {
+  border-radius: var(--nh-radius-xl);
+  background: linear-gradient(112deg, #1a1d22 0%, #16181b 46%, #181a21 100%);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  opacity: 0;
+  animation:
+    aui-loading-reveal 0.28s ease-out 0.14s forwards,
+    aui-loading-pulse 1.9s ease-in-out 0.14s infinite;
+}
+
+/* Matched to `.aui-head`'s own padding and content, so the real head card
+   lands where the placeholder was rather than shifting the body down. */
+.aui-loading__head {
+  height: clamp(8.5rem, 15vw, 10.5rem);
+}
+
+.aui-loading__block {
+  height: clamp(14rem, 26vw, 20rem);
+}
+
+.aui-loading__block--short {
+  height: clamp(6rem, 11vw, 8rem);
+}
+
+@keyframes aui-loading-reveal {
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes aui-loading-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.62;
+  }
+}
+
+/* The fade-in stays — it is what keeps a fast navigation from flashing. Only
+   the breathing is dropped. */
+@media (prefers-reduced-motion: reduce) {
+  .aui-loading__head,
+  .aui-loading__block {
+    animation: aui-loading-reveal 0.28s ease-out 0.14s forwards;
+  }
+}
+
+/* A standalone row of controls inside a page body. */
+.aui-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ============================================================ 5. overview cards */
+/* The rich register: a frosted glyph chip, a tracked label, a tabular number,
+   and a movement line. Colour is on the glyph and the delta only — the chip
+   stays frosted neutral and the card stays --nh-card-bg, which is what keeps
+   a row of six reading as one surface. */
+.aui-stats {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(232px, 1fr));
+}
+
+.aui-stats--wide {
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+}
+
+.aui-stat {
+  position: relative;
+  display: flex;
+  min-height: 168px;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 20px;
+  border-radius: var(--nh-radius-lg);
+  overflow: hidden;
+  gap: 20px;
+  isolation: isolate;
+  text-align: left;
+  background: var(--nh-card-bg);
+  box-shadow:
+    inset 0 0 0 1px var(--nh-hairline),
+    var(--aui-lift);
+  transition: box-shadow 0.4s var(--nh-ease-soft);
+}
+
+.aui-stat:hover {
+  box-shadow:
+    inset 0 0 0 1px var(--nh-hairline),
+    var(--aui-lift-hover);
+}
+
+/* The glass edge-light every card carries — a hairline of white that stops
+   short of the corners, so the top edge reads as lit rather than drawn. */
+.aui-stat::before {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  right: 30px;
+  left: 30px;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(255, 255, 255, 0.34),
+    transparent
+  );
+}
+
+/* The cursor glow. `--spot-x` / `--spot-y` are written straight onto the
+   element by the pointer handler — no React state, so a hover never
+   re-renders the row. */
+.aui-stat::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    240px circle at var(--spot-x, 50%) var(--spot-y, 0%),
+    rgba(var(--aui-spot, var(--aui-ink-rgb)), 0.11),
+    transparent 72%
+  );
+  transition: opacity 0.45s var(--nh-ease-soft);
+}
+
+.aui-stat:hover::after {
+  opacity: 1;
+}
+
+/* A stat that is a filter or a link renders as a real control, and says so on
+   hover rather than by looking different at rest. */
+.aui-stat--action {
+  cursor: pointer;
+}
+
+.aui-stat--action:hover .aui-stat__go {
+  color: var(--nh-ink);
+  transform: translateX(2px);
+}
+
+.aui-stat--on {
+  box-shadow:
+    inset 0 0 0 1px rgba(var(--aui-spot, var(--aui-ink-rgb)), 0.42),
+    var(--aui-lift);
+}
+
+.aui-stat__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.aui-stat__glyph {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.055);
+  color: rgb(var(--aui-spot, var(--aui-ink-rgb)));
+  box-shadow: inset 0 0 0 1px var(--nh-hairline-soft);
+  transition: background-color 0.35s var(--nh-ease-soft);
+}
+
+.aui-stat:hover .aui-stat__glyph {
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.aui-stat__go {
+  color: var(--nh-muted-2);
+  transition:
+    color 0.3s var(--nh-ease-soft),
+    transform 0.35s var(--nh-ease);
+}
+
+/* The filter tag a clickable card wears, so "this card does something" is
+   readable without hovering it. */
+.aui-stat__tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 9px;
+  border-radius: 999px;
+  color: var(--nh-muted);
+  font-size: 9px;
+  gap: 5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  background: var(--nh-ghost-bg);
+}
+
+.aui-stat--on .aui-stat__tag {
+  color: rgb(var(--aui-spot, var(--aui-ink-rgb)));
+}
+
+.aui-stat__foot {
+  display: grid;
+  gap: 6px;
+}
+
+.aui-stat__label {
+  color: var(--nh-muted);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* A fixed line box. Without it a currency value (which renders a step smaller)
+   sits at a different height than a count, and a row of six reads ragged. */
+.aui-stat__value {
+  display: flex;
+  height: 40px;
+  align-items: baseline;
+  font-size: clamp(1.6rem, 2.3vw, 2rem);
+  font-weight: 300;
+  font-stretch: 108%;
+  letter-spacing: -0.035em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--nh-ink);
+}
+
+.aui-stat__value--sm {
+  font-size: clamp(1.25rem, 1.8vw, 1.55rem);
+}
+
+.aui-stat__note {
+  display: flex;
+  align-items: center;
+  color: var(--nh-muted-2);
+  font-size: 11.5px;
+  gap: 6px;
+  line-height: 1.45;
+}
+
+.aui-stat__delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.aui-stat__delta[data-dir="up"] {
+  color: var(--aui-mint);
+}
+
+.aui-stat__delta[data-dir="down"] {
+  color: var(--aui-rose);
+}
+
+/* ---- 5.1 the hero-width overview panel ---------------------------------- */
+/* One wide card for the thing the page is actually about — today's throughput,
+   this queue's velocity — sitting above the row of six. */
+.aui-spotlight {
+  position: relative;
+  display: grid;
+  overflow: hidden;
+  padding: clamp(1.35rem, 2.6vw, 2rem);
+  border-radius: var(--nh-radius-xl);
+  gap: clamp(1.25rem, 2.4vw, 2rem);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  isolation: isolate;
+  background: linear-gradient(140deg, #1c1f22 0%, #16181a 52%, #131518 100%);
+  box-shadow:
+    inset 0 0 0 1px var(--nh-hairline),
+    var(--aui-lift);
+}
+
+.aui-spotlight::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(46% 82% at 88% 0%, rgba(255, 255, 255, 0.07), transparent 70%),
+    radial-gradient(40% 70% at 6% 100%, rgba(121, 184, 232, 0.055), transparent 72%);
+}
+
+.aui-spotlight::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 40px;
+  left: 40px;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(255, 255, 255, 0.3),
+    transparent
+  );
+}
+
+.aui-spotlight__lead {
+  display: grid;
+  align-content: center;
+  gap: 12px;
+}
+
+.aui-spotlight__kicker {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  padding: 5px 12px;
+  border-radius: 999px;
+  color: var(--nh-ink-soft);
+  font-size: 9.5px;
+  gap: 8px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline-soft);
+}
+
+.aui-spotlight__figure {
+  font-size: clamp(2.6rem, 5.4vw, 4rem);
+  font-weight: 300;
+  font-stretch: 108%;
+  letter-spacing: -0.05em;
+  line-height: 0.92;
+  font-variant-numeric: tabular-nums;
+  color: #ffffff;
+}
+
+.aui-spotlight__caption {
+  max-width: 40ch;
+  color: var(--nh-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.aui-spotlight__side {
+  display: grid;
+  align-content: center;
+  gap: 14px;
+}
+
+/* The bar sparkline. Values arrive as a percentage on `--h`, so the shape is
+   data and the styling is not. */
+.aui-spark {
+  display: flex;
+  height: 92px;
+  align-items: flex-end;
+  padding: 14px;
+  border-radius: var(--nh-radius-card);
+  gap: 5px;
+  background: rgba(0, 0, 0, 0.24);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline-soft);
+}
+
+.aui-spark i {
+  min-height: 3px;
+  flex: 1;
+  border-radius: 999px;
+  background: linear-gradient(
+    to top,
+    rgba(255, 255, 255, 0.14),
+    rgba(255, 255, 255, 0.5)
+  );
+  transition: background 0.35s var(--nh-ease-soft);
+}
+
+.aui-spark i:last-child {
+  background: linear-gradient(to top, rgba(255, 255, 255, 0.4), #ffffff);
+}
+
+.aui-spotlight__rows {
+  display: grid;
+  gap: 8px;
+}
+
+.aui-spotlight__rows > div {
+  display: flex;
+  align-items: center;
+  padding: 11px 14px;
+  border-radius: var(--nh-radius-card);
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.035);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline-soft);
+}
+
+.aui-spotlight__rows span {
+  flex: 1;
+  color: var(--nh-muted);
+  font-size: 12px;
+}
+
+.aui-spotlight__rows strong {
+  font-size: 14px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+/* =================================================== 6. sections, panels, cards */
+.aui-sec {
+  display: grid;
+  gap: 14px;
+}
+
+.aui-sec__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: clamp(1.1rem, 2vw, 1.45rem) clamp(1.15rem, 2.2vw, 1.65rem);
+  border-radius: var(--nh-radius-lg);
+  gap: 16px;
+  background: var(--nh-surface-2);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.aui-sec__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: 10px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: var(--nh-ghost-bg);
+  color: var(--nh-muted);
+  font-size: 9.5px;
+  gap: 7px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.aui-sec__title {
+  font-size: clamp(1.1rem, 1.9vw, 1.45rem);
+  font-weight: 400;
+  font-stretch: 108%;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+}
+
+.aui-sec__copy {
+  max-width: 68ch;
+  margin-top: 9px;
+  color: var(--nh-muted);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.aui-sec__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 9px;
+}
+
+.aui-sec__body {
+  display: grid;
+  gap: 14px;
+}
+
+/* ---- 6.1 panels + record cards ------------------------------------------ */
+.aui-panel {
+  padding: clamp(1.1rem, 2vw, 1.5rem);
+  border-radius: var(--nh-radius-lg);
+  background: var(--nh-surface-2);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.aui-panel--flush {
+  padding: 0;
+  overflow: hidden;
+}
+
+.aui-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.aui-grid--2 {
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+}
+
+.aui-grid--3 {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+/* For records that are not tabular — a warehouse, a provider, a role is a
+   block of lines, not a row of fields. */
+.aui-card {
+  position: relative;
+  display: grid;
+  align-content: start;
+  padding: 18px;
+  border-radius: var(--nh-radius-lg);
+  gap: 13px;
+  background: var(--nh-card-bg);
+  box-shadow:
+    inset 0 0 0 1px var(--nh-hairline),
+    var(--aui-lift);
+  transition: box-shadow 0.4s var(--nh-ease-soft);
+}
+
+.aui-card:hover {
+  box-shadow:
+    inset 0 0 0 1px var(--nh-hairline),
+    var(--aui-lift-hover);
+}
+
+.aui-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.aui-card__glyph {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  place-items: center;
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.055);
+  color: rgb(var(--aui-spot, var(--aui-ink-rgb)));
+  box-shadow: inset 0 0 0 1px var(--nh-hairline-soft);
+}
+
+.aui-card__title {
+  display: grid;
+  gap: 4px;
+}
+
+.aui-card__title span {
+  color: var(--nh-muted-2);
+  font-size: 9.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.aui-card__title h3 {
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.aui-card__copy {
+  color: var(--nh-muted);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.aui-card__meta {
+  display: grid;
+  gap: 9px;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  padding-top: 13px;
+  box-shadow: inset 0 1px 0 0 var(--nh-hairline-soft);
+}
+
+.aui-card__meta div {
+  display: grid;
+  gap: 4px;
+}
+
+.aui-card__meta dt {
+  color: var(--nh-muted-2);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.aui-card__meta dd {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.aui-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+/* A progress read-out inside a card — completeness, capacity, sell-through. */
+.aui-meter {
+  display: grid;
+  gap: 7px;
+}
+
+.aui-meter__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  color: var(--nh-muted);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.aui-meter__row b {
+  color: var(--nh-ink);
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.aui-meter__track {
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.aui-meter__fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 0.45),
+    rgba(255, 255, 255, 0.88)
+  );
+  transition: width 0.6s var(--nh-ease);
+}
+
+/* ---- 6.2 definition detail --------------------------------------------- */
+.aui-dl {
+  display: grid;
+  gap: 1px;
+  overflow: hidden;
+  border-radius: var(--nh-radius-card);
+  background: var(--nh-hairline-soft);
+}
+
+.aui-dl > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 12px 15px;
+  gap: 10px;
+  background: var(--nh-surface-2);
+}
+
+.aui-dl dt {
+  color: var(--nh-muted);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.aui-dl dd {
+  font-size: 13px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- 6.3 timeline ------------------------------------------------------- */
+.aui-timeline {
+  display: grid;
+  gap: 0;
+}
+
+.aui-timeline li {
+  position: relative;
+  display: grid;
+  padding: 0 0 20px 32px;
+  gap: 4px;
+  grid-template-columns: 1fr;
+}
+
+.aui-timeline li:last-child {
+  padding-bottom: 0;
+}
+
+.aui-timeline li::before {
+  content: "";
+  position: absolute;
+  top: 4px;
+  left: 5px;
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--nh-muted-2);
+  box-shadow: 0 0 0 3px var(--nh-surface-2);
+}
+
+.aui-timeline li[data-done="true"]::before {
+  background: var(--aui-mint);
+}
+
+.aui-timeline li:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 16px;
+  bottom: 2px;
+  left: 9px;
+  width: 1px;
+  background: var(--nh-hairline);
+}
+
+.aui-timeline strong {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.aui-timeline span {
+  color: var(--nh-muted);
+  font-size: 11.5px;
+}
+
+/* ================================================ 7. toolbar, filters, tabs */
+/* One toolbar on every list: what am I looking at, narrow it, act on it. The
+   order never changes, so an operator learns it once. */
+/* The register toolbar.
+ *
+ * A GRID with two named rows, not a wrapping flex row. The flex version put
+ * five groups of controls on one line and let them break wherever they ran out
+ * of room — which on a wide screen orphaned the primary action on a second line
+ * under the tabs, and on a narrow one produced a different arrangement every
+ * time a chip label changed length. Neither was designed; both were what
+ * happened.
+ *
+ * The grid fixes the reading order at every width:
+ *
+ *     [ tabs ]   [ search ......... ]   [ actions ]
+ *     [ filter chips ............................ ]
+ *
+ * Left to right: where you are, what you are looking for, what you can do.
+ * Underneath, on its own line and never competing for space with any of them:
+ * what you have narrowed it to.
+ *
+ * `nav` is `auto` so the tab pill takes exactly its own width, `find` is `1fr`
+ * so the search field eats all the slack, and `acts` is `auto` so the buttons
+ * anchor the right edge. Nothing wraps, so nothing can be orphaned.
+ */
+/* The register toolbar.
+ *
+ * Three bands, in the order you use them: WHERE you are (the module tabs),
+ * WHAT you are looking for (search and the verbs), and HOW you have narrowed it
+ * (the state chips). Every band runs the full width of the card, left to right,
+ * separated by one gap value -- so the eye tracks down a single column edge
+ * instead of hunting for where the next control starts.
+ *
+ * It wraps, and the wrapping is the point. `.aui-toolbar__controls` holds the
+ * search field AND the verbs as ONE flex child with a wide basis, so when the
+ * line runs out they move down TOGETHER and fill the new line. The version
+ * before this let each control wrap on its own, which is how a lone
+ * "New material" button ended up stranded on a second row with 700px of empty
+ * space beside it: the search had wrapped, the button had not, and nothing tied
+ * them to each other.
+ *
+ * A grid was the other candidate and it is worse here. Fixed columns cannot
+ * tell a three-tab strip from a seven-tab one, so either the short pages carry
+ * a permanently empty row or the long ones crush the search field into a 10px
+ * track and let it overlap the buttons -- which is exactly what the first
+ * attempt at this did on /inventory/*. Flex sizes to content and breaks only
+ * when the content actually demands it. */
+.aui-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 12px;
+  border-radius: var(--nh-radius-lg);
+  gap: 10px;
+  background: var(--nh-surface-2);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+/* The module tabs. They keep their natural width and give it up last -- this is
+   navigation, and a half-legible tab strip is worse than a shorter search box. */
+.aui-toolbar > .aui-tabs {
+  flex: 0 1 auto;
+  min-width: 0;
+  margin: 0;
+}
+
+/* Dropdown filters, left, straight after the tabs. Same height as the control
+   row so a toolbar that has both reads as one line of equals. */
+.aui-toolbar__filters {
+  --aui-ctl-h: 42px;
+
+  display: flex;
+  align-items: center;
+  flex: 0 1 auto;
+  min-width: 0;
+  gap: 8px;
+}
+
+.aui-toolbar__filters .aui-select {
+  width: auto;
+  min-width: 168px;
+  height: var(--aui-ctl-h);
+  min-height: var(--aui-ctl-h);
+  padding-block: 0;
+  border-radius: 999px;
+}
+
+/* With filters on the left, the controls group must not also claim the middle:
+   it shrinks to its verbs and pins right, exactly as it does on a screen with
+   no search field. */
+.aui-toolbar__filters ~ .aui-toolbar__controls:not(:has(> .aui-searchfield)) {
+  flex: 0 1 auto;
+  margin-left: auto;
+}
+
+/* Search and the verbs, travelling as one. The basis is roughly the narrowest
+   width at which the pair is still usable -- a search box you can read a query
+   in, plus two buttons -- so the group stays on line one while that much room
+   exists and takes a full line of its own the moment it does not. */
+.aui-toolbar__controls {
+  display: flex;
+  align-items: center;
+  flex: 1 1 480px;
+  min-width: 0;
+  gap: 10px;
+}
+
+.aui-toolbar__controls > .aui-searchfield {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* No search on this screen, so the group has nothing to fill a line WITH: it
+   shrinks to the width of its buttons and rides the end of the tab row instead
+   of claiming 480px it cannot use.
+ *
+ * Without this, /inventory/purchases and /inventory/production reproduced the
+ * exact fault this whole toolbar was rebuilt to fix -- a single "New order"
+ * marooned on a row of its own with the tab strip above it -- because the basis
+ * was written for the common case where a search field is there to absorb it. */
+.aui-toolbar__controls:not(:has(> .aui-searchfield)) {
+  flex: 0 1 auto;
+  margin-left: auto;
+}
+
+/* The verbs. `margin-left: auto` pins them to the right edge of whichever line
+   they land on, so Export and New sit under the table's right margin whether
+   they are sharing line one or holding line two. */
+.aui-toolbar__acts {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  margin-left: auto;
+  gap: 8px;
+}
+
+/* ONE height for everything on the control row.
+ *
+ * The console has two sizes and they mean something: 42px for a container you
+ * put things in (the tab strip, the search field) and 34px for a pill inside
+ * one (a tab, a chip). The controls row is the 42px tier, so everything sitting
+ * on it is 42px -- and the three that were not are what made this band look
+ * assembled rather than designed: a 32px `size="sm"` button and a 46px select
+ * either side of a 42px search field, three heights across four controls.
+ *
+ * `size="sm"` stays on the buttons in the markup because it also sets the 10px
+ * uppercase label the registers use; only the height is overridden here. */
+.aui-toolbar__controls {
+  --aui-ctl-h: 42px;
+}
+
+.aui-toolbar__controls .aui-searchfield,
+.aui-toolbar__controls .aui-btn,
+.aui-toolbar__controls .aui-daterange {
+  height: var(--aui-ctl-h);
+}
+
+/* The select is the trigger itself -- there is no wrapper element -- so its
+   form-field defaults have to be undone here: `width: 100%` would have it
+   swallow the row it shares, and the 13px radius is the form vocabulary, not
+   the toolbar's, where every other control is a pill. */
+.aui-toolbar__controls .aui-select {
+  width: auto;
+  min-width: 168px;
+  height: var(--aui-ctl-h);
+  min-height: var(--aui-ctl-h);
+  padding-block: 0;
+  border-radius: 999px;
+}
+
+
+.aui-searchfield {
+  display: flex;
+  min-width: 200px;
+  flex: 1;
+  align-items: center;
+  height: 42px;
+  padding: 0 14px;
+  border-radius: 999px;
+  color: var(--nh-muted);
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline-soft);
+  transition: box-shadow 0.3s var(--nh-ease-soft);
+}
+
+.aui-searchfield:focus-within {
+  box-shadow: inset 0 0 0 1px var(--nh-ink-soft);
+}
+
+.aui-searchfield input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: none;
+  color: var(--nh-ink);
+  font-size: 13px;
+}
+
+.aui-searchfield input::placeholder {
+  color: var(--nh-muted-2);
+}
+
+.aui-searchfield button {
+  display: grid;
+  place-items: center;
+  color: var(--nh-muted);
+  cursor: pointer;
+  background: none;
+  transition: color 0.3s var(--nh-ease-soft);
+}
+
+.aui-searchfield button:hover {
+  color: var(--nh-ink);
+}
+
+/* Filter chips. A row of states, one of them on — no dropdown, because the
+   whole vocabulary is three to six words and hiding it costs a click and a
+   guess.
+ *
+ * One gap, everywhere. Every chip is the same distance from the next, and the
+ * row is the same distance from the controls above it, so the whole stack reads
+ * on a single rhythm rather than as pills that happen to be near each other. */
+.aui-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Inside the toolbar the chips are a BAND, not a trailing group: a hairline
+   above them separates the states from the controls without adding a second
+   filled panel, and the negative margin pulls that rule out to the toolbar's
+   own edges so it reads as a division of one card rather than a box inside it. */
+.aui-toolbar > .aui-chips {
+  flex: 1 1 100%;
+  min-width: 0;
+  margin: 2px -12px -12px;
+  padding: 12px;
+  box-shadow: inset 0 1px 0 0 var(--nh-hairline-soft);
+}
+
+/* The same chips, given their own band under the toolbar. Quieter than the
+   toolbar above it — a hairline rather than a filled panel — so the two read as
+   one control stack and not as two competing bars. */
+.aui-filterbar {
+  display: flex;
+  align-items: center;
+  margin-top: -4px;
+  padding: 10px 12px;
+  border-radius: var(--nh-radius-lg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline-soft);
+}
+
+/* A thumbnail sitting in front of a cell's own text. Absent for a record with
+   no photo, so a register that has none looks exactly as it did before. */
+.aui-cellmedia {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.aui-cellmedia__img {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  object-fit: cover;
+  border-radius: 7px;
+  box-shadow: inset 0 0 0 1px var(--nh-hairline-soft);
+}
+
+/* A photo on a record: the preview, and the two verbs that change it.
+   The file input itself is never shown — the labelled button opens it, so the
+   control reads like the rest of the form rather than like a browser default. */
+.aui-photo {
+  /* The containing block for the clipped file input below. Without it that
+     input is positioned against `.aui-modal` instead, which is a scrollable box
+     — see `.aui-check` for what that costs. */
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: -2px;
+}
+
+.aui-photo__frame {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 72px;
+  height: 72px;
+  overflow: hidden;
+  border-radius: var(--nh-radius-lg);
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline-soft);
+}
+
+.aui-photo__img {
+  width: 100%;
+  height: 100%;
+  /* Cover, so a portrait and a landscape shot sit the same on the row. */
+  object-fit: cover;
+}
+
+.aui-photo__empty {
+  color: var(--nh-muted);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.aui-photo__acts {
+  display: flex;
+  gap: 6px;
+}
+
+/* Kept in the layout for focus and screen readers, never drawn. */
+.aui-photo__file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* A rating in a table cell, as the five stars a shopper actually tapped.
+   The unfilled remainder is kept rather than dropped, so every row is the same
+   width and a column of them reads as a distribution at a glance — which is
+   what a moderator is scanning for. */
+.aui-stars {
+  display: inline-flex;
+  gap: 1px;
+  color: var(--nh-ink);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.aui-stars__rest {
+  color: var(--nh-muted-2);
+  opacity: 0.45;
+}
+
+/* ---- the gallery field --------------------------------------------------
+   The photographs after the primary, laid out as the run they are: a strip of
+   thumbs in display order, each carrying the two controls that change that
+   order and the one that removes it. The number on a cell is its place in the
+   finished gallery, so it counts from 2 — the primary above it is 1, and a
+   grid that started at 1 here read as if the primary were not in the run. */
+.aui-gallery {
+  /* Same reason as `.aui-photo`: this field hides a file input inside it. */
+  position: relative;
+  display: grid;
+  gap: 12px;
+}
+
+.aui-gallery__grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+}
+
+.aui-gallery__cell {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  /* 4:5, the frame every product shot is cropped to elsewhere in the shop. */
+  aspect-ratio: 4 / 5;
+  border-radius: var(--nh-radius-card);
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline-soft);
+}
+
+.aui-gallery__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.aui-gallery__index {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  min-width: 19px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: rgba(8, 9, 10, 0.72);
+  color: var(--nh-ink);
+  font-size: 10px;
+  line-height: 19px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+/* Held at the foot of the cell rather than revealed on hover: these are the
+   only way to reorder the run, and a control a touch device can never surface
+   is a control that does not exist there. */
+.aui-gallery__acts {
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  left: 5px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.aui-gallery__act {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(8, 9, 10, 0.74);
+  color: var(--nh-ink-soft);
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  transition:
+    background-color 0.3s var(--nh-ease),
+    color 0.3s var(--nh-ease);
+}
+
+.aui-gallery__act:hover:not(:disabled) {
+  background: rgba(8, 9, 10, 0.92);
+  color: var(--nh-ink);
+}
+
+.aui-gallery__act:disabled {
+  color: var(--nh-muted-2);
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.aui-gallery__act--danger:hover:not(:disabled) {
+  background: rgba(255, 90, 90, 0.9);
+  color: #fff;
+}
+
+.aui-gallery__foot {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.aui-gallery__count {
+  color: var(--nh-muted-2);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+/* ---- the checkbox field -------------------------------------------------
+   A decision rather than a value, so it is drawn as a row you press anywhere on
+   rather than as a lone box with a caption above it — the shape every other
+   on/off in this console already uses (`.aui-switchrow`). The real input stays
+   in the layout for the keyboard and for screen readers; the square beside it
+   is what is actually painted. */
+.aui-check {
+  /**
+   * The containing block for the clipped input inside it — and this one is
+   * load-bearing.
+   *
+   * A visually-hidden `position: absolute` input is placed against its nearest
+   * POSITIONED ancestor, and without this that was `.aui-modal`. The input's
+   * static position sits near the foot of a form that scrolls, so it landed
+   * ~830px down the modal — well past the modal's own 780px height — and
+   * dragged `scrollHeight` out to 894. Nothing showed, because the modal clips
+   * its overflow. But the moment the box was ticked the input took focus, and
+   * the browser did what it always does for a focused element that is out of
+   * view: it scrolled the modal by exactly that 114px overhang. The heading
+   * jumped out of the top of the dialog and a band of empty surface appeared
+   * under the footer. Anchoring the input here keeps it in its own row, and the
+   * modal has nothing to scroll.
+   */
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  padding: 14px 16px;
+  border-radius: var(--nh-radius-card);
+  cursor: pointer;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline-soft);
+  transition: box-shadow 0.3s var(--nh-ease);
+}
+
+.aui-check:hover {
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+/* Not `display: none` — a hidden input takes no focus and answers to no
+   keyboard. It is clipped instead, and the square below follows its state. */
+.aui-check > input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.aui-check__box {
+  position: relative;
+  display: block;
+  width: 19px;
+  height: 19px;
+  flex: none;
+  margin-top: 1px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  transition:
+    background-color 0.24s var(--nh-ease),
+    box-shadow 0.24s var(--nh-ease);
+}
+
+/* The tick, drawn rather than typed: a glyph would inherit the form's font and
+   sit differently on every machine. */
+.aui-check__box::after {
+  position: absolute;
+  top: 4px;
+  left: 6.5px;
+  width: 5px;
+  height: 9px;
+  border: solid var(--nh-solid-fg);
+  border-width: 0 2px 2px 0;
+  content: "";
+  opacity: 0;
+  transform: rotate(43deg) scale(0.7);
+  transition:
+    opacity 0.2s var(--nh-ease),
+    transform 0.2s var(--nh-ease);
+}
+
+.aui-check > input:checked + .aui-check__box {
+  background: var(--nh-solid-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-solid-bg);
+}
+
+.aui-check > input:checked + .aui-check__box::after {
+  opacity: 1;
+  transform: rotate(43deg) scale(1);
+}
+
+.aui-check > input:focus-visible + .aui-check__box {
+  box-shadow:
+    inset 0 0 0 1px var(--nh-solid-bg),
+    0 0 0 3px rgba(242, 244, 244, 0.24);
+}
+
+.aui-check__copy {
+  display: grid;
+  gap: 4px;
+}
+
+.aui-check__copy strong {
+  color: var(--nh-ink);
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: -0.005em;
+}
+
+.aui-check__copy small {
+  color: var(--nh-muted-2);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+/* Chips as a form control, where they stand for one many-valued answer. */
+.aui-chips--field {
+  gap: 6px;
+}
+
+.aui-chips--field .aui-chip {
+  height: 32px;
+  padding: 0 13px;
+}
+
+/* One chip. The padding is symmetric and the count sits in a slot of its own,
+   so a chip reading "All 6" and one reading "At risk 0" are the same shape with
+   different words in them — which is what makes a row of them look measured
+   rather than assembled. */
+.aui-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  color: var(--nh-muted);
+  font-size: 11.5px;
+  gap: 8px;
+  letter-spacing: 0;
+  white-space: nowrap;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline-soft);
+  transition:
+    background-color 0.3s var(--nh-ease-soft),
+    color 0.3s var(--nh-ease-soft);
+}
+
+.aui-chip:hover {
+  background: var(--nh-ghost-bg);
+  color: var(--nh-ink);
+}
+
+.aui-chip[aria-pressed="true"] {
+  background: var(--nh-solid-bg);
+  color: var(--nh-solid-fg);
+  font-weight: 500;
+  box-shadow: none;
+}
+
+/* The count. A fixed minimum width and tabular figures, so 6 and 12 and 106
+   all occupy the same slot and the chips beside them do not shuffle as the
+   register changes underneath. */
+.aui-chip b {
+  min-width: 14px;
+  font-size: 10.5px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.55;
+  text-align: center;
+}
+
+.aui-chip[aria-pressed="true"] b {
+  opacity: 0.5;
+}
+
+/* The date range trigger. Chip height and chip shape, because it sits in the
+   same row as the presets and a taller control there would read as a second,
+   unrelated thing.
+
+   The width is FIXED rather than fitted. It has to hold "Today" and
+   "15 May – 12 Aug 2026" without the chips beside it moving, and a header that
+   reflows every time the range changes is a header nobody can aim at. */
+.aui-daterange {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 214px;
+  height: 34px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  outline: 0;
+  color: var(--nh-ink-soft);
+  font-family: inherit;
+  font-size: 11.5px;
+  gap: 9px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline-soft);
+  transition:
+    background-color 0.3s var(--nh-ease-soft),
+    color 0.3s var(--nh-ease-soft);
+}
+
+.aui-daterange:hover,
+.aui-daterange[data-state="open"] {
+  background: var(--nh-ghost-bg);
+  color: var(--nh-ink);
+}
+
+.aui-daterange svg:first-of-type {
+  color: var(--nh-muted);
+  flex: none;
+}
+
+.aui-daterange b {
+  flex: 1;
+  overflow: hidden;
+  font-weight: 400;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.aui-daterange svg:last-of-type {
+  color: var(--nh-muted-2);
+  flex: none;
+  transition: transform 0.3s var(--nh-ease);
+}
+
+.aui-daterange svg[data-open] {
+  transform: rotate(180deg);
+}
+
+/* The calendar surface. Portalled to <body>, so it is in the token list at the
+   top of this file alongside the modal and the drawer — without that, every
+   `var()` below resolves to nothing and the popover renders as a transparent
+   rectangle over the page.
+
+   It also remaps the shadcn theme variables the imported calendar is built on,
+   so one registry component can be the house calendar without being restyled
+   utility by utility. */
+.aui-datepop {
+  z-index: 60;
+  padding: 8px;
+  border: 0 !important;
+  border-radius: var(--nh-radius-card);
+  background: var(--nh-card-bg);
+  box-shadow:
+    inset 0 0 0 1px var(--nh-hairline),
+    var(--aui-lift);
+
+  --background: #1a1c1e;
+  --foreground: #f1f3f3;
+  --popover: #1a1c1e;
+  --popover-foreground: #f1f3f3;
+  --primary: #f2f4f4;
+  --primary-foreground: #0d0e10;
+  --secondary: rgba(255, 255, 255, 0.08);
+  --secondary-foreground: #f1f3f3;
+  --muted: rgba(255, 255, 255, 0.06);
+  --muted-foreground: #8f9598;
+  --accent: rgba(255, 255, 255, 0.1);
+  --accent-foreground: #f1f3f3;
+  --border: rgba(255, 255, 255, 0.13);
+  --input: rgba(255, 255, 255, 0.13);
+  --ring: rgba(255, 255, 255, 0.28);
+}
+
+.aui-datepop * {
+  box-sizing: border-box;
+  font-family: var(--font-ui), "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* The ends of a selected span. The calendar's own utilities already paint
+   these from `--primary` / `--primary-foreground`, remapped above — these two
+   rules only pull the ends back to the console's solid pair exactly, and are
+   written against the BUTTON because that is where react-day-picker puts the
+   range attributes (the cell around it carries classes, not data). */
+.aui-datepop button[data-selected-single="true"],
+.aui-datepop button[data-range-start="true"],
+.aui-datepop button[data-range-end="true"] {
+  background: var(--nh-solid-bg);
+  color: var(--nh-solid-fg);
+  font-weight: 500;
+}
+
+.aui-datepop button[data-range-middle="true"] {
+  background: var(--nh-ghost-bg);
+  color: var(--nh-ink);
+}
+
+/* Today, when it is not the thing selected: marked by a ring rather than a
+   fill, so it never competes with the range. */
+.aui-datepop td[data-today="true"]:not([data-selected="true"]) button {
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+/* The module nav — the tabs across the top of a multi-screen area. A segmented
+   pill, so "these four screens are one area" is legible without a heading. */
+.aui-tabs {
+  display: flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  margin: var(--aui-inset) auto 0;
+  padding: 5px;
+  border-radius: 999px;
+  overflow-x: auto;
+  gap: 3px;
+  background: rgba(22, 24, 26, 0.82);
+  backdrop-filter: blur(14px);
+  box-shadow:
+    inset 0 0 0 1px var(--nh-hairline),
+    var(--aui-lift);
+  scrollbar-width: none;
+}
+
+.aui-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.aui-tabs a,
+.aui-tabs button {
+  display: flex;
+  align-items: center;
+  height: 34px;
+  padding: 0 16px;
+  border-radius: 999px;
+  color: var(--nh-muted);
+  font-size: 12px;
+  gap: 8px;
+  white-space: nowrap;
+  /* Labels are authored, not derived from the URL segment — capitalising here
+     would turn "Failed delivery" into "Failed Delivery". */
+  transition:
+    background-color 0.3s var(--nh-ease-soft),
+    color 0.3s var(--nh-ease-soft);
+}
+
+.aui-tabs a:hover,
+.aui-tabs button:hover {
+  color: var(--nh-ink);
+}
+
+.aui-tabs a[aria-current="page"],
+.aui-tabs button[aria-current="page"] {
+  background: var(--nh-solid-bg);
+  color: var(--nh-solid-fg);
+  font-weight: 500;
+}
+
+.aui-tabs button {
+  background: transparent;
+  cursor: pointer;
+}
+
+/* The count beside a state-driven tab. It inverts with the pill, because on the
+   light active fill the muted chip it wears when idle would vanish. */
+.aui-tabs b {
+  min-width: 18px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.09);
+  color: inherit;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  text-align: center;
+}
+
+.aui-tabs button[aria-current="page"] b {
+  background: rgba(13, 14, 16, 0.12);
+}
+
+/* The same pill, seated in a list's toolbar. It drops the lift and the blur —
+   nothing floats over the toolbar, it IS the toolbar — and takes chip metrics,
+   so the tabs and the state chips beside them read as one row of controls. */
+.aui-tabs--inline {
+  margin: 0;
+  padding: 4px;
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: none;
+  box-shadow: inset 0 0 0 1px var(--nh-hairline-soft);
+}
+
+.aui-tabs--inline a,
+.aui-tabs--inline button {
+  height: 34px;
+  padding: 0 14px;
+  font-size: 11.5px;
+}
+
+/* ======================================================== 8. tables + actions */
+/* The horizontal scroller a wide register lives in.
+ *
+ * `position: relative` is not decoration here, it is what keeps the page from
+ * growing. A scroll container only clips descendants whose containing block is
+ * inside it; a `position: absolute` child of a STATIC scroller resolves against
+ * the nearest positioned ancestor further up -- `.aui-page` -- escapes the clip
+ * entirely, and contributes its width to the page's scrollable overflow.
+ *
+ * That is not hypothetical. The `<th><span class="sr-only">Actions</span></th>`
+ * every register ends with sat at x=1000 inside a 1014px-wide table, resolved
+ * against `.aui-page`, and pushed the whole customers screen 59px wider than
+ * the viewport -- a horizontal scrollbar on the document caused by a box one
+ * pixel wide that nobody can see. Making the scroller its own containing block
+ * fixes it at the source, for every absolutely positioned thing a row ever
+ * grows, rather than one span at a time. */
+.aui-tablewrap {
+  position: relative;
+  overflow-x: auto;
+  border-radius: var(--nh-radius-lg);
+  background: var(--nh-surface-2);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.aui-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.aui-table thead th {
+  padding: 14px 18px;
+  color: var(--nh-muted);
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  background: rgba(255, 255, 255, 0.02);
+  box-shadow: inset 0 -1px 0 0 var(--nh-hairline);
+}
+
+.aui-table tbody :is(td, th) {
+  padding: 15px 18px;
+  font-size: 13px;
+  font-weight: 400;
+  vertical-align: middle;
+  box-shadow: inset 0 -1px 0 0 var(--nh-hairline-soft);
+}
+
+.aui-table tbody tr:last-child :is(td, th) {
+  box-shadow: none;
+}
+
+.aui-table tbody tr {
+  transition: background-color 0.25s var(--nh-ease-soft);
+}
+
+.aui-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.aui-table :is(th, td)[data-align="right"] {
+  text-align: right;
+}
+
+.aui-table :is(th, td)[data-align="center"] {
+  text-align: center;
+}
+
+/* The cell that identifies the row. Everything else in the row is a detail
+   about this. */
+.aui-table__primary {
+  display: grid;
+  gap: 3px;
+}
+
+.aui-table__primary strong {
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.aui-table__primary small {
+  color: var(--nh-muted);
+  font-size: 11px;
+}
+
+.aui-table__num {
+  font-variant-numeric: tabular-nums;
+}
+
+.aui-table a:not(.aui-btn) {
+  color: var(--nh-ink);
+  box-shadow: inset 0 -1px 0 0 var(--nh-muted-2);
+  transition: box-shadow 0.3s var(--nh-ease-soft);
+}
+
+.aui-table a:not(.aui-btn):hover {
+  box-shadow: inset 0 -1px 0 0 var(--nh-ink);
+}
+
+/* ---- the live log -------------------------------------------------------
+   A table that rewrites itself while it is being read. The arriving row is
+   washed once and then let go: a permanent marker on "new" is meaningless in a
+   feed where everything is new eventually, and an animation that keeps running
+   turns a log into a distraction. */
+.aui-log tbody tr[data-fresh="true"] {
+  animation: aui-log-arrive 1.6s var(--nh-ease) both;
+}
+
+@keyframes aui-log-arrive {
+  from {
+    background: rgba(255, 255, 255, 0.1);
+  }
+  to {
+    background: transparent;
+  }
+}
+
+/* The machine name of the event, beside the human sentence. Monospace because
+   `payment.mismatch` is an identifier an operator will search the audit log
+   for, not a phrase. */
+.aui-log code {
+  color: var(--nh-ink-soft);
+  font-family: "Roboto Mono", ui-monospace, monospace;
+  font-size: 10.5px;
+  letter-spacing: -0.01em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aui-log tbody tr[data-fresh="true"] {
+    animation: none;
+  }
+}
+
+/* Row actions. Held at low contrast until the row is pointed at or tabbed
+   into — a table of twenty rows with six live buttons each is a wall. */
+.aui-rowacts {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  opacity: 0.32;
+  transition: opacity 0.25s var(--nh-ease-soft);
+}
+
+.aui-table tr:hover .aui-rowacts,
+.aui-table tr:focus-within .aui-rowacts,
+.aui-card:hover .aui-rowacts,
+.aui-card:focus-within .aui-rowacts {
+  opacity: 1;
+}
+
+.aui-iconbtn {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  place-items: center;
+  border-radius: 10px;
+  color: var(--nh-muted);
+  cursor: pointer;
+  background: none;
+  transition:
+    background-color 0.25s var(--nh-ease-soft),
+    color 0.25s var(--nh-ease-soft);
+}
+
+.aui-iconbtn:hover {
+  background: var(--nh-ghost-bg);
+  color: var(--nh-ink);
+}
+
+.aui-iconbtn--danger:hover {
+  background: rgba(239, 122, 128, 0.14);
+  color: var(--aui-rose);
+}
+
+.aui-iconbtn--good:hover:not(:disabled) {
+  background: rgba(var(--aui-mint-rgb), 0.14);
+  color: var(--aui-mint);
+}
+
+.aui-iconbtn:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+
+/* The line under a list: what is shown, out of what. Always present, so the
+   page never implies it is showing everything when it is not. */
+.aui-tablefoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  padding: 13px 18px;
+  gap: 10px;
+  color: var(--nh-muted);
+  font-size: 11.5px;
+  box-shadow: inset 0 1px 0 0 var(--nh-hairline);
+}
+
+.aui-tablefoot strong {
+  color: var(--nh-ink);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ========================================================== 9. forms + fields */
+.aui-form {
+  display: grid;
+  gap: 16px;
+}
+
+.aui-form--2 {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+/* Two columns in a dialog, stated rather than fitted.
+   `auto-fit` finds room for three across a wide modal, and a form written as
+   pairs can never fill the third — every row was left with a hole on the right
+   and a full-width field below it spanning past two half-width ones. */
+.aui-modal .aui-form--2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+/* On a phone the dialog is the width of the screen, where two columns of
+   fields is two columns too many. */
+@media (max-width: 560px) {
+  .aui-modal .aui-form--2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.aui-field {
+  display: grid;
+  /* Rows keep their own height instead of being stretched to match whichever
+     field in the row is tallest. Without this, a field carrying a line of help
+     text makes its neighbour's control grow to fill the difference, so two
+     controls side by side end up different heights and start at different
+     points down the page. Help text now simply hangs below its own control. */
+  align-content: start;
+  gap: 7px;
+}
+
+.aui-field--full {
+  grid-column: 1 / -1;
+}
+
+.aui-field > span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--nh-muted);
+  font-size: 10px;
+  gap: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.aui-field > span em {
+  color: var(--nh-muted-2);
+  font-style: normal;
+  letter-spacing: 0.04em;
+  text-transform: none;
+}
+
+.aui-field :is(input, select, textarea) {
+  width: 100%;
+  min-height: 46px;
+  padding: 12px 14px;
+  border: 0;
+  border-radius: 13px;
+  outline: 0;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--nh-ink);
+  font-size: 14px;
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  transition: box-shadow 0.3s var(--nh-ease);
+}
+
+.aui-field textarea {
+  min-height: 108px;
+  line-height: 1.55;
+  resize: vertical;
+}
+
+.aui-field select {
+  padding-right: 38px;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238f9598' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+}
+
+.aui-field option {
+  background: var(--nh-surface-2);
+  color: var(--nh-ink);
+}
+
+/* ---- 9.1 the dropdown ---------------------------------------------------
+   A native select hands its list to the operating system: light chrome on a
+   dark console and a different shape on every machine. This is that control
+   drawn here instead — the trigger wears the field's exact shape, and the
+   panel is portalled, so it carries the console's tokens itself (see the
+   block at the top of this file). */
+/* Qualified by its tag so it outweighs the `font: inherit` reset that every
+   control in a dialog gets (`.aui-modal :is(button, …)`, top of this file).
+   Unqualified, this rule lost the cascade on typography alone — the trigger
+   drew its label at the inherited 16px while every input beside it drew at 14,
+   which made it two pixels taller and knocked the row out of line. */
+button.aui-select {
+  display: flex;
+  width: 100%;
+  min-height: 46px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border: 0;
+  border-radius: 13px;
+  outline: 0;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--nh-ink);
+  cursor: pointer;
+  /* Longhands, not `font: inherit` — the shorthand was resetting the size back
+     to the inherited 16px and leaving the trigger two pixels taller than every
+     input beside it, which is exactly enough to see in a row of fields. */
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 21px;
+  text-align: left;
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  transition:
+    box-shadow 0.3s var(--nh-ease),
+    background-color 0.25s var(--nh-ease-soft);
+}
+
+.aui-select:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.aui-select:is(:focus-visible, [data-open="true"]) {
+  box-shadow: inset 0 0 0 1px var(--nh-ink-soft);
+}
+
+.aui-select[data-placeholder] {
+  color: var(--nh-muted-2);
+}
+
+.aui-select:disabled {
+  color: var(--nh-muted);
+  cursor: not-allowed;
+}
+
+.aui-select > svg {
+  flex: none;
+  color: var(--nh-muted);
+  transition: transform 0.25s var(--nh-ease-soft);
+}
+
+.aui-select[data-open="true"] > svg {
+  transform: rotate(180deg);
+}
+
+/* Above the modal it is usually opened from. */
+.aui-selectmenu {
+  z-index: 62;
+  min-width: var(--radix-select-trigger-width);
+  max-height: min(320px, var(--radix-select-content-available-height));
+  padding: 6px;
+  border-radius: 15px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  background: var(--nh-surface-2);
+  box-shadow:
+    inset 0 0 0 1px var(--nh-hairline),
+    0 26px 60px -28px rgba(0, 0, 0, 1);
+
+  /* NOT `aui-rise`: that one is written for the centred modal, so it carries a
+     `translate(-50%, -50%)` and would drag this panel half its own size off the
+     control it is anchored to. A popper-positioned surface may only animate
+     what does not fight the position it was given. */
+  transform-origin: var(--radix-select-content-transform-origin);
+  animation: aui-pop 0.16s var(--nh-ease);
+}
+
+/* The panel leaves on an animation as well as arriving on one, which is what
+   tells Radix when it is safe to unmount the node. */
+.aui-selectmenu[data-state="closed"] {
+  animation: aui-pop-out 0.12s var(--nh-ease-soft) forwards;
+}
+
+@keyframes aui-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.97);
+  }
+}
+
+@keyframes aui-pop-out {
+  to {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+
+.aui-selectitem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-radius: 10px;
+  outline: 0;
+  gap: 14px;
+  color: var(--nh-ink-soft);
+  cursor: pointer;
+  font-size: 13.5px;
+  user-select: none;
+  transition: background-color 0.2s var(--nh-ease-soft);
+}
+
+.aui-selectitem[data-highlighted],
+.aui-selectitem[data-state="checked"] {
+  background: var(--nh-ghost-bg);
+  color: var(--nh-ink);
+}
+
+.aui-selectitem svg {
+  color: var(--aui-mint);
+}
+
+/* A choice that is on the list but not on offer — an item the warehouse has
+   run out of. Held rather than hidden, because someone hunting for it needs to
+   find it and read why, so it has to look unavailable at a glance and not just
+   refuse the click. */
+.aui-selectitem[data-disabled] {
+  color: var(--nh-muted-2);
+  cursor: not-allowed;
+}
+
+.aui-selectitem[data-disabled]:hover {
+  background: none;
+}
+
+.aui-field :is(input, textarea)::placeholder {
+  color: var(--nh-muted-2);
+}
+
+.aui-field :is(input, select, textarea):focus {
+  box-shadow: inset 0 0 0 1px var(--nh-ink-soft);
+}
+
+.aui-field :is(input, select, textarea):disabled {
+  color: var(--nh-muted);
+  cursor: not-allowed;
+}
+
+.aui-field small {
+  color: var(--nh-muted-2);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+/* A switch row: label, explanation, control. Used everywhere a policy is on
+   or off. */
+.aui-switchrow {
+  display: flex;
+  align-items: center;
+  padding: 15px 17px;
+  border-radius: var(--nh-radius-card);
+  gap: 14px;
+  background: var(--nh-card-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.aui-switchrow > div {
+  display: grid;
+  flex: 1;
+  gap: 3px;
+}
+
+.aui-switchrow strong {
+  font-size: 13.5px;
+  font-weight: 500;
+}
+
+.aui-switchrow small {
+  color: var(--nh-muted);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.aui-switch {
+  position: relative;
+  width: 42px;
+  height: 24px;
+  flex: none;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.09);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+  transition: background-color 0.3s var(--nh-ease-soft);
+}
+
+.aui-switch::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--nh-muted);
+  transition:
+    transform 0.32s var(--nh-ease),
+    background-color 0.3s var(--nh-ease-soft);
+}
+
+.aui-switch[aria-checked="true"] {
+  background: var(--nh-solid-bg);
+}
+
+.aui-switch[aria-checked="true"]::after {
+  background: var(--nh-solid-fg);
+  transform: translateX(18px);
+}
+
+/* ================================================= 10. buttons, chips, status */
+.aui-btn {
+  display: inline-flex;
+  height: 42px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 500;
+  gap: 8px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 0.35s var(--nh-ease),
+    color 0.35s var(--nh-ease),
+    transform 0.35s var(--nh-ease);
+}
+
+.aui-btn--solid {
+  background: var(--nh-solid-bg);
+  color: var(--nh-solid-fg);
+}
+
+.aui-btn--solid:hover:not(:disabled) {
+  background: var(--nh-solid-bg-hover);
+  transform: translateY(-1px);
+}
+
+.aui-btn--ghost {
+  background: var(--nh-ghost-bg);
+  color: var(--nh-ink);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.aui-btn--ghost:hover:not(:disabled) {
+  background: var(--nh-ghost-bg-hover);
+  transform: translateY(-1px);
+}
+
+/* Tinted, not solid: a destructive control should read as dangerous without
+   becoming the loudest thing on the screen. */
+.aui-btn--danger {
+  background: rgba(239, 122, 128, 0.12);
+  color: var(--aui-rose);
+  box-shadow: inset 0 0 0 1px rgba(239, 122, 128, 0.32);
+}
+
+.aui-btn--danger:hover:not(:disabled) {
+  background: rgba(239, 122, 128, 0.2);
+  transform: translateY(-1px);
+}
+
+.aui-btn--sm {
+  height: 32px;
+  padding: 0 14px;
+  font-size: 10px;
+  gap: 6px;
+}
+
+.aui-btn--wide {
+  width: 100%;
+}
+
+.aui-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+  transform: none;
+}
+
+.aui-link {
+  display: inline-flex;
+  align-items: center;
+  color: var(--nh-muted);
+  font-size: 11.5px;
+  gap: 6px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  background: none;
+  transition: color 0.3s var(--nh-ease-soft);
+}
+
+.aui-link:hover {
+  color: var(--nh-ink);
+}
+
+.aui-link svg {
+  transition: transform 0.35s var(--nh-ease);
+}
+
+.aui-link:hover svg {
+  transform: translateX(2px);
+}
+
+/* Status pills. One shape, six tones, and the tone is carried by the ink and
+   a soft tint rather than a saturated fill — a table of thirty rows with
+   thirty solid badges is unreadable. */
+.aui-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 11px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 500;
+  gap: 6px;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  background: rgba(255, 255, 255, 0.055);
+  color: var(--nh-ink-soft);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline-soft);
+}
+
+.aui-status::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  flex: none;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.aui-status[data-tone="good"] {
+  background: rgba(111, 219, 164, 0.11);
+  color: var(--aui-mint);
+  box-shadow: inset 0 0 0 1px rgba(111, 219, 164, 0.24);
+}
+
+.aui-status[data-tone="warn"] {
+  background: rgba(232, 183, 101, 0.11);
+  color: var(--aui-amber);
+  box-shadow: inset 0 0 0 1px rgba(232, 183, 101, 0.24);
+}
+
+.aui-status[data-tone="bad"] {
+  background: rgba(239, 122, 128, 0.11);
+  color: var(--aui-rose);
+  box-shadow: inset 0 0 0 1px rgba(239, 122, 128, 0.24);
+}
+
+.aui-status[data-tone="info"] {
+  background: rgba(121, 184, 232, 0.11);
+  color: var(--aui-sky);
+  box-shadow: inset 0 0 0 1px rgba(121, 184, 232, 0.24);
+}
+
+.aui-status[data-tone="idle"] {
+  color: var(--nh-muted);
+}
+
+/* A callout under a form or a queue: what this screen will and will not do. */
+.aui-note {
+  display: flex;
+  align-items: flex-start;
+  padding: 15px 17px;
+  border-radius: var(--nh-radius-lg);
+  gap: 13px;
+  background: rgba(255, 255, 255, 0.035);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline-soft);
+}
+
+.aui-note svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--nh-muted);
+}
+
+/* The note's own heading, and only that. Scoped to the direct child because a
+   `<strong>` used for emphasis inside the body is a word in a sentence — left
+   unscoped, this rule broke each of them onto its own line. */
+.aui-note > div > strong {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.aui-note p strong {
+  color: var(--nh-ink-soft);
+  font-weight: 500;
+}
+
+.aui-note p {
+  max-width: 78ch;
+  color: var(--nh-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.aui-note[data-tone="warn"] {
+  background: rgba(232, 183, 101, 0.07);
+  box-shadow: inset 0 0 0 1px rgba(232, 183, 101, 0.22);
+}
+
+.aui-note[data-tone="warn"] svg {
+  color: var(--aui-amber);
+}
+
+.aui-note[data-tone="bad"] {
+  background: rgba(239, 122, 128, 0.07);
+  box-shadow: inset 0 0 0 1px rgba(239, 122, 128, 0.22);
+}
+
+.aui-note[data-tone="bad"] svg {
+  color: var(--aui-rose);
+}
+
+/* ============================================================ 11. dialogs */
+.aui-overlay {
+  position: fixed;
+  z-index: 60;
+  inset: 0;
+  background: rgba(6, 7, 8, 0.7);
+  backdrop-filter: blur(5px);
+  animation: aui-fade 0.25s var(--nh-ease-soft);
+}
+
+.aui-modal {
+  position: fixed;
+  z-index: 61;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  width: min(560px, calc(100vw - 32px));
+  max-height: min(86vh, 780px);
+  flex-direction: column;
+  border-radius: var(--nh-radius-xl);
+  overflow: hidden;
+  background: var(--nh-surface-2);
+  box-shadow:
+    inset 0 0 0 1px var(--nh-hairline),
+    0 40px 90px -30px rgba(0, 0, 0, 1);
+  transform: translate(-50%, -50%);
+  animation: aui-rise 0.3s var(--nh-ease);
+}
+
+.aui-modal--wide {
+  width: min(880px, calc(100vw - 32px));
+}
+
+.aui-modal--sm {
+  width: min(420px, calc(100vw - 32px));
+}
+
+.aui-modal__head {
+  display: flex;
+  align-items: flex-start;
+  padding: 22px 22px 16px;
+  gap: 14px;
+  box-shadow: inset 0 -1px 0 0 var(--nh-hairline-soft);
+}
+
+.aui-modal__head > div {
+  flex: 1;
+}
+
+.aui-modal__head h2 {
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: -0.025em;
+}
+
+.aui-modal__head p {
+  margin-top: 6px;
+  color: var(--nh-muted);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.aui-modal__glyph {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  place-items: center;
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.055);
+  color: rgb(var(--aui-spot, var(--aui-ink-rgb)));
+  box-shadow: inset 0 0 0 1px var(--nh-hairline-soft);
+}
+
+.aui-modal__close {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  place-items: center;
+  border-radius: 10px;
+  color: var(--nh-muted);
+  cursor: pointer;
+  background: none;
+  transition:
+    background-color 0.25s var(--nh-ease-soft),
+    color 0.25s var(--nh-ease-soft);
+}
+
+.aui-modal__close:hover {
+  background: var(--nh-ghost-bg);
+  color: var(--nh-ink);
+}
+
+.aui-modal__body {
+  padding: 20px 22px;
+  overflow-y: auto;
+}
+
+.aui-modal__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 16px 22px;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.16);
+  box-shadow: inset 0 1px 0 0 var(--nh-hairline-soft);
+}
+
+.aui-modal__foot > p {
+  margin-right: auto;
+  max-width: 40ch;
+  color: var(--nh-muted-2);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+/* ---- 11.1 the command palette ------------------------------------------- */
+.aui-palette {
+  position: fixed;
+  z-index: 61;
+  top: 14vh;
+  left: 50%;
+  display: flex;
+  width: min(620px, calc(100vw - 32px));
+  max-height: 68vh;
+  flex-direction: column;
+  border-radius: var(--nh-radius-xl);
+  overflow: hidden;
+  background: var(--nh-surface-2);
+  box-shadow:
+    inset 0 0 0 1px var(--nh-hairline),
+    0 40px 90px -30px rgba(0, 0, 0, 1);
+  transform: translateX(-50%);
+  animation: aui-rise 0.3s var(--nh-ease);
+}
+
+.aui-palette__field {
+  display: flex;
+  align-items: center;
+  padding: 18px 20px;
+  gap: 12px;
+  color: var(--nh-muted);
+  box-shadow: inset 0 -1px 0 0 var(--nh-hairline-soft);
+}
+
+.aui-palette__field input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: none;
+  color: var(--nh-ink);
+  font-size: 15px;
+}
+
+.aui-palette__field input::placeholder {
+  color: var(--nh-muted-2);
+}
+
+.aui-palette__field kbd {
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: var(--nh-ghost-bg);
+  color: var(--nh-muted);
+  font-family: inherit;
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+}
+
+.aui-palette__list {
+  display: grid;
+  padding: 10px;
+  overflow-y: auto;
+  align-content: start;
+  gap: 2px;
+}
+
+.aui-palette__list > span {
+  padding: 8px 10px 6px;
+  color: var(--nh-muted-2);
+  font-size: 9.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.aui-palette__list a {
+  display: flex;
+  align-items: center;
+  padding: 11px 12px;
+  border-radius: 14px;
+  gap: 12px;
+  color: var(--nh-ink-soft);
+  transition: background-color 0.25s var(--nh-ease-soft);
+}
+
+.aui-palette__list a:hover {
+  background: var(--nh-ghost-bg);
+  color: var(--nh-ink);
+}
+
+.aui-palette__list a > span {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+}
+
+.aui-palette__list strong {
+  font-size: 13.5px;
+  font-weight: 500;
+}
+
+.aui-palette__list small {
+  color: var(--nh-muted-2);
+  font-size: 11px;
+}
+
+.aui-palette__empty {
+  padding: 26px 12px;
+  color: var(--nh-muted);
+  font-size: 12.5px;
+  text-align: center;
+}
+
+/* ---- 11.2 the notifications drawer -------------------------------------- */
+.aui-drawer {
+  position: fixed;
+  z-index: 61;
+  top: var(--aui-inset);
+  right: var(--aui-inset);
+  bottom: var(--aui-inset);
+  display: flex;
+  width: min(400px, calc(100vw - 32px));
+  flex-direction: column;
+  border-radius: var(--nh-radius-xl);
+  overflow: hidden;
+  background: var(--nh-surface-2);
+  box-shadow:
+    inset 0 0 0 1px var(--nh-hairline),
+    0 40px 90px -30px rgba(0, 0, 0, 1);
+  animation: aui-slide 0.32s var(--nh-ease);
+}
+
+/* `flex: 1` and `min-height: 0` together are what pin the footer to the bottom
+   of the drawer instead of letting it float directly under the last signal with
+   dead panel below it. The min-height is not optional: a flex child defaults to
+   `min-height: auto`, which refuses to shrink below its content and hands the
+   scroll to the drawer rather than to the list. */
+.aui-drawer__list {
+  display: grid;
+  flex: 1;
+  min-height: 0;
+  padding: 14px;
+  overflow-y: auto;
+  align-content: start;
+  gap: 10px;
+}
+
+/* A signal is a LINK, not a notice: every line in the pulse names a record, and
+   the whole row opens the screen that acts on it. */
+.aui-pulse {
+  position: relative;
+  display: flex;
+  padding: 14px;
+  border-radius: var(--nh-radius-card);
+  gap: 12px;
+  background: var(--nh-card-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline-soft);
+  transition:
+    background-color 0.25s var(--nh-ease-soft),
+    box-shadow 0.25s var(--nh-ease-soft);
+}
+
+.aui-pulse:is(:hover, :focus-visible) {
+  outline: none;
+  background: var(--nh-surface-3);
+  box-shadow: inset 0 0 0 1px rgba(var(--aui-spot, var(--aui-ink-rgb)), 0.34);
+}
+
+.aui-pulse__glyph {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  place-items: center;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.055);
+  color: rgb(var(--aui-spot, var(--aui-ink-rgb)));
+}
+
+.aui-pulse > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.aui-pulse strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.aui-pulse p {
+  margin-top: 4px;
+  color: var(--nh-muted);
+  font-size: 11.5px;
+  line-height: 1.55;
+}
+
+.aui-pulse small {
+  display: block;
+  margin-top: 7px;
+  color: var(--nh-muted-2);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* The chevron is the affordance, so it only earns its ink on approach. */
+.aui-pulse__go {
+  flex: none;
+  align-self: center;
+  color: var(--nh-muted-2);
+  opacity: 0;
+  transition:
+    opacity 0.25s var(--nh-ease-soft),
+    transform 0.25s var(--nh-ease);
+  transform: translateX(-4px);
+}
+
+.aui-pulse:hover .aui-pulse__go,
+.aui-pulse:focus-visible .aui-pulse__go {
+  opacity: 1;
+  transform: none;
+}
+
+/* Unread wears a dot in its own tone rather than a different card fill: colour
+   lands on the mark, never on the surface, which is what keeps a drawer of
+   sixteen signals reading as one list. */
+.aui-pulse[data-unread="true"]::after {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgb(var(--aui-spot, var(--aui-ink-rgb)));
+  content: "";
+}
+
+.aui-drawer__empty {
+  padding: 26px 14px;
+  color: var(--nh-muted-2);
+  font-size: 12.5px;
+  text-align: center;
+}
+
+/* The footer's live line: the presence dot sits ON the baseline of the copy. */
+.aui-drawer .aui-modal__foot > p {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+@keyframes aui-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes aui-rise {
+  from {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% + 10px));
+  }
+}
+
+.aui-palette {
+  animation-name: aui-rise-x;
+}
+
+@keyframes aui-rise-x {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px);
+  }
+}
+
+@keyframes aui-slide {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :is(.aui-app, .aui-overlay, .aui-modal, .aui-palette, .aui-drawer),
+  :is(.aui-app, .aui-overlay, .aui-modal, .aui-palette, .aui-drawer) *,
+  :is(.aui-app, .aui-modal, .aui-palette, .aui-drawer) *::before,
+  :is(.aui-app, .aui-modal, .aui-palette, .aui-drawer) *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  /* The arrows still jump the lanes to the end — they just get there at once. */
+  .aui-rail__nav {
+    scroll-behavior: auto;
+  }
+}
+
+/* ================================================== 12. empty + feedback states */
+.aui-empty {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  min-height: 280px;
+  padding: clamp(2.5rem, 5vw, 4rem) clamp(1.5rem, 4vw, 3rem);
+  border-radius: var(--nh-radius-lg);
+  gap: 14px;
+  background: var(--nh-surface-2);
+  text-align: center;
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.aui-empty__glyph {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--nh-muted);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.aui-empty h2 {
+  font-size: clamp(1.1rem, 2vw, 1.4rem);
+  font-weight: 400;
+  font-stretch: 108%;
+  letter-spacing: -0.025em;
+}
+
+.aui-empty p {
+  max-width: 46ch;
+  color: var(--nh-muted);
+  font-size: 12.5px;
+  line-height: 1.65;
+  text-wrap: pretty;
+}
+
+/* The thin one, for a slot inside a section that already has a heading. */
+.aui-empty--inline {
+  min-height: 0;
+  padding: 30px 22px;
+  gap: 8px;
+  border-radius: var(--nh-radius-card);
+}
+
+.aui-empty--inline .aui-empty__glyph {
+  width: 38px;
+  height: 38px;
+}
+
+/* ================================================ 13. account settings */
+/* The one screen where the operator edits their own record. It needs a photo
+   well, a divider inside a panel and a password box that can be unmasked —
+   three shapes nothing else in the console asks for. */
+
+/* Photo, who it belongs to, and what can be done to it: one row on a desk,
+   stacked on a phone. */
+.set-identity {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 18px;
+}
+
+.set-avatar {
+  display: grid;
+  width: 84px;
+  height: 84px;
+  flex: none;
+  overflow: hidden;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.set-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.set-avatar strong {
+  color: var(--nh-ink-soft);
+  font-size: 25px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.set-identity__meta {
+  display: grid;
+  min-width: 180px;
+  flex: 1;
+  gap: 3px;
+}
+
+.set-identity__meta strong {
+  color: var(--nh-ink);
+  font-size: 17px;
+  font-weight: 500;
+}
+
+.set-identity__meta small {
+  color: var(--nh-muted);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.set-identity__meta p {
+  margin-top: 4px;
+  color: var(--nh-muted-2);
+  font-size: 12.5px;
+}
+
+.set-identity__acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* The real input is driven by the buttons beside it — hidden rather than
+   removed, so the file dialog and form reset both still work. */
+.set-file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Separates the photo well from the fields without making them two panels. */
+.set-rule {
+  height: 1px;
+  margin: 22px 0;
+  background: var(--nh-hairline-soft);
+}
+
+/* A password field with the eye seated inside it. */
+.set-secret {
+  position: relative;
+  display: block;
+}
+
+.aui-field .set-secret input {
+  padding-right: 46px;
+}
+
+.set-secret__peek {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--nh-muted);
+  cursor: pointer;
+  place-items: center;
+  transform: translateY(-50%);
+  transition: color 0.2s var(--nh-ease), background 0.2s var(--nh-ease);
+}
+
+.set-secret__peek:hover {
+  background: var(--nh-ghost-bg);
+  color: var(--nh-ink);
+}
+
+.set-error {
+  margin-top: 14px;
+  color: var(--aui-rose);
+  font-size: 12.5px;
+}
+
+.set-formfoot {
+  display: flex;
+  margin-top: 20px;
+  justify-content: flex-end;
+}
+
+/* ==================================================== 13.5 charts */
+
+/* The analytics vocabulary: thin marks, hairline solid gridlines, colour on
+   the mark and never on the text. Everything fixed-size (dots, labels, the
+   crosshair, the read-out) is HTML laid over a stretched SVG, so the marks
+   scale and the type does not. */
+
+.aui-viz {
+  display: grid;
+  gap: 10px;
+}
+
+.aui-viz__head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+  gap: 10px;
+}
+
+/* The section's hero figure — proportional figures, never tabular, at size. */
+.aui-viz__figure {
+  font-size: clamp(26px, 3.4vw, 34px);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+.aui-viz__against {
+  color: var(--nh-muted);
+  font-size: 12px;
+}
+
+.aui-viz__kicker {
+  margin-bottom: 14px;
+  color: var(--nh-muted-2);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.aui-viz__plot {
+  position: relative;
+  height: 200px;
+  border-radius: 6px;
+  outline: none;
+  touch-action: pan-y;
+}
+
+.aui-viz__plot:focus-visible {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.35);
+}
+
+.aui-viz__paper {
+  position: absolute;
+  overflow: visible;
+  width: 100%;
+  height: 100%;
+  inset: 0;
+}
+
+/* Solid hairlines, one shade off the surface; the baseline a step firmer. */
+.aui-viz__grid {
+  position: absolute;
+  right: 0;
+  left: 0;
+  height: 1px;
+  background: var(--nh-hairline-soft);
+  pointer-events: none;
+}
+
+.aui-viz__grid--base {
+  background: var(--nh-hairline);
+}
+
+.aui-viz__tick {
+  position: absolute;
+  left: 0;
+  color: var(--nh-muted-2);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  transform: translateY(3px);
+}
+
+.aui-viz__cross {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.22);
+  pointer-events: none;
+}
+
+/* An 8px marker with a 2px ring of the surface, so it survives crossing the
+   line it belongs to. */
+.aui-viz__dot {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  box-shadow: 0 0 0 2px var(--nh-card-bg);
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+.aui-viz__endlabel {
+  position: absolute;
+  right: 0;
+  color: var(--nh-ink);
+  font-size: 11.5px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  transform: translateY(-160%);
+}
+
+/* The hover read-out. Values lead, labels follow; series keys are short
+   strokes of the series colour, not boxes. */
+.aui-viz__readout {
+  position: absolute;
+  z-index: 3;
+  top: 8px;
+  display: grid;
+  min-width: 132px;
+  padding: 9px 11px;
+  border-radius: 10px;
+  gap: 5px;
+  background: var(--nh-panel);
+  backdrop-filter: blur(14px);
+  box-shadow:
+    inset 0 0 0 1px var(--nh-hairline),
+    var(--aui-lift);
+  pointer-events: none;
+}
+
+.aui-viz__readout[data-side="right"] {
+  transform: translateX(10px);
+}
+
+.aui-viz__readout[data-side="left"] {
+  transform: translateX(calc(-100% - 10px));
+}
+
+.aui-viz__readout strong {
+  color: var(--nh-muted);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.aui-viz__readout p {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+
+.aui-viz__readout p i {
+  width: 12px;
+  height: 2px;
+  flex: none;
+  align-self: center;
+  border-radius: 999px;
+}
+
+.aui-viz__readout p b {
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.aui-viz__readout p span {
+  color: var(--nh-muted);
+  font-size: 11px;
+}
+
+.aui-viz__x {
+  display: flex;
+  justify-content: space-between;
+  color: var(--nh-muted-2);
+  font-size: 10.5px;
+}
+
+.aui-viz__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  color: var(--nh-muted);
+  font-size: 11.5px;
+}
+
+.aui-viz__legend i {
+  display: inline-block;
+  width: 14px;
+  height: 2px;
+  margin-right: 6px;
+  border-radius: 999px;
+  vertical-align: middle;
+}
+
+/* Columns: capped thickness, 4px rounded data-end, square at the baseline,
+   and the 2px gap doing the separating. */
+.aui-viz__cols {
+  position: absolute;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  inset: 0;
+}
+
+.aui-viz__slot {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: flex-end;
+  justify-content: center;
+  align-self: stretch;
+}
+
+.aui-viz__slot i {
+  width: 100%;
+  max-width: 24px;
+  border-radius: 4px 4px 0 0;
+  background: currentcolor;
+  transition: filter 0.15s var(--nh-ease-soft);
+}
+
+.aui-viz__slot i[data-lift="true"] {
+  filter: brightness(1.25);
+}
+
+/* Horizontal bars: name and number in text ink, the bar between them. */
+.aui-viz__bars {
+  display: grid;
+  gap: 15px;
+}
+
+.aui-viz__bar {
+  display: grid;
+  gap: 7px;
+}
+
+.aui-viz__bar > p {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--nh-ink-soft);
+  font-size: 12.5px;
+}
+
+.aui-viz__bar > p > b {
+  color: var(--nh-ink);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The word beside a flagged row — Low, Out. Never colour alone. */
+.aui-viz__bar > p span b {
+  margin-left: 8px;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.aui-viz__bar > p span b[data-tone="warn"] {
+  color: var(--aui-amber);
+}
+
+.aui-viz__bar > p span b[data-tone="bad"] {
+  color: var(--aui-rose);
+}
+
+.aui-viz__track {
+  display: block;
+  height: 8px;
+  border-radius: 2px 4px 4px 2px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.aui-viz__track i {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  border-radius: 0 4px 4px 0;
+  background: rgb(var(--aui-spot, var(--aui-ink-rgb)));
+  transition: width 0.5s var(--nh-ease);
+}
+
+/* Every chart's WCAG-clean twin, folded under it. */
+.aui-viz__fold summary {
+  width: fit-content;
+  color: var(--nh-muted);
+  cursor: pointer;
+  font-size: 11.5px;
+  transition: color 0.2s var(--nh-ease-soft);
+}
+
+.aui-viz__fold summary:hover {
+  color: var(--nh-ink);
+}
+
+.aui-viz__scroll {
+  position: relative;
+  overflow-x: auto;
+  margin-top: 10px;
+}
+
+.aui-viz__fold table {
+  min-width: 340px;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.aui-viz__fold th,
+.aui-viz__fold td {
+  padding: 7px 14px 7px 0;
+  box-shadow: inset 0 -1px 0 0 var(--nh-hairline-soft);
+  text-align: left;
+}
+
+.aui-viz__fold thead th {
+  color: var(--nh-muted-2);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.aui-viz__fold tbody th {
+  color: var(--nh-muted);
+  font-weight: 400;
+}
+
+.aui-viz__fold td {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================ 13b. the home page hero board
+
+   The one screen in the console that is about a PICTURE rather than a record,
+   so it is drawn as a run of cards rather than a table. Each card shows the
+   uploaded frame and its cutout side by side, because a cutout is judged by
+   comparison — a board that showed only the result would make a bad
+   segmentation impossible to spot until it was on the home page. */
+
+.hero-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 18px;
+}
+
+.hero-form__act {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.hero-form__note {
+  color: var(--nh-muted);
+  font-size: 12px;
+  margin-top: 12px;
+}
+
+/* Where the picture comes from — two cards, one chosen. `.aui-check` already
+   draws the row; the only thing radios need on top of it is a round box, since
+   a square with a tick in it means "several of these" and exactly one of these
+   is true. */
+.hero-source {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  width: 100%;
+}
+
+.hero-source__opt .aui-check__box {
+  border-radius: 999px;
+}
+
+.hero-source__opt .aui-check__box::after {
+  top: 5px;
+  left: 5px;
+  width: 7px;
+  height: 7px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--nh-solid-fg);
+  transform: none;
+}
+
+.hero-source__opt > input:checked + .aui-check__box::after {
+  transform: none;
+}
+
+/* The product picker: the piece's own photograph beside the dropdown, so the
+   frame that is about to be cut out is visible BEFORE the save rather than
+   after it. */
+.hero-pick {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+}
+
+.hero-pick__frame {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 72px;
+  height: 72px;
+  overflow: hidden;
+  border-radius: var(--nh-radius-lg);
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline-soft);
+}
+
+.hero-pick__img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.hero-pick__control {
+  flex: 1;
+  min-width: 0;
+}
+
+.hero-run {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hero-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 18px;
+  padding: 16px;
+  border-radius: var(--nh-radius-card);
+  background: var(--nh-card-bg);
+  /* Every 1px edge is an inset shadow here, never a border — new_style §5.2. */
+  box-shadow: inset 0 0 0 1px var(--nh-hairline-soft);
+}
+
+.hero-card__frames {
+  display: flex;
+  gap: 10px;
+}
+
+.hero-card__frame {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  gap: 6px;
+  margin: 0;
+  width: 92px;
+}
+
+.hero-card__frame figcaption {
+  color: var(--nh-muted-2);
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.hero-card__frame > :first-child {
+  display: grid;
+  place-items: center;
+  height: 92px;
+  overflow: hidden;
+  border-radius: var(--nh-radius-lg);
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline-soft);
+}
+
+/* The cutout sits on a chequerboard, which is the only honest way to show a
+   transparent PNG: on a flat panel a white-backed near-miss and a real cutout
+   look identical, and the whole point of this screen is telling those apart. */
+.hero-card__frame--cutout > :first-child {
+  background-color: rgba(255, 255, 255, 0.06);
+  background-image:
+    linear-gradient(45deg, rgba(0, 0, 0, 0.32) 25%, transparent 25%),
+    linear-gradient(-45deg, rgba(0, 0, 0, 0.32) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, rgba(0, 0, 0, 0.32) 75%),
+    linear-gradient(-45deg, transparent 75%, rgba(0, 0, 0, 0.32) 75%);
+  background-size: 12px 12px;
+  background-position: 0 0, 0 6px, 6px -6px, -6px 0;
+}
+
+.hero-card__img {
+  width: 100%;
+  height: 100%;
+  /* Contain, not cover: a garment cropped to fill the tile is a garment whose
+     hem you cannot check. */
+  object-fit: contain;
+}
+
+.hero-card__blank {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  color: var(--nh-muted-2);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.hero-card__body {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.hero-card__pos {
+  color: var(--nh-muted-2);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.hero-card__title {
+  margin: 0;
+  color: var(--nh-ink);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.hero-card__states {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Why the last cutout ended the way it did, in the operator's language. Set
+   at reading size rather than as fine print: it is an instruction, and this is
+   the only place it is ever said. */
+.hero-card__detail {
+  color: var(--nh-ink-soft);
+  font-size: 12.5px;
+  line-height: 1.5;
+  max-width: 62ch;
+}
+
+.hero-card__acts {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  min-width: 148px;
+}
+
+.hero-card__acts .aui-btn {
+  justify-content: flex-start;
+  gap: 7px;
+}
+
+.hero-card__order {
+  display: flex;
+  gap: 6px;
+}
+
+/* ==================================================== 14. responsive */
+/* The SHELL's own breakpoints live in shell.css — the rail becomes a drawer and
+   the frame margin drops at `lg`, and the bar's controls fold at `sm`. What is
+   left here is page content: the grids inside the stage. */
+@media (max-width: 1240px) {
+  .aui-spotlight {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 780px) {
+  .aui-app {
+    --aui-inset: 10px;
+  }
+
+  /* The actions drop under the copy rather than squeezing the title into a
+     two-word column beside them. */
+  .aui-head {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* Photo above its own buttons: three columns on a phone leaves the name a
+     word wide and the buttons stacked anyway. */
+  .set-identity {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .set-identity__acts .aui-btn {
+    flex: 1;
+  }
+
+  .aui-head__actions {
+    justify-content: flex-start;
+  }
+
+  .aui-head__spec div + div {
+    margin-left: 0.75rem;
+    padding-left: 0.75rem;
+  }
+
+  .aui-head__actions .aui-btn,
+  .aui-actions .aui-btn {
+    flex: 1;
+  }
+
+  .aui-sec__head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  /* At this width every band takes its own line: the tabs scroll sideways
+     rather than reflowing into a two-row block, and the search sits above
+     verbs that have spread to fill the row. */
+  /* `flex: 1 1 100%`, NOT `1 0 100%`. With shrink disabled the strip keeps its
+     full seven-tab width, and because the toolbar sits in a grid that sizes to
+     min-content, that width becomes the page's width. Letting it shrink is what
+     makes `overflow-x` mean anything. */
+  .aui-toolbar > .aui-tabs {
+    flex: 1 1 100%;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .aui-toolbar > .aui-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .aui-toolbar__controls {
+    flex-wrap: wrap;
+  }
+
+  .aui-toolbar__controls > .aui-searchfield {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  /* Full-width verbs at this size -- two half-width buttons side by side are
+     narrower than their own labels. */
+  .aui-toolbar__acts {
+    flex: 1 1 100%;
+    min-width: 0;
+    margin-left: 0;
+  }
+
+  .aui-toolbar__acts > .aui-btn {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .aui-drawer {
+    top: auto;
+    width: auto;
+    left: var(--aui-inset);
+    max-height: 76vh;
+  }
+
+  .aui-modal__foot {
+    justify-content: stretch;
+  }
+
+  .aui-modal__foot .aui-btn {
+    flex: 1;
+  }
+
+  /* A table below this width is a horizontal scroll no matter how it is
+     styled, so the cells that carry the least meaning step out first. */
+  .aui-table [data-hide="sm"] {
+    display: none;
+  }
+
+  .aui-rowacts {
+    opacity: 1;
+  }
+
+  .hero-form,
+  .hero-source {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* Three columns will not fit, and the frames are the part that must stay
+     legible — so they lead, the words follow, and the verbs go full width. */
+  .hero-card {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .hero-card__acts {
+    flex-direction: row;
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+}

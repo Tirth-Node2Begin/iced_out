@@ -1,0 +1,113 @@
+/* The route-transition surface — see components/layout/route-loading.tsx.
+ *
+ * A Suspense fallback replaces the page, so this has to *be* a page: it paints
+ * the document's own near-black and fills the viewport. That is what keeps a
+ * short suspend from reading as a white flash.
+ */
+.route-loading {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: grid;
+  place-items: center;
+  background: #101113;
+  color: #f1f3f3;
+}
+
+/* Nothing below this line is visible for the first 140ms. A navigation that
+   resolves inside that window shows an unbroken background and reads as
+   instant; only a genuine stall gets announced. */
+.route-loading__sweep,
+.route-loading__center {
+  opacity: 0;
+  animation: route-loading-reveal 0.28s ease-out 0.14s forwards;
+}
+
+/* A travelling highlight at the top edge rather than a determinate fill —
+   there is no real progress number to report, and a fake one that parks at 90%
+   is a worse lie than an honest "still working". */
+.route-loading__sweep {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 2px;
+  overflow: hidden;
+}
+
+.route-loading__sweep::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(241, 243, 243, 0.16) 22%,
+    #f1f3f3 50%,
+    rgba(241, 243, 243, 0.16) 78%,
+    transparent 100%
+  );
+  animation: route-loading-sweep 1.15s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.route-loading__center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+
+.route-loading__mark {
+  width: 34px;
+  height: 34px;
+  /* Breathing, not spinning. A rotating glyph asserts progress it cannot
+     measure; a slow pulse only says the surface is alive. */
+  animation: route-loading-pulse 1.9s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+.route-loading__label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: rgba(241, 243, 243, 0.42);
+}
+
+@keyframes route-loading-reveal {
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes route-loading-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes route-loading-pulse {
+  0%,
+  100% {
+    opacity: 0.32;
+    transform: scale(0.94);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Reduced motion keeps the signal and drops the travel: steady marks are
+   enough to say something is happening. */
+@media (prefers-reduced-motion: reduce) {
+  .route-loading__sweep::after {
+    background: rgba(241, 243, 243, 0.45);
+    animation: none;
+  }
+
+  .route-loading__mark {
+    opacity: 0.7;
+    animation: none;
+  }
+}

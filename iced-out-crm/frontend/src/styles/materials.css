@@ -1,0 +1,393 @@
+/* ============================================================================
+   ICED_OUT CRM — raw materials
+
+   The upstream half of inventory: purchase orders, production runs, the
+   material ledger, and the line editors both documents share.
+
+   Every token comes from shell.css. The tones are the console's own — mint,
+   amber, rose, sky — and they land on a GLYPH or on TEXT, never on a fill, so a
+   ledger of forty rows still reads as one surface.
+
+   ORDER
+     1  the shared line editor (purchase lines, receipts, run materials)
+     2  purchase orders and production runs
+     3  the material ledger
+     4  responsive
+   ========================================================================= */
+
+/* ================================================ 1. the line editor */
+/* One grid for three documents. A purchase order, a delivery and a run's
+   material list are the same shape — a thing, a number, a number — and giving
+   each its own layout would make three tables that drift apart. */
+.mat-lines {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.mat-lines__head,
+.mat-lines__row {
+  display: grid;
+  align-items: center;
+  gap: 10px;
+  grid-template-columns: minmax(0, 2.2fr) minmax(0, 1fr) minmax(0, 1fr) 40px;
+}
+
+.mat-lines__head {
+  padding: 0 4px;
+  color: var(--nh-muted-2);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.mat-lines__row {
+  padding: 8px 4px;
+  border-radius: var(--nh-radius-card);
+  transition: background-color 200ms var(--nh-ease-soft);
+}
+
+.mat-lines__row:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* The receipt and run variants carry a fourth FIGURE rather than a 40px control
+   slot, so their last column is a column like the others. */
+.mat-lines--wide .mat-lines__head,
+.mat-lines__row--receive,
+.mat-lines__row--run {
+  grid-template-columns: minmax(0, 2.2fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.mat-lines__name {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.mat-lines__name strong {
+  color: var(--nh-ink);
+  font-size: 12.5px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mat-lines__name small {
+  color: var(--nh-muted);
+  font-size: 10px;
+}
+
+.mat-lines__was {
+  color: var(--nh-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* What this document is asking for — the figure the eye should land on. */
+.mat-lines__need {
+  color: var(--nh-ink);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+/* A run line that cannot be met. Rose on the FIGURE, not the row: a whole row
+   tinted red reads as an error, and being short of one material is a fact about
+   the plan, not a failure of the screen. */
+.mat-lines__row--run[data-short="true"] .mat-lines__need {
+  color: var(--aui-rose);
+}
+
+.mat-lines__was em {
+  color: var(--aui-rose);
+  font-size: 10px;
+  font-style: normal;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* A number and its unit as one control, so the unit cannot be typed into. */
+.mat-lines__qty {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border-radius: var(--nh-radius-card);
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline-soft);
+  overflow: hidden;
+  transition: box-shadow 200ms var(--nh-ease-soft);
+}
+
+.mat-lines__qty:focus-within {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+}
+
+.mat-lines__qty input {
+  width: 100%;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 0;
+  background: transparent;
+  color: var(--nh-ink);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+}
+
+.mat-lines__qty input:disabled {
+  color: var(--nh-muted);
+}
+
+.mat-lines__qty span {
+  flex: none;
+  padding-right: 10px;
+  color: var(--nh-muted-2);
+  font-size: 10.5px;
+}
+
+.mat-lines__total {
+  padding-top: 10px;
+  box-shadow: inset 0 1px 0 0 var(--nh-hairline-soft);
+  color: var(--nh-muted);
+  font-size: 11.5px;
+  text-align: right;
+}
+
+.mat-lines__total b {
+  margin-left: 8px;
+  color: var(--nh-ink);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The note under the material register: quantities are not edited there. */
+.mat-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.mat-note svg {
+  flex: none;
+  color: var(--nh-muted-2);
+}
+
+/* ============================================ 2. purchases and runs */
+/* The same row for both: an id, who or what it is for, a state, and the verbs
+   it can take. */
+.mat-pos,
+.mat-runs {
+  display: grid;
+  gap: 1px;
+}
+
+.mat-po,
+.mat-run {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--nh-radius-card);
+  transition: background-color 200ms var(--nh-ease-soft);
+}
+
+.mat-po:hover,
+.mat-run:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.mat-po__body,
+.mat-run__body {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 14px;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.mat-po__id,
+.mat-run__id {
+  flex: none;
+  color: var(--nh-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em;
+}
+
+.mat-po__who,
+.mat-run__who {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 1px;
+}
+
+.mat-po__who strong,
+.mat-run__who strong {
+  color: var(--nh-ink);
+  font-size: 12.5px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mat-po__who small,
+.mat-run__who small {
+  color: var(--nh-muted);
+  font-size: 10.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mat-po__total {
+  flex: none;
+  color: var(--nh-ink-soft);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+/* The verbs. Held at low contrast until the row is hovered or tabbed into, so a
+   list of twenty orders is a list rather than a wall of buttons. */
+.mat-po__acts,
+.mat-run__acts {
+  display: flex;
+  flex: none;
+  gap: 6px;
+  opacity: 0.55;
+  transition: opacity 200ms var(--nh-ease-soft);
+}
+
+.mat-po:hover .mat-po__acts,
+.mat-po:focus-within .mat-po__acts,
+.mat-run:hover .mat-run__acts,
+.mat-run:focus-within .mat-run__acts {
+  opacity: 1;
+}
+
+/* ================================================== 3. the material ledger */
+.mat-ledger {
+  display: grid;
+  gap: 1px;
+}
+
+.mat-ledger__row {
+  display: grid;
+  align-items: center;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1.4fr) minmax(0, 0.8fr) minmax(0, 0.8fr);
+  padding: 9px 12px;
+  border-radius: var(--nh-radius-card);
+  transition: background-color 200ms var(--nh-ease-soft);
+}
+
+.mat-ledger__row:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.mat-ledger__what {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.mat-ledger__what strong {
+  color: var(--nh-ink);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.mat-ledger__what small {
+  color: var(--nh-muted-2);
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mat-ledger__note {
+  color: var(--nh-muted);
+  font-size: 11px;
+  font-style: italic;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mat-ledger__qty {
+  color: var(--nh-ink);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  text-align: right;
+}
+
+.mat-ledger__after {
+  color: var(--nh-muted-2);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* The movement's own tone, on the QUANTITY. A receipt reads mint, a write-off
+   rose, a hold amber — and the row itself stays the surface it was. */
+.mat-ledger__row[data-tone="mint"] .mat-ledger__qty {
+  color: var(--aui-mint);
+}
+
+.mat-ledger__row[data-tone="rose"] .mat-ledger__qty {
+  color: var(--aui-rose);
+}
+
+.mat-ledger__row[data-tone="amber"] .mat-ledger__qty {
+  color: var(--aui-amber);
+}
+
+.mat-ledger__row[data-tone="sky"] .mat-ledger__qty {
+  color: var(--aui-sky);
+}
+
+/* ========================================================== 4. responsive */
+@media (max-width: 780px) {
+  /* The cost column goes first: on a phone, the material and the quantity are
+     what a delivery is being checked against. */
+  .mat-lines__head,
+  .mat-lines__row {
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) 40px;
+  }
+
+  .mat-lines--wide .mat-lines__head,
+  .mat-lines__row--receive,
+  .mat-lines__row--run {
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .mat-po,
+  .mat-run {
+    flex-wrap: wrap;
+  }
+
+  .mat-po__body,
+  .mat-run__body {
+    flex-basis: 100%;
+  }
+
+  .mat-ledger__row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .mat-ledger__note,
+  .mat-ledger__after {
+    display: none;
+  }
+}

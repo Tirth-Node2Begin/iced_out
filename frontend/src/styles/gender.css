@@ -469,16 +469,44 @@
   padding-left: 10px;
 }
 
+/* A monogram rather than a photograph: these stand for real reviewers now, and
+   the register holds a name, not a portrait. Stock avatars were the previous
+   answer and they were pictures of nobody. */
 .gx-hero__face {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
   width: 34px;
   height: 34px;
   border-radius: 999px;
   margin-left: -10px;
-  object-fit: cover;
   background: var(--nh-card-bg);
   /* the 2px ring is the page background, not white — it has to read as the
-     avatars being cut out of the surface */
+     chips being cut out of the surface */
   box-shadow: 0 0 0 2px var(--nh-ring);
+  color: #14161a;
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  user-select: none;
+}
+
+/* the overflow count closes the cluster, and is the one chip that is not a
+   person — it carries the page's own palette rather than a reviewer's tint */
+.gx-hero__face--rest {
+  background: var(--nh-card-bg);
+  box-shadow:
+    0 0 0 2px var(--nh-ring),
+    inset 0 0 0 1px var(--nh-hairline);
+  color: var(--nh-muted);
+  font-size: 11.5px;
+}
+
+/* Nothing to stack — no ring floating on the plate where the faces were. */
+.gx-hero__faces:empty {
+  display: none;
 }
 
 .gx-hero__proofText {

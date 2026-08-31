@@ -12,6 +12,8 @@ import {
   type LookPin,
 } from "@/components/gender/data";
 import { EASE_OUT, Reveal, SplitHeading, WordRamp } from "@/components/gender/motion";
+import { pieceForPin, useGenderPieces } from "@/components/gender/use-pieces";
+import { DEPTS, pieceHref } from "@/components/new-man/product-deck";
 import {
   Popover,
   PopoverContent,
@@ -28,6 +30,13 @@ import {
  *
  * Hovering a rail row lights its pin and vice versa — one `active` id drives
  * both, which is what makes the two halves read as one component.
+ *
+ * Both the pin's card and the rail row open the piece the pin NAMES, found in
+ * the catalogue by that name. They used to open `pin.slug`, which was one of
+ * four storefront fixtures written into the copy deck — so the row reading
+ * "Underpass Shell · ₹16,200" opened the Bone Utility Overshirt at ₹11,400,
+ * and three rows out of every four were pointing at a garment they did not
+ * name. See `pieceForPin`.
  */
 export function Lookbook({ content }: { content: AudienceContent }) {
   const reduce = useReducedMotion();
@@ -38,6 +47,18 @@ export function Lookbook({ content }: { content: AudienceContent }) {
   const { look } = content;
   const current = look.looks[lookIndex];
   const stage = CROPS[current.crop];
+
+  const { pieces } = useGenderPieces(content.audience);
+
+  /* Resolved here rather than inside `Pin`, so the pin and the rail row that
+     light each other also agree on where they go. A pin whose piece is not in
+     the catalogue — still loading, renamed, retired — falls back to the
+     listing rather than to a product page that is not there. */
+  const dept = DEPTS[content.audience];
+  const hrefFor = (pin: LookPin) => {
+    const piece = pieceForPin(pieces, pin);
+    return piece ? pieceHref(dept, piece) : dept.base;
+  };
 
   return (
     <section className="gx-section gx-look" id="gx-lookbook">
@@ -89,6 +110,7 @@ export function Lookbook({ content }: { content: AudienceContent }) {
 
               {current.pins.map((pin, index) => (
                 <Pin
+                  href={hrefFor(pin)}
                   index={index}
                   isActive={active === pin.id}
                   isOpen={openPin === pin.id}
@@ -122,7 +144,7 @@ export function Lookbook({ content }: { content: AudienceContent }) {
                   <Link
                     className="gx-look__item"
                     data-active={active === pin.id}
-                    href={`/product?slug=${pin.slug}`}
+                    href={hrefFor(pin)}
                     key={`${current.id}-row-${pin.id}`}
                     onBlur={() => setActive(null)}
                     onFocus={() => setActive(pin.id)}
@@ -206,6 +228,7 @@ export function Lookbook({ content }: { content: AudienceContent }) {
 
 function Pin({
   pin,
+  href,
   index,
   isActive,
   isOpen,
@@ -214,6 +237,7 @@ function Pin({
   reduce,
 }: {
   pin: LookPin;
+  href: string;
   index: number;
   isActive: boolean;
   isOpen: boolean;
@@ -256,7 +280,7 @@ function Pin({
       </PopoverTrigger>
 
       <PopoverContent align="center" className="gx-look__pop" side="right" sideOffset={12}>
-        <Link className="flex items-center gap-3" href={`/product?slug=${pin.slug}`}>
+        <Link className="flex items-center gap-3" href={href}>
           <span className="gx-look__thumb">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img

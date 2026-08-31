@@ -48,7 +48,18 @@ export type OrderRecord = OrderFixture & {
     subtotal: number;
     discount: number;
     delivery: number;
+    /** What the order is WORTH — before store credit is applied to it. */
     total: number;
+    /**
+     * How much of it the wallet paid.
+     *
+     * Kept apart from `discount` on purpose: the shop did not sell the pieces
+     * for less, it was paid partly with money it already owed. Folding the two
+     * together would overstate every discount figure and understate revenue by
+     * the same amount. `total - walletApplied` is what the gateway was asked
+     * for.
+     */
+    walletApplied: number;
     couponCode: string | null;
   };
 };
@@ -80,7 +91,15 @@ export type PlaceOrderInput = {
   address: { line: string; city: string; state: string; postalCode: string };
   delivery: { label: string; estimate: string; fee: number };
   payment: { method: string; reference: string; outcome: PaymentOutcome; note?: string };
-  money: { subtotal: number; discount: number; total: number; couponCode: string | null };
+  money: {
+    subtotal: number;
+    discount: number;
+    /** The order's own value. Store credit comes off what is CHARGED, not this. */
+    total: number;
+    /** Whole rupees of wallet balance to spend. The server re-checks it. */
+    walletApplied: number;
+    couponCode: string | null;
+  };
 };
 
 type OrdersContextValue = {
@@ -100,7 +119,7 @@ type OrdersContextValue = {
 const OrdersContext = createContext<OrdersContextValue | null>(null);
 
 export function OrdersProvider({ children }: { children: ReactNode }) {
-  const { isAuthenticated, sessionReady } = useAuth();
+  const { customer, isAuthenticated, sessionReady } = useAuth();
   const [placed, setPlaced] = useState<OrderRecord[]>([]);
   const [restored, setRestored] = useState(false);
 
@@ -122,12 +141,33 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
    */
   const [mine, setMine] = useState<OrderRecord[]>([]);
 
+  /**
+   * WHOSE orders are currently held — the signed-in shopper's email, or null.
+   *
+   * Keyed on the person rather than on `isAuthenticated`, because "somebody is
+   * signed in" is the same value before and after a switch of account. This
+   * changes whenever the account does, which is exactly when the list below has
+   * to be thrown away.
+   */
+  const identity = customer?.email ?? null;
+
   useEffect(() => {
     if (!sessionReady) return;
 
     let live = true;
 
     async function load() {
+      /* The locally-placed list belongs to whoever placed those orders, and it
+         is dropped the moment the account changes.
+         Without this it survived a sign-out: order IO-2026-1054 placed by one
+         shopper was still in `placed` when the next person registered on the
+         same browser, and `orders` concatenates `placed` onto `mine` — so a
+         brand-new account opened onto somebody else's purchase, with their
+         garment, their total and their delivery on it. The API was never at
+         fault; `/me/orders` correctly returned an empty list. */
+      archive.current = [];
+      setPlaced([]);
+
       if (!isAuthenticated) {
         if (live) {
           setMine([]);
@@ -152,15 +192,24 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
     return () => {
       live = false;
     };
-  }, [isAuthenticated, sessionReady]);
+  }, [identity, isAuthenticated, sessionReady]);
 
   /* An order placed in this tab is shown immediately so the confirmation screen
      has something to open, and the server's copy replaces it on the next read.
      Nothing is written to storage: an order is not a fact about a browser. */
-  const orders = useMemo(
-    () => [...placed].sort((a, b) => b.placedAt - a.placedAt).concat(mine),
-    [mine, placed],
-  );
+  const orders = useMemo(() => {
+    /* The server's copy WINS, which is what the note above always claimed and
+       what this now actually does: a locally-placed order is dropped from the
+       list the moment `/me/orders` comes back holding it. Concatenating the two
+       lists unconditionally meant the same purchase appeared twice on any
+       screen that re-read the archive. */
+    const onServer = new Set(mine.map((order) => order.id));
+
+    return [...placed]
+      .filter((order) => !onServer.has(order.id))
+      .sort((a, b) => b.placedAt - a.placedAt)
+      .concat(mine);
+  }, [mine, placed]);
 
   const findOrder = useCallback(
     (idOrNumber: string) =>

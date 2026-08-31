@@ -166,19 +166,20 @@ export function FashionHero() {
     }),
   };
   /**
-   * The swap sweep, traced frame by frame from ref.mp4 at 30fps.
+   * The swap sweep. The way IN is traced frame by frame from ref.mp4 at 30fps;
+   * the way OUT is not, and deliberately so — see `exit` below.
    *
-   * One garment walks a single arc. It lifts out of the bottom-right corner at
-   * roughly a third size, runs up and to the left into the centre, holds, then
-   * carries on up-left and leaves past the top edge. Nothing rotates — the
-   * garment stays upright for the whole sweep in the reference.
+   * One garment lifts out of the bottom-right corner at roughly a third size,
+   * runs up and to the left into the centre, and holds. In the capture it then
+   * carries on up-left and leaves past the top edge, upright the whole way.
+   * This build leaves differently: it turns to its left where it stands and
+   * flies off sideways.
    *
    * The `times` arrays carry the easing instead of a bezier. The capture's
-   * position curve was sampled at seven points on the way in and five on the
-   * way out, so interpolating those samples linearly replays the reference
-   * deceleration rather than approximating it. The horizontal leg leads on the
-   * way in and the vertical leg leads on the way out; that offset between the
-   * two is what bends the straight line into the arc.
+   * position curve was sampled at seven points on the way in, so interpolating
+   * those samples linearly replays the reference deceleration rather than
+   * approximating it. The horizontal leg leads on the way in, which is what
+   * bends the straight line into the arc.
    *
    * Offsets are percentages of the product box, converted from the capture's
    * viewport-relative measurements: the garment centre sits at (46.5%, 48.5%)
@@ -225,23 +226,56 @@ export function FashionHero() {
             ease: "linear",
           },
         },
+        /**
+         * Turn, THEN go. Two beats, and the first one does not travel at all.
+         *
+         * BEAT ONE — `times` 0 → 0.34, about 170ms. The garment pivots
+         * anti-clockwise on the spot: `x` and `y` are pinned at "0%" across
+         * both keyframes, opacity stays 1 and blur stays 0. Nothing but the
+         * rotation changes, so what the eye gets is unambiguously a turn.
+         *
+         * An earlier pass let `x` creep to -3% during this beat, reasoning that
+         * 3% is nothing. It is not nothing — the product box is far wider than
+         * the garment, so 3% measured ~68px on a 1280 viewport and the turn read
+         * as a drift with a tilt on it rather than as a pivot. Hence the pin.
+         *
+         * The pivot is about the garment's own optical centre, not the box's:
+         * `.hv2-fashion-hero__productSwap` sets `transform-origin: 50% 55%`,
+         * and that 55% is what keeps a hanging garment turning on its middle
+         * instead of swinging by its collar.
+         *
+         * BEAT TWO — from that turned position it sweeps out to the left,
+         * carrying the rotation a little further as it shrinks and blurs. `x`
+         * runs to -130% so the piece is fully clear of its box before opacity
+         * reaches zero; finishing the fade early would let it blink out
+         * mid-flight.
+         *
+         * `y` drifts down only 12%, and only in beat two. The reference sends
+         * the garment up and out through the top edge; leaving near level is
+         * what makes this read as sideways rather than as being lifted away.
+         *
+         * 0.5s against the 0.24s this replaces, because a turn that nobody can
+         * see is not a turn. Still inside the incoming garment's landing at
+         * ENTER_DELAY + DUR.swap (0.58s), so the two overlap exactly as they
+         * always have — that margin is the ceiling on how slow this may get.
+         */
         exit: {
-          opacity: [1, 0.85, 0.6, 0.28, 0],
-          x: ["0%", "-9%", "-18%", "-29%", "-42%"],
-          y: ["0%", "-15%", "-28%", "-43%", "-54%"],
-          scale: [1, 0.92, 0.85, 0.76, 0.64],
+          opacity: [1, 1, 0.97, 0.76, 0.36, 0],
+          rotate: [0, -22, -26, -30, -33, -35],
+          x: ["0%", "0%", "-12%", "-50%", "-92%", "-130%"],
+          y: ["0%", "0%", "2%", "5%", "9%", "12%"],
+          scale: [1, 1, 0.97, 0.89, 0.79, 0.7],
           filter: [
             "blur(0px)",
-            "blur(2px)",
-            "blur(4.5px)",
-            "blur(7.5px)",
-            "blur(11px)",
+            "blur(0px)",
+            "blur(1.5px)",
+            "blur(4px)",
+            "blur(8px)",
+            "blur(12px)",
           ],
           transition: {
-            /* The capture clears the frame in a little over six frames — the exit
-               is markedly quicker than the entrance it overlaps. */
-            duration: 0.24,
-            times: [0, 0.25, 0.45, 0.7, 1],
+            duration: 0.5,
+            times: [0, 0.34, 0.48, 0.7, 0.87, 1],
             ease: "linear",
           },
         },

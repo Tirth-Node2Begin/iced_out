@@ -42,6 +42,17 @@ export type StorefrontConfig = {
   /** Working days, `[first, last]`. */
   standardWindow: [number, number];
   expressWindow: [number, number];
+  /**
+   * Razorpay's PUBLIC key, from the API's own environment.
+   *
+   * It is public in the strict sense — it appears in the page source of every
+   * Razorpay checkout there is — and it lives here so that pointing the shop at
+   * a different Razorpay account is a line in `backend/.env` rather than a
+   * frontend rebuild. `NEXT_PUBLIC_RAZORPAY_KEY_ID` still overrides it; see
+   * `features/09-payment/razorpay.ts`. Empty when nothing has configured one,
+   * and the checkout says so rather than opening a gateway that cannot charge.
+   */
+  razorpayKeyId: string;
 };
 
 /** Mirrors the server's own defaults — see `SystemController::storefront`. */
@@ -52,6 +63,8 @@ export const CONFIG_FALLBACK: StorefrontConfig = {
   expressFee: 499,
   standardWindow: [3, 5],
   expressWindow: [1, 2],
+  // No default key on purpose — see `razorpayKeyId` above.
+  razorpayKeyId: "",
 };
 
 type Payload = {
@@ -61,6 +74,7 @@ type Payload = {
     standard?: { fee?: number; window?: number[] };
     express?: { fee?: number; window?: number[] };
   };
+  razorpay_key_id?: string;
 };
 
 /** A window that may have arrived short or malformed, as the pair we need. */
@@ -81,6 +95,7 @@ const record = createRemoteRecord<StorefrontConfig>(async () => {
     expressFee: payload.delivery?.express?.fee ?? CONFIG_FALLBACK.expressFee,
     standardWindow: windowOf(payload.delivery?.standard?.window, CONFIG_FALLBACK.standardWindow),
     expressWindow: windowOf(payload.delivery?.express?.window, CONFIG_FALLBACK.expressWindow),
+    razorpayKeyId: payload.razorpay_key_id ?? CONFIG_FALLBACK.razorpayKeyId,
   };
 });
 

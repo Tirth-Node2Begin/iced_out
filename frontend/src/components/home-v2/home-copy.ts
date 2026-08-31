@@ -35,7 +35,20 @@ export const ROOT_COPY: SiteCopy = {
 
   philosophy: {
     eyebrow: "The weight",
-    body: "Nothing here is light. Drop 001 is anchored on 520 GSM brushed fleece and the Nightshift Overcoat is pressed wool at 740. That weight is the entire argument — it is what makes a piece hang correctly the first night out and still hang correctly two winters later, long after a lighter version of the same garment has gone soft at the shoulders",
+    /**
+     * The claim on its own, because it IS the claim — everything under it is
+     * evidence for this one line.
+     *
+     * It used to be the opening sentence of a single 62-word field, and that
+     * field rendered every word of itself at the same 45px/500. The section
+     * had no entry point and no hierarchy: a wall of bold with the argument
+     * buried in the middle of it.
+     */
+    heading: "Nothing here is light.",
+    /* The `\u00A0` before the last word is a non-breaking space, and it is
+       load-bearing: it ties "the shoulders." to one line so the paragraph can
+       never end on a lone word. */
+    body: "Drop 001 is anchored on 520 GSM brushed fleece and the Nightshift Overcoat is pressed wool at 740. That weight is the entire argument — it is what makes a piece hang correctly the first night out and still hang correctly two winters later, long after a lighter version of the same garment has gone soft at the\u00A0shoulders.",
     main: {
       src: "/images/home-v2/philosophy-main.jpg",
       alt: "Two figures in a concrete underpass after dark",
@@ -119,33 +132,8 @@ export const ROOT_COPY: SiteCopy = {
   /* Wearers rather than clients, and each one pinned to a piece that is
      actually in the catalogue — a quote about a garment the visitor cannot
      find is worse than no quote. */
+  /* Heading only — the quotes under it are real reviews, fetched. */
   testimonials: {
     heading: ["Worn hard,", "reported back"],
-    items: [
-      {
-        index: "01",
-        quote:
-          "I bought it for the weight and stayed for the way it wears in. A year on the fleece has softened exactly where it should and nowhere it shouldn't.",
-        name: "Aditi Rao",
-        role: "Drop 001 · Afterdark Hoodie",
-        src: "/images/home-v2/person-01.jpg",
-      },
-      {
-        index: "02",
-        quote:
-          "740 GSM reads like a spec until you put it on in January. It stands up on its own, it does not move in the wind, and it has not pilled once.",
-        name: "Ishaan Kapoor",
-        role: "After Hours · Nightshift Overcoat",
-        src: "/images/home-v2/person-04.jpg",
-      },
-      {
-        index: "03",
-        quote:
-          "It is a plain tee, which is the whole point. Three in rotation for a year and not one of them has gone out of shape at the neck.",
-        name: "Priya Nandakumar",
-        role: "Core Uniform · Core Heavy Tee",
-        src: "/images/home-v2/person-03.jpg",
-      },
-    ],
   },
 };

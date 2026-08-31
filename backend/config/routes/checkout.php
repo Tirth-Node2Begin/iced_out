@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Iced\Controller\Customer\CheckoutController;
+use Iced\Controller\Customer\PaymentController;
 use Iced\Kernel\Route;
 
 /**
@@ -22,6 +23,40 @@ return [
         // A double-tap on a slow connection must not buy the bag twice.
         'idempotent' => true,
         'name' => 'checkout.orders.place',
+    ],
+    /**
+     * The two gateway steps that need the SECRET, and so cannot be done in the
+     * browser. Both sit under /checkout because they are part of the act of
+     * paying, not a payments area of their own — the console's own payments
+     * endpoints are in admin_payments.php.
+     */
+    [
+        'method' => 'POST',
+        'path' => '/checkout/payments/razorpay/order',
+        'handler' => [PaymentController::class, 'createOrder'],
+        'audience' => Route::AUDIENCE_CUSTOMER,
+        'rate_limit' => 'payments',
+        'name' => 'checkout.payments.razorpay.order',
+        'rules' => [
+            // Rupees, like every other figure crossing this boundary. The cap
+            // is a sanity bound, not a business rule: the order this pays for
+            // is re-priced from the catalogue when it is placed.
+            'amount' => 'required|int|min:1|max:10000000',
+            'receipt' => 'string|max:40',
+        ],
+    ],
+    [
+        'method' => 'POST',
+        'path' => '/checkout/payments/razorpay/verify',
+        'handler' => [PaymentController::class, 'verify'],
+        'audience' => Route::AUDIENCE_CUSTOMER,
+        'rate_limit' => 'payments',
+        'name' => 'checkout.payments.razorpay.verify',
+        'rules' => [
+            'orderId' => 'required|string|max:64',
+            'paymentId' => 'required|string|max:64',
+            'signature' => 'required|string|max:128',
+        ],
     ],
     [
         'method' => 'GET',

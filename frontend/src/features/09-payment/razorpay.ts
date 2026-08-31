@@ -1,80 +1,143 @@
 /**
- * Razorpay Checkout, in test mode.
+ * Razorpay Checkout.
  *
  * Razorpay rather than a card form of our own: no card number, CVV or expiry
  * ever touches this origin — the gateway opens its own frame, takes the detail
  * and hands back an id. That is also why there is nothing to "validate" here.
  *
- * There is no server in this build (`output: "export"`), so this uses the
- * amount-only checkout rather than the server-created `order_id` flow. In test
- * mode that is enough to open the real gateway and complete a real test
- * payment. A production build MUST create the order server-side and verify
- * `razorpay_signature` before trusting anything below — the handler payload is
- * a claim made by the browser until a server has checked it.
+ * The two steps that CANNOT happen in a browser happen on the API, because both
+ * need the key secret (see `backend/src/Integration/Payments/RazorpayGateway`):
+ *
+ *   1. the order is created server-side, so the amount is stated by the server
+ *      before the shopper is shown a gateway and cannot be edited from the
+ *      console of the page paying it;
+ *   2. `razorpay_signature` is verified server-side afterwards, because until
+ *      it is, `razorpay_payment_id` is A STRING A BROWSER SENT.
+ *
+ * Both degrade rather than break. An API that cannot be reached for step 1
+ * leaves `order` null and the amount-only checkout takes over — the real
+ * gateway still opens and still takes a real payment; what is lost is the
+ * ability to CHECK the result, which step 2 then reports honestly as
+ * `verified: false` rather than pretending.
  *
  * Test cards: `4111 1111 1111 1111`, any future expiry, any CVV, OTP `1234`.
  * Test UPI: `success@razorpay`.
  */
 
+import { customerClient } from "@/api/clients";
+import { peekStorefrontConfig } from "@/features/04-cart/storefront-config";
+
 const SDK_SRC = "https://checkout.razorpay.com/v1/checkout.js";
 
 /* ---------------------------------------------------------------------------
-   CONFIGURATION — the two placeholders a real deployment replaces
+   THE KEY
 
-   Nothing below is a secret. `key_id` is public by design (it is read out of
-   the page source on every Razorpay checkout in existence); the `key_secret`
-   that pairs with it belongs on a server this build does not have, which is
-   why the two server-side steps are stubs rather than half-written client code
-   that would have to leak it.
+   `key_id` is public by design — it is read out of the page source on every
+   Razorpay checkout in existence — so it may be baked into the bundle or served
+   by the API, and both are supported:
 
-   1. NEXT_PUBLIC_RAZORPAY_KEY_ID   — the live/test key, dropped in `.env.local`
-   2. NEXT_PUBLIC_RAZORPAY_ORDER_API — the endpoint that creates a Razorpay
-      order server-side and returns `{ id: "order_..." }`, plus (later) the
-      endpoint that verifies `razorpay_signature` after payment.
+     NEXT_PUBLIC_RAZORPAY_KEY_ID   frontend/.env.local, baked in at build time
+     GET /config/storefront        `razorpay_key_id`, from backend/.env
 
-   Until (2) exists this uses the amount-only checkout, which opens the real
-   gateway and completes a real test payment but produces a result that is a
-   CLAIM MADE BY THE BROWSER. Treat it as decoration on a receipt, never as
-   proof of money, until a server has checked the signature.
+   The env var wins where it is set, so a preview deployment can point at a
+   different Razorpay account without touching the API. Neither is a fallback
+   for a MISSING key: there is deliberately no built-in default. The one that
+   used to be here — Razorpay's old published demo key — is an account with
+   every payment method switched off, and a checkout opened against it dies on
+   "No appropriate payment method found" no matter what the shopper picks.
+   Refusing with a sentence beats opening a gateway that cannot take money.
    ------------------------------------------------------------------------ */
 
-/** Razorpay's own documented public test key — overridable per deployment. */
-export const RAZORPAY_KEY_ID =
-  process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ?? "rzp_test_1DP5mmOlF5G5ag";
+/** The configured public key, or "" while nothing has configured one. */
+export function razorpayKeyId(): string {
+  // `||`, not `??`: an env var left blank in `.env.local` is not a key, and
+  // must fall through to the API rather than shadow it with "".
+  return process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || peekStorefrontConfig().razorpayKeyId;
+}
 
-/** Unset until the payments API is handed over. See `createGatewayOrder`. */
-export const RAZORPAY_ORDER_API = process.env.NEXT_PUBLIC_RAZORPAY_ORDER_API ?? "";
+/** Whether a key belongs to a test account — what the test-card hint keys off. */
+export function isTestKey(key: string = razorpayKeyId()): boolean {
+  return key.startsWith("rzp_test");
+}
 
-export const IS_TEST_KEY = RAZORPAY_KEY_ID.startsWith("rzp_test");
+type GatewayOrder = {
+  /** `order_...` */
+  id: string;
+  /** Paise, as the gateway counts — echoed back so the two figures cannot drift. */
+  amount: number;
+  currency: string;
+  /**
+   * The public key of the account this order was created under.
+   *
+   * Preferred over the configured one for exactly one reason: an `order_id`
+   * from one account opened with a `key_id` from another is refused by the
+   * gateway in ways that read as "no payment method available", which sends
+   * everyone looking at their method settings instead of their keys.
+   */
+  keyId: string;
+};
 
 /**
- * The server-created order id, once there is a server to ask.
+ * The server-created order — null when the API cannot make one.
  *
- * Placeholder on purpose: with `RAZORPAY_ORDER_API` unset it resolves to null
- * and the caller falls back to the amount-only flow, so the checkout works
- * today and gains the correct flow the moment the endpoint exists — no other
- * file changes. A failure here also resolves to null rather than throwing: an
- * order-creation endpoint that is down should degrade to a payment that still
- * opens, not to a checkout that cannot be reached.
+ * Null rather than a throw, at every failure: an order endpoint that is down,
+ * a session that has expired, a server with no Razorpay credentials. All of
+ * them should degrade to a payment that still opens, not to a checkout that
+ * cannot be reached.
  */
-export async function createGatewayOrder(request: PaymentRequest): Promise<string | null> {
-  if (!RAZORPAY_ORDER_API) return null;
-
+export async function createGatewayOrder(request: PaymentRequest): Promise<GatewayOrder | null> {
   try {
-    const response = await fetch(RAZORPAY_ORDER_API, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        amount: Math.round(request.amount * 100),
-        currency: "INR",
+    const response = await customerClient.post<{ data: Partial<GatewayOrder> & { key_id?: string } }>(
+      "/checkout/payments/razorpay/order",
+      {
+        // Rupees. Paise are the gateway's unit and exist only inside it and the
+        // one server call that speaks to it.
+        amount: Math.round(request.amount),
+        receipt: request.notes?.order ?? "iced-out",
         notes: request.notes ?? {},
-      }),
-    });
-    if (!response.ok) return null;
+      },
+    );
 
-    const payload: unknown = await response.json();
-    const id = (payload as { id?: unknown } | null)?.id;
-    return typeof id === "string" && id.length > 0 ? id : null;
+    const payload = response.data.data ?? {};
+
+    return typeof payload.id === "string" && payload.id.length > 0
+      ? {
+          id: payload.id,
+          amount: typeof payload.amount === "number" ? payload.amount : Math.round(request.amount * 100),
+          currency: payload.currency ?? "INR",
+          keyId: payload.key_id ?? "",
+        }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Does this payment really belong to this order?
+ *
+ * Three answers, and they are deliberately distinct:
+ *   true   the signature checks out against the secret
+ *   false  it does not — a payment id that was not made for this order
+ *   null   the question could not be put (no order, no signature, API down)
+ *
+ * Collapsing null into false would refuse money that was genuinely taken every
+ * time the network hiccupped in the second after a card cleared.
+ */
+async function verifyPayment(
+  orderId: string,
+  paymentId: string,
+  signature: string,
+): Promise<boolean | null> {
+  try {
+    const response = await customerClient.post<{ data: { verified?: boolean } }>(
+      "/checkout/payments/razorpay/verify",
+      { orderId, paymentId, signature },
+    );
+
+    const verified = response.data.data?.verified;
+
+    return typeof verified === "boolean" ? verified : null;
   } catch {
     return null;
   }
@@ -93,7 +156,7 @@ type RazorpayOptions = {
   key: string;
   amount: number;
   currency: string;
-  /** Omitted until `createGatewayOrder` has an endpoint to create one with. */
+  /** Omitted when the API could not create one — see `createGatewayOrder`. */
   order_id?: string;
   name: string;
   description: string;
@@ -162,7 +225,19 @@ export function loadRazorpay(): Promise<boolean> {
 }
 
 export type PaymentResult =
-  | { ok: true; paymentId: string; orderId?: string; signature?: string }
+  | {
+      ok: true;
+      paymentId: string;
+      orderId?: string;
+      signature?: string;
+      /**
+       * True only when the API checked the signature against the secret and
+       * agreed. False covers both "there was no server-created order to check
+       * against" and "the check could not be reached" — money that moved, on a
+       * receipt nothing has corroborated.
+       */
+      verified: boolean;
+    }
   | { ok: false; reason: "unavailable" | "dismissed" | "failed"; message: string };
 
 export type PaymentRequest = {
@@ -176,23 +251,36 @@ export type PaymentRequest = {
 /**
  * Opens the gateway and settles once, whichever way it ends.
  *
- * Three outcomes reach the caller and they are deliberately distinct: paid,
- * closed by the shopper, refused by the gateway. Collapsing "dismissed" into
- * "failed" is how a checkout ends up showing a payment error to someone who
- * simply pressed Escape.
+ * Four outcomes reach the caller and they are deliberately distinct: paid,
+ * closed by the shopper, refused by the gateway, gateway never available.
+ * Collapsing "dismissed" into "failed" is how a checkout ends up showing a
+ * payment error to someone who simply pressed Escape.
  */
 export function openRazorpayCheckout(request: PaymentRequest): Promise<PaymentResult> {
   /* Both are asked for at once: the script is a network round trip and so is
      the order, and running them in series would add the slower one to the wait
      before the gateway appears. Order creation cannot fail the payment — it
      resolves to null and the amount-only flow takes over. */
-  return Promise.all([loadRazorpay(), createGatewayOrder(request)]).then(([ready, orderId]) => {
+  return Promise.all([loadRazorpay(), createGatewayOrder(request)]).then(([ready, order]) => {
     const Razorpay = window.Razorpay;
+
     if (!ready || !Razorpay) {
       return {
         ok: false,
         reason: "unavailable",
         message: "The payment gateway could not be reached. Check the connection and try again.",
+      } satisfies PaymentResult;
+    }
+
+    // The order's own account first — see `GatewayOrder.keyId`.
+    const key = order?.keyId || razorpayKeyId();
+
+    if (!key) {
+      return {
+        ok: false,
+        reason: "unavailable",
+        message:
+          "Card payments are not configured for this store yet. Choose cash on delivery, or try again later.",
       } satisfies PaymentResult;
     }
 
@@ -204,34 +292,88 @@ export function openRazorpayCheckout(request: PaymentRequest): Promise<PaymentRe
         resolve(result);
       };
 
+      /**
+       * Raised the instant the gateway says paid, before anything is awaited.
+       *
+       * The success handler is no longer synchronous — it goes back to the API
+       * to have the signature checked — and Razorpay closes its frame as soon
+       * as it has called it. `ondismiss` fires on that close, which without
+       * this would land in the gap and settle a PAID checkout as "closed before
+       * it completed": the shopper charged, the order recorded as abandoned.
+       */
+      let paid = false;
+
       const checkout = new Razorpay({
-        key: RAZORPAY_KEY_ID,
+        key,
         // Razorpay counts in the smallest currency unit; every price in this
-        // app is whole rupees, so this is the only place paise exist.
-        amount: Math.round(request.amount * 100),
-        currency: "INR",
-        ...(orderId ? { order_id: orderId } : {}),
+        // app is whole rupees, so this is the only place paise exist in the
+        // browser. On the server-order flow the gateway's own figure is used,
+        // because it is the one the payment will be checked against.
+        amount: order?.amount ?? Math.round(request.amount * 100),
+        currency: order?.currency ?? "INR",
+        ...(order ? { order_id: order.id } : {}),
         name: "Iced_out",
         description: request.description,
         prefill: request.customer,
         notes: request.notes ?? {},
         theme: { color: "#f2f4f4", backdrop_color: "#101113" },
-        handler: (response) =>
-          settle({
-            ok: true,
-            paymentId: response.razorpay_payment_id,
-            orderId: response.razorpay_order_id,
-            // Carried, not trusted. The verify endpoint that will check it is
-            // the other half of the placeholder above.
-            signature: response.razorpay_signature,
-          }),
+        handler: (response) => {
+          paid = true;
+
+          const orderId = response.razorpay_order_id ?? order?.id ?? "";
+          const signature = response.razorpay_signature ?? "";
+
+          /* Nothing to check against on the amount-only flow, so it settles
+             immediately and says so. The frame has already closed by now; the
+             shopper is looking at the order screen either way. */
+          if (orderId === "" || signature === "") {
+            settle({
+              ok: true,
+              paymentId: response.razorpay_payment_id,
+              orderId: response.razorpay_order_id,
+              signature: response.razorpay_signature,
+              verified: false,
+            });
+            return;
+          }
+
+          void verifyPayment(orderId, response.razorpay_payment_id, signature).then((verified) => {
+            /* An explicit NO is the one case that is not a payment. A signature
+               that does not match the secret means this payment id was not made
+               for this order, and recording it would put money on the books
+               that the gateway does not have. `null` — the check could not be
+               reached — is not that, and is not treated as it. */
+            if (verified === false) {
+              settle({
+                ok: false,
+                reason: "failed",
+                message:
+                  "The gateway's confirmation could not be verified, so nothing has been recorded as paid. If you were charged, it will be released automatically.",
+              });
+              return;
+            }
+
+            settle({
+              ok: true,
+              paymentId: response.razorpay_payment_id,
+              orderId,
+              signature,
+              verified: verified === true,
+            });
+          });
+        },
         modal: {
-          ondismiss: () =>
+          ondismiss: () => {
+            // The frame closing on its way OUT of a successful payment is not
+            // a dismissal — see `paid`.
+            if (paid) return;
+
             settle({
               ok: false,
               reason: "dismissed",
               message: "Payment was closed before it completed. Nothing has been charged.",
-            }),
+            });
+          },
         },
       });
 

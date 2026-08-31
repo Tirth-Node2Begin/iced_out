@@ -1,0 +1,101 @@
+@import "tailwindcss" source(none);
+
+/* Order is load-bearing. shell.css declares the token layer that every sheet
+   below it reads through, and console.css is written to add to those rules
+   rather than restate them. Swapping the two leaves the component sheet
+   resolving `var()` against nothing. */
+@import "./base.css";
+@import "./shell.css";
+@import "./console.css";
+@import "./crm.css";
+@import "./materials.css";
+
+@import "./utilities/accessibility.css";
+/* Ships with the root layout because every route group has a loading boundary
+   and the indicator has to be styled before the chunk that stalled arrives. */
+@import "./components/route-loading.css";
+/* Same reason: the Toaster is mounted in `AppProviders`, so it is on every
+   route and portals outside every route group's scope. */
+@import "./components/toast.css";
+
+@source "../app/**/*.{ts,tsx}";
+@source "../features/**/*.{ts,tsx}";
+@source "../providers/**/*.{ts,tsx}";
+@source "../components/**/*.{ts,tsx}";
+@source "../lib/**/*.{ts,tsx}";
+
+/**
+ * The shadcn token block.
+ *
+ * Only the handful of controls under components/ui/ read these — the calendar,
+ * the popover and the one Button. Everything else in the console is a hand-rolled
+ * `aui-*` class reading the `--nh-*` palette directly.
+ *
+ * There is no light block and no `.dark` class here, which is the deliberate
+ * inverse of the style guide's "light only": this shop is dark on every surface
+ * it has, so the dark values ARE the root values. A `:root` carrying the light
+ * palette would only be a trap for the next person who adds a `dark:` variant
+ * and finds it inert.
+ */
+@theme inline {
+  --font-sans: var(--font-ui), "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+}
+
+:root {
+  --background: #101113;
+  --foreground: #f1f3f3;
+  --card: #1a1c1e;
+  --card-foreground: #f1f3f3;
+  --popover: #1a1c1e;
+  --popover-foreground: #f1f3f3;
+  --primary: #f2f4f4;
+  --primary-foreground: #0d0e10;
+  --secondary: rgba(255, 255, 255, 0.08);
+  --secondary-foreground: #f1f3f3;
+  --muted: rgba(255, 255, 255, 0.08);
+  --muted-foreground: #8f9598;
+  --accent: rgba(255, 255, 255, 0.08);
+  --accent-foreground: #f1f3f3;
+  --destructive: #ef7a80;
+  --border: rgba(255, 255, 255, 0.13);
+  --input: rgba(255, 255, 255, 0.13);
+  --ring: rgba(241, 243, 243, 0.32);
+  --radius: 0.75rem;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  html {
+    @apply font-sans;
+  }
+}
