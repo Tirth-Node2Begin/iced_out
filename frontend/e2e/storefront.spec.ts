@@ -69,8 +69,11 @@ test("falls back to the footer for navigation on mobile", async ({ page }) => {
   for (const label of [
     "Men",
     "Women",
-    "Accessories",
-    "Seasonal",
+    // Was "Accessories", which only ever pointed at /collections. That route is
+    // gone, so the slot carries the chapter listing that actually exists.
+    "New drop",
+    // Was "Seasonal", which only ever pointed at /sale. That route is gone.
+    "Wishlist",
     "Shipping",
     "Returns",
     "Contact",
@@ -88,8 +91,9 @@ test("serves the approved public destinations", async ({ page }) => {
     ["/women", "Structured Volume for the Women Who Set the Pace"],
     ["/new-man", "Gear up every season"],
     ["/new-woman", "Gear up every season"],
-    ["/collections", "Collections."],
-    ["/sale", "Sale."],
+    // /collections, /collections/view, /sale, /search and /product are gone —
+    // a chapter has no route of its own, the two listing pages below are the
+    // catalogue, and searching is the header's dock rather than a destination.
     ["/about", "Cold by nature. Built with intent."],
     ["/contact", "Start with context. Not a queue."],
   ]) {

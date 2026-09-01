@@ -124,7 +124,7 @@ final class AuthService
      */
     private function assertNotLockedOut(string $email, string $audience): void
     {
-        $after = $this->settings->int('security.login_lockout_after', 5);
+        $after = $this->settings->int('security.login_lockout_after', 20);
         $window = $this->settings->int('security.login_lockout_window', 900);
 
         if ($this->attempts->recentFailures($email, $audience, $window) >= $after) {

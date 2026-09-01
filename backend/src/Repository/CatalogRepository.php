@@ -15,6 +15,18 @@ use Iced\Support\Clock;
  */
 final class CatalogRepository
 {
+    /**
+     * How far back "trending" looks, in days.
+     *
+     * Long enough that a quiet week does not empty the rail, short enough that
+     * last season's best seller stops standing in front of this season's. See
+     * `trendingProducts` for the ladder that takes over when the window is bare.
+     */
+    public const TRENDING_WINDOW_DAYS = 30;
+
+    /** How many ranked rows the trending read returns when the caller says nothing. */
+    public const TRENDING_LIMIT = 12;
+
     public function __construct(
         private readonly Database $db,
         private readonly Clock $clock,
@@ -251,6 +263,91 @@ final class CatalogRepository
               WHERE p.public_id = ? AND p.deleted_at IS NULL AND p.status = 'Published'
               LIMIT 1",
             [$slug],
+        );
+    }
+
+    /**
+     * The published catalogue, ordered by what is actually selling.
+     *
+     * "Trending" is DERIVED, never a column an operator ticks: it is units
+     * shipped out of `order_items` over a rolling window, so the home page's
+     * rail follows the register instead of somebody's opinion of what should be
+     * popular. Returns and cancellations are taken back out — a piece that sold
+     * ten and had eight sent back is not trending.
+     *
+     * The ordering is a LADDER rather than a single figure, because a young
+     * catalogue has windows with no sales in them at all and a rail that falls
+     * back to nothing would render four empty slots on the front page:
+     *
+     *   1. units sold inside the window        — what "trending" actually means
+     *   2. units sold ever                     — a shop whose window is quiet
+     *   3. review count, then rating           — what shoppers bothered to say
+     *   4. is_new, then the operator's own position
+     *
+     * So the rail degrades from "selling now" to "sold before" to "talked
+     * about" to "newest first", and only ever renders nothing when the shop
+     * itself has nothing published.
+     *
+     * Audience narrows the same way the rest of the storefront does — men and
+     * women both include unisex; see `storefrontProducts`.
+     *
+     * @param array{audience?: string, limit?: int, days?: int} $filters
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function trendingProducts(array $filters = []): array
+    {
+        $where = ['p.deleted_at IS NULL', "p.status = 'Published'"];
+        $bindings = [];
+
+        if (($filters['audience'] ?? '') !== '' && ($filters['audience'] ?? '') !== 'all') {
+            $where[] = '(p.audience = ? OR p.audience = ?)';
+            array_push($bindings, $filters['audience'], 'unisex');
+        }
+
+        $days = max(1, min(365, (int) ($filters['days'] ?? self::TRENDING_WINDOW_DAYS)));
+        $limit = max(1, min(48, (int) ($filters['limit'] ?? self::TRENDING_LIMIT)));
+        $since = $this->clock->addSeconds(-$days * 86400)->format(Clock::STORAGE_FORMAT);
+
+        /* The window bound is bound FIRST: its placeholder sits in the derived
+           table in the FROM clause, which the parser reaches before the WHERE
+           the audience filter appends to. `LIMIT` is interpolated rather than
+           bound because prepare emulation is off (see Kernel\Database) and MySQL
+           will not take a string parameter there — it is clamped to an int two
+           lines above, so there is nothing to inject. */
+        return $this->db->select(
+            'SELECT p.*, col.name AS collection_name, cat.name AS taxonomy_name,
+                    m.public_id AS image_public_id,
+                    rs.review_count, rs.rating_avg,
+                    COALESCE(sold.recent_units, 0) AS trend_recent_units,
+                    COALESCE(sold.total_units, 0) AS trend_total_units
+               FROM products p
+               LEFT JOIN collections col ON col.public_id = p.collection_slug
+               LEFT JOIN categories cat ON cat.id = p.category_id AND cat.deleted_at IS NULL
+               LEFT JOIN media_assets m ON m.id = p.image_media_id
+               LEFT JOIN product_rating_summaries rs ON rs.product_id = p.id
+               LEFT JOIN (
+                       SELECT oi.product_id,
+                              SUM(CASE WHEN o.placed_at >= ?
+                                       THEN GREATEST(CAST(oi.quantity AS SIGNED) - CAST(oi.returned_qty AS SIGNED), 0)
+                                       ELSE 0 END) AS recent_units,
+                              SUM(GREATEST(CAST(oi.quantity AS SIGNED) - CAST(oi.returned_qty AS SIGNED), 0)) AS total_units
+                         FROM order_items oi
+                         JOIN orders o ON o.id = oi.order_id
+                        WHERE oi.product_id IS NOT NULL
+                          AND o.status <> ' . "'Cancelled'" . '
+                          AND o.console_state <> ' . "'Cancelled'" . '
+                        GROUP BY oi.product_id
+                     ) sold ON sold.product_id = p.id
+              WHERE ' . implode(' AND ', $where) . '
+              ORDER BY trend_recent_units DESC,
+                       trend_total_units DESC,
+                       COALESCE(rs.review_count, 0) DESC,
+                       COALESCE(rs.rating_avg, 0) DESC,
+                       p.is_new DESC,
+                       p.position, p.id
+              LIMIT ' . $limit,
+            array_merge([$since], $bindings),
         );
     }
 

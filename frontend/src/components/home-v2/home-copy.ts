@@ -16,7 +16,7 @@ import type { SiteCopy } from "@/components/home-v2/copy";
  *
  * Every number here is the catalogue's, not invented: the GSMs and the
  * collection assignments come from `backend/seeds/data/catalogue.php`, and the
- * 320-unit AW25 run is the figure /collections and the hero already commit to.
+ * 320-unit AW25 run is the figure the hero already commits to.
  *
  * Imagery is the root's existing set — those crops are carved out of this
  * brand's own photography and cut to the ratios these sections frame.
@@ -97,10 +97,15 @@ export const ROOT_COPY: SiteCopy = {
     },
   ],
 
-  /* The capture used this run for studio amenities. On a storefront the three
-     pinned cards are worth more as the three things a visitor can actually
-     buy into, so they are the collections — and the section's two-word card
-     titles happen to fit their names exactly. */
+  /* NOT DRAWN on the root any more — <Seasonal> holds that slot and fills the
+     same three cards from `GET /catalog/products`, so the pinned row shows
+     pieces a visitor can open rather than chapters they cannot.
+
+     This pack was the reason the row had to change: the names, the paragraphs
+     and the photographs were all authored here, which meant the front door's
+     one product-shaped section was the only part of the storefront that could
+     not answer the catalogue. Kept because /home-v2 and /about still mount
+     <Highlights> and the shape is shared with them. */
   highlights: {
     eyebrow: "The collections",
     heading: ["Three chapters,", "one wardrobe"],

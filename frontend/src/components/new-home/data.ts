@@ -85,8 +85,8 @@ export const DEPARTMENTS: Record<"men" | "women", DepartmentContent> = {
       { id: "br", corner: "br", lines: ["Fit:", "Regular"], dot: true },
     ],
     ctas: [
-      { label: "Shop menswear", href: "/collections" },
-      { label: "View sale", href: "/sale" },
+      { label: "Shop menswear", href: "/new-man" },
+      { label: "View new drop", href: "/new-drop" },
     ],
     word: "Men's wear",
     notes: [
@@ -107,8 +107,8 @@ export const DEPARTMENTS: Record<"men" | "women", DepartmentContent> = {
       { id: "br", corner: "br", lines: ["Fit:", "Sculpt"], dot: true },
     ],
     ctas: [
-      { label: "Shop womenswear", href: "/collections" },
-      { label: "View sale", href: "/sale" },
+      { label: "Shop womenswear", href: "/new-woman" },
+      { label: "View new drop", href: "/new-drop" },
     ],
     word: "Women's wear",
     notes: [
@@ -128,9 +128,9 @@ export const pick = (i: number) => POOL[i % POOL.length];
  * storefront shell all read from here so the bar carries the same links
  * wherever it renders.
  *
- * Home, Collections and Sale stay out of the rail — the wordmark carries home,
- * and the other two are reached from the mega menus, which list both under
- * Shop. The page itself is unchanged; only the top-level pill is gone.
+ * Home stays out of the rail — the wordmark carries it. Collections and Sale
+ * used to be reached from the mega menus instead of the rail; both routes have
+ * since been removed, so neither appears in either place.
  */
 export type NavLink = { label: string; href: string };
 
@@ -141,16 +141,6 @@ export const NAV_LINKS: NavLink[] = [
   { label: "About", href: "/about" },
   { label: "Contact", href: "/contact" },
 ];
-
-/**
- * The three live collections, transcribed from /collections so the mega menu
- * quotes the same names, slugs, and status copy as the page it links to.
- */
-export const COLLECTIONS = [
-  { name: "Drop 001", slug: "drop-001", state: "Live now", edition: "320 units" },
-  { name: "After Hours", slug: "after-hours", state: "Open archive", edition: "Chapter 02" },
-  { name: "Core Uniform", slug: "core-uniform", state: "Always considered", edition: "Permanent line" },
-] as const;
 
 /**
  * Hover content for the two rail items with real substructure. Keyed by
@@ -167,12 +157,6 @@ export type MegaMenuConfig = {
   feature: { label: string; tag: string; href: string; image: string };
 };
 
-const collectionLinks = COLLECTIONS.map((c) => ({
-  label: c.name,
-  href: `/collections/view?slug=${c.slug}`,
-  tag: c.state,
-}));
-
 export const MEGA_MENU: Record<string, MegaMenuConfig> = {
   "/new-man": {
     columns: [
@@ -181,15 +165,14 @@ export const MEGA_MENU: Record<string, MegaMenuConfig> = {
         links: [
           { label: "All men", href: "/new-man" },
           { label: "New drop", href: "/new-drop" },
-          { label: "Sale", href: "/sale" },
+          { label: "The grid", href: "/new-man#edit" },
         ],
       },
-      { heading: "Collections", links: collectionLinks },
     ],
     feature: {
       label: "Drop 001",
       tag: "Live now",
-      href: "/collections/view?slug=drop-001",
+      href: "/new-drop",
       image: SHOTS.campaign,
     },
   },
@@ -200,15 +183,14 @@ export const MEGA_MENU: Record<string, MegaMenuConfig> = {
         links: [
           { label: "All women", href: "/new-woman" },
           { label: "New drop", href: "/new-drop" },
-          { label: "Sale", href: "/sale" },
+          { label: "The grid", href: "/new-woman#nw-edit" },
         ],
       },
-      { heading: "Collections", links: collectionLinks },
     ],
     feature: {
-      label: "After Hours",
-      tag: "Open archive",
-      href: "/collections/view?slug=after-hours",
+      label: "Drop 001",
+      tag: "Live now",
+      href: "/new-drop",
       image: SHOTS.still,
     },
   },

@@ -14,7 +14,9 @@ const destinations: Array<{
 }> = [
   { index: "01", title: "Men", detail: "After-dark layers", href: "/new-man", position: "top-right" },
   { index: "02", title: "Women", detail: "Structured uniforms", href: "/new-woman", position: "top-left" },
-  { index: "03", title: "Sale", detail: "Final editions", href: "/sale", position: "bottom-left" },
+  /* Was Sale, at /sale — that route is gone, and the current release is the
+     third destination the shop actually has. */
+  { index: "03", title: "New drop", detail: "Edition 001", href: "/new-drop", position: "bottom-left" },
 ];
 
 export function DestinationGrid() {

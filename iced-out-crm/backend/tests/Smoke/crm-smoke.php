@@ -88,7 +88,7 @@ function check(string $label, bool $ok, string $note = ''): void
 [$s] = call('GET', '/admin/crm/leads');
 check('unauthenticated read is refused', $s === 401, "got $s");
 
-[$s, $b] = call('POST', '/admin/auth/login', ['email' => 'admin@iced-out.example', 'password' => 'preview1']);
+[$s, $b] = call('POST', '/admin/auth/login', ['email' => 'admin@gmail.com', 'password' => 'admin123']);
 check('staff sign-in', $s === 200, "got $s");
 if ($s !== 200) {
     echo "\n  cannot continue without a session — is the database seeded?\n";

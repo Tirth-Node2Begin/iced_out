@@ -11,7 +11,7 @@ use Iced\Support\Clock;
 /**
  * The one account that has to exist before anyone can use this install.
  *
- *   staff  admin@iced-out.example  /  preview1   "Aarav D."   role ADMIN
+ *   staff  admin@gmail.com  /  admin123   "Aarav D."   role ADMIN
  *
  * This is deliberately the ONLY user seeded. A store's customers are people who
  * registered; seeding one meant every fresh install opened onto a shopper
@@ -35,10 +35,10 @@ return static function (Container $container): string {
     return $db->transaction(static function (Database $db) use ($hasher, $users, $clock): string {
         $publicId = 'stf-001';
         $name = 'Aarav D.';
-        $email = 'admin@iced-out.example';
-        $password = 'preview1';
+        $email = 'admin@gmail.com';
+        $password = 'admin123';
 
-        $existing = $users->findByEmail($email, UserRepository::TYPE_STAFF);
+        $existing = $users->findByPublicId($publicId) ?? $users->findByEmail($email, UserRepository::TYPE_STAFF);
         $created = $existing === null;
 
         if ($created) {
@@ -56,8 +56,17 @@ return static function (Container $container): string {
             // Re-seeding restores the password without touching anything else,
             // so an operator who changed it can always get back in.
             $db->statement(
-                'UPDATE users SET password_hash = ?, name = ?, updated_at = ? WHERE id = ?',
-                [$hasher->hash($password), $name, $clock->nowString(), $userId],
+                'UPDATE users
+                    SET password_hash = ?, name = ?, email = ?, email_normalized = ?, updated_at = ?
+                  WHERE id = ?',
+                [
+                    $hasher->hash($password),
+                    $name,
+                    $email,
+                    UserRepository::normalizeEmail($email),
+                    $clock->nowString(),
+                    $userId,
+                ],
             );
         }
 

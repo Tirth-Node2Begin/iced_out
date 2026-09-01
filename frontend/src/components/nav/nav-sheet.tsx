@@ -37,7 +37,9 @@ export function NavSheet({
 }) {
   return (
     <BottomSheet label="Menu" onClose={onClose} open={open}>
-      <div className="io-dock__body">
+      {/* Scrolls itself rather than the page behind it wherever Lenis is
+          running — see the note on the search dock's copy of this. */}
+      <div className="io-dock__body" data-lenis-prevent>
         <div className="io-dock__wrap">
           <nav aria-label="Primary navigation" className="io-sheet__nav">
             {NAV_LINKS.map((link) => (

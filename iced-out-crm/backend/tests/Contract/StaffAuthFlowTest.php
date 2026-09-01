@@ -50,8 +50,8 @@ final class StaffAuthFlowTest extends TestCase
     public function testStaffSignInReturnsTheConsoleSessionPayload(): void
     {
         [$status, $body] = $this->post('/admin/auth/login', 'public', [
-            'email' => 'admin@iced-out.example',
-            'password' => 'preview1',
+            'email' => 'admin@gmail.com',
+            'password' => 'admin123',
         ]);
 
         self::assertSame(200, $status);
@@ -65,8 +65,8 @@ final class StaffAuthFlowTest extends TestCase
     public function testTouchSlidesTheIdleWindow(): void
     {
         $this->post('/admin/auth/login', 'public', [
-            'email' => 'admin@iced-out.example',
-            'password' => 'preview1',
+            'email' => 'admin@gmail.com',
+            'password' => 'admin123',
         ]);
 
         [, $first] = $this->get('/admin/auth/session', 'admin');
@@ -80,8 +80,8 @@ final class StaffAuthFlowTest extends TestCase
     public function testCookieAuthenticatedMutationFromAnUntrustedOriginIsRefused(): void
     {
         $this->post('/admin/auth/login', 'public', [
-            'email' => 'admin@iced-out.example',
-            'password' => 'preview1',
+            'email' => 'admin@gmail.com',
+            'password' => 'admin123',
         ]);
 
         [$status, $body] = $this->send('POST', '/admin/auth/touch', [

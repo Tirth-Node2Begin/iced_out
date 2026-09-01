@@ -3,8 +3,10 @@
    ----------------------------------------------------------------------------
    Two shapes, one rule.
 
-   1. The header band is square-edged and full-bleed. It is the page's ground:
-      it meets the sticky bar with no gap and no corner radius.
+   1. The header is the shared storefront masthead. It is full-bleed and
+      square-edged — the page's ground — and it is not declared here: the
+      markup wears chrome.css's `io-page__*` classes, so /contact opens the
+      same way /cart and /wishlist do. §01 below owns only the band behind it.
    2. Everything below it is rounded — panels, channel rows, the safety note,
       every input, every pill, every accordion card. Nothing under the header
       has a square corner.
@@ -28,7 +30,6 @@
   /* ---- new_style §10 · surfaces ------------------------------------- */
   --nh-surface: #101113;
   --nh-surface-2: #16181a;
-  --nh-surface-3: #0c0d0f;
 
   /* ---- §2.3 · ink ---------------------------------------------------- */
   --nh-ink: #f1f3f3;
@@ -119,34 +120,7 @@
   padding-block: clamp(0.85rem, 1.6vw, 1.25rem);
 }
 
-/* the header is a ground, not a plate — the first plate needs real air under
-   it before the rounded vocabulary starts */
-.ct-head + .ct-section {
-  padding-top: clamp(1.75rem, 3.6vw, 3rem);
-}
-
 /* ------------------------------------------------------------------ type */
-
-/* §3.3 — the eyebrow, with its 5px dot */
-.ct-eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--nh-muted);
-  font-size: 11px;
-  font-weight: 400;
-  line-height: 1;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-}
-
-.ct-eyebrow::before {
-  content: "";
-  width: 5px;
-  height: 5px;
-  border-radius: 999px;
-  background: currentColor;
-}
 
 /* the one heading style inside the plates: quiet, sentence case, no shouting */
 .ct-h {
@@ -169,68 +143,99 @@
 /* ======================================================================
    01 · THE HEADER BAND
    ----------------------------------------------------------------------
-   Flat, square, full-bleed. One tone below the page so the rounded plates
-   read as lifted off it, and a single hairline where it ends. No gradient
-   theatre, no ray fan, no ghost cut — a support page opens with a sentence.
+   The masthead is chrome.css §5's, not this page's. The bag, the wishlist
+   and the account all open on `.io-page__head` — eyebrow, the §3.2 two-cut
+   headline, a centred lede, a spec row — and /contact arriving with a flat
+   left-aligned slab of its own was the one screen in the set that read as a
+   different site. The markup carries those classes straight rather than
+   copying their rules down here, so the heroes cannot drift apart again;
+   `io-tokens` on the header is what feeds that sheet its palette from inside
+   `.ct-root`.
+
+   The band is shared too, via `io-band` on the header — `.io-page` itself is
+   not worn here, because it bundles the body padding of a frame that owns a
+   whole screen and this header owns only the top of one. What stays local is
+   the spacing: no bottom padding, and the trims in §01b.
    ==================================================================== */
 
 .ct-head {
-  padding-block: clamp(2.75rem, 6vw, 5rem) clamp(2.25rem, 4.5vw, 3.5rem);
-  background: var(--nh-surface-3);
-  box-shadow: inset 0 -1px 0 0 var(--nh-hairline);
+  position: relative;
+  isolation: isolate;
+  /* Trimmed from `clamp(2.5rem, 6vw, 5rem)`. The masthead's own proportions
+     are the shared ones and stay shared; what this page cannot afford is the
+     open space around them, because unlike the bag and the wishlist it has a
+     form to open on, and a support form below the fold is a support form the
+     visitor has to go looking for. See the §01b note for the rest of it. */
+  padding-block: clamp(1.75rem, 4vw, 3rem) 0;
+  background: var(--nh-surface);
+  /* clip, never hidden — §9.1. Vertical overflow stays visible, which is what
+     lets the band below reach up behind the bar. */
+  overflow-x: clip;
 }
 
-.ct-head__title {
-  margin: clamp(1rem, 1.8vw, 1.5rem) 0 0;
-  max-width: 18ch;
-  color: var(--nh-ink);
-  font-size: clamp(2.1rem, 5vw, 3.5rem);
-  font-weight: 400;
-  line-height: 1.03;
-  letter-spacing: -0.04em;
-  text-wrap: balance;
+/* ---- §01a · the headline, cut into letters --------------------------
+   The glyphs travel up into their own cuts, so each one needs a box that
+   clips. Three details make that safe on a title set at `line-height: 0.88`:
+
+     · the cut is `inline-block`, so it establishes the box at all;
+     · it is padded top and bottom, because a line box shorter than the em
+       box would otherwise clip the caps it is meant to be framing. Vertical
+       margin on an inline-block does not come back out of the line box the
+       way it would on a block, so the pull-back is on the h1 instead: the
+       cuts add 10.4px to it, and `height` puts the headline back to the
+       84.5px the same class measures on /cart. That works because this title
+       is one word on one line, which is the whole of the page's name;
+     · it is padded inline too. The title runs at `-0.045em`, so glyphs sit
+       inside each other's boxes, and a clip with no horizontal slack shaves
+       the side bearings off the round letters.
+
+   Everything here is inert until the glyph inside moves: with no animation
+   running this is the same word in the same place at the same size. */
+
+.ct-title {
+  height: 0.88em;
 }
 
-.ct-head__sub {
-  margin: clamp(0.9rem, 1.6vw, 1.25rem) 0 0;
-  max-width: 56ch;
-  color: var(--nh-muted);
-  font-size: 14.5px;
-  line-height: 1.6;
-  letter-spacing: 0;
-  text-wrap: pretty;
+.ct-title__cut {
+  display: inline-block;
+  overflow: hidden;
+  padding-block: 0.16em 0.1em;
+  padding-inline: 0.07em;
+  margin-inline: -0.07em;
+  /* the cuts sit on one baseline rather than each finding its own */
+  vertical-align: baseline;
 }
 
-/* three facts, one line, dot-separated — they are facts, not features, so
-   they get no cards and no icons */
-.ct-head__facts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px 14px;
-  margin: clamp(1.5rem, 2.6vw, 2.25rem) 0 0;
-  padding: 0;
-  list-style: none;
-  color: var(--nh-muted-2);
-  font-size: 12px;
-  line-height: 1.4;
-  letter-spacing: 0.01em;
+.ct-title__glyph {
+  display: inline-block;
+  will-change: transform;
 }
 
-/* the separator is a dot carried by every fact but the first, sitting in the
-   same 14px the list gaps by — so the rhythm reads even either side of it */
-.ct-head__facts li {
-  display: flex;
-  align-items: center;
-  gap: 14px;
+/* ---- §01b · the masthead, pulled in ---------------------------------
+   `io-page__head` and `io-page__spec` are chrome.css's, and every other page
+   wearing them keeps its own spacing — these three declarations are scoped
+   under `.ct-head`, so /cart and /wishlist are untouched.
+
+   The reason they exist: on a 1440×740 laptop the shared spacing put the
+   form's first field at y=761, a good 20px past the fold, so a visitor
+   arriving at /contact saw a headline and two panel titles and had to scroll
+   to find out there was a form at all. Roughly 70px comes out here, which
+   lands the "Send a message" heading and the name and email fields on the
+   first screen. Nothing about the headline's own scale changes — this is the
+   air around it, not the type. */
+
+.ct-head .io-page__head {
+  padding-block: clamp(1.25rem, 3vw, 2.5rem) clamp(1.75rem, 3.4vw, 3rem);
 }
 
-.ct-head__facts li + li::before {
-  content: "";
-  width: 3px;
-  height: 3px;
-  border-radius: 999px;
-  background: currentColor;
+.ct-head .io-page__spec {
+  margin-top: clamp(1.35rem, 2.6vw, 2rem);
 }
+
+/* The band itself is chrome.css's now, shared by every page that opens on
+   this masthead — `io-band` on the header opts in. It used to be declared
+   locally here, which is exactly why /cart and /wishlist kept the flat black
+   version of it after this page stopped having one. */
 
 /* ======================================================================
    02 · WORKSPACE — channels beside the form
@@ -873,10 +878,6 @@ button.ct-channel:hover .ct-channel__go {
 @media (max-width: 720px) {
   .ct-row {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .ct-head__title {
-    max-width: none;
   }
 }
 

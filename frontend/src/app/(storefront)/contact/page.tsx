@@ -8,8 +8,9 @@
    so the page says what it is, shows how to reach a person, and gets out of the
    way. No ray fans, no ghost cut, no avatar cluster, no stat theatre.
 
-   The header is deliberately the one square-edged band on the page: it is the
-   ground everything else sits on. Every block below it — panel, channel row,
+   The header is the shared storefront masthead — the same band, eyebrow,
+   two-cut headline and spec row the bag and the wishlist open on, rather than
+   a slab this one page invented. Everything below it — panel, channel row,
    note, input, pill, accordion — is rounded.
 
    Structure comes from the shadcn registry — Field, Item, InputGroup,
@@ -65,24 +66,42 @@ import { scrollToHash } from "@/lib/in-page-scroll";
 /** §4.3 — the house curve, the only easing on the page. */
 const EASE_OUT = [0.22, 1, 0.36, 1] as const;
 
-/** §6.1 `Reveal` — the one entrance this page uses. */
+/** §6.1 `Reveal` — the one entrance this page uses.
+
+    `onMount` is for anything that opens the page. A scroll-triggered entrance
+    on a block that is already on screen has nothing to trigger it: the two
+    workspace panels sit at the top of the document, so they play once, on
+    mount, and are never waiting on a gesture the visitor has no reason to
+    make. Everything further down still enters on approach.
+
+    The viewport threshold is `"some"` — any part of the block on screen — and
+    not a fraction of its height. The form panel is 730px tall, which under the
+    old `amount: 0.2` needed 146px of itself visible to fire; at the fold it
+    had 137px, so on an ordinary laptop it stayed at opacity 0 until the
+    visitor scrolled for it. A percentage threshold is a trap for any block
+    taller than the space it opens in, and a support form is the last thing on
+    this site that should be hiding. */
 function Reveal({
   children,
   delay = 0,
   className,
+  onMount = false,
 }: {
   children: ReactNode;
   delay?: number;
   className?: string;
+  onMount?: boolean;
 }) {
   const reduce = useReducedMotion();
+  const shown = { opacity: 1, y: 0 };
 
   return (
     <motion.div
       className={className}
       initial={reduce ? { opacity: 0 } : { opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.2 }}
+      {...(onMount
+        ? { animate: shown }
+        : { whileInView: shown, viewport: { once: true, amount: "some" as const } })}
       transition={{ duration: reduce ? 0.2 : 0.6, delay, ease: EASE_OUT }}
     >
       {children}
@@ -90,13 +109,14 @@ function Reveal({
   );
 }
 
-/* The three things a visitor actually wants to know before they type: how long
-   a reply takes, when the desk is open, where it is. Plain text on one line —
-   they are facts, not features, so they get no cards. */
-const FACTS = [
-  "Replies within 2 business days",
-  "Mon–Sat · 10:00–19:00 IST",
-  "Bengaluru, India",
+/* The two things a visitor wants settled before they type: how long a reply
+   takes, and where the people answering are. They ride in the masthead's spec
+   row, which is the frame's slot for a fact the page can prove — not a stat
+   board. The desk hours sat here too and left with the third slot: the phone
+   channel below already carries them, next to the number they apply to. */
+const SPECS = [
+  { label: "Reply within", value: "2 days" },
+  { label: "Studio", value: "Surat" },
 ];
 
 /* Three ways to reach the desk, and nothing else. Two of them do something when
@@ -117,7 +137,7 @@ const CHANNELS = [
   },
   {
     icon: MapPin,
-    title: "Bengaluru, India",
+    title: "Surat, India",
     description: "Online-first — no walk-in store.",
     href: null,
   },
@@ -182,6 +202,75 @@ const FAQS = [
   },
 ];
 
+/* The headline, cut into letters.
+   ---------------------------------------------------------------------------
+   Only this page's. The masthead is shared, but the bag and the wishlist open
+   on a two-cut title where the light half already carries the movement — the
+   support page's is a single solid word, and a single solid word is the one
+   that reads as static. So `Contact` is set letter by letter and each one
+   rises out of its own cut on a stagger, which is the §6.1 entrance the rest
+   of the page uses, applied at the scale of a glyph instead of a panel.
+
+   Two things ride on the same letters:
+
+     the rise    each glyph starts a hair over its own height below the cut and
+                 travels up into it, 55ms apart, so the word assembles left to
+                 right rather than fading in as a block.
+     the glint   once the word has settled, a cold highlight walks across it on
+                 a long loop — the house steel, one letter at a time. It is the
+                 brand's one joke about its own name, and at a nine-second
+                 cycle it is caught rather than watched.
+
+   The h1 keeps an `aria-label`, because a word split into seven elements is a
+   word a screen reader is entitled to read out as seven letters. Under reduced
+   motion none of this is built at all: the plain heading renders instead. */
+const TITLE = "Contact";
+
+/* Shadows only interpolate cleanly between matching formats, so all three
+   keyframes carry explicit px on every length. */
+const GLINT = [
+  "0px 0px 0px rgba(184, 205, 214, 0)",
+  "0px 0px 14px rgba(184, 205, 214, 0.26)",
+  "0px 0px 0px rgba(184, 205, 214, 0)",
+];
+
+function Title() {
+  const reduce = useReducedMotion();
+
+  if (reduce) return <h1 className="io-page__title">{TITLE}</h1>;
+
+  return (
+    <h1 aria-label={TITLE} className="io-page__title ct-title">
+      {TITLE.split("").map((glyph, i) => (
+        <span aria-hidden className="ct-title__cut" key={`${glyph}-${i}`}>
+          <motion.span
+            className="ct-title__glyph"
+            initial={{ y: "122%" }}
+            animate={{ y: "0%", textShadow: GLINT }}
+            transition={{
+              y: { duration: 0.85, delay: 0.08 + i * 0.055, ease: EASE_OUT },
+              /* The stagger has to be large next to the duration or every
+                 letter peaks at once and the word just pulses. At 0.16s
+                 against a 1s rise-and-fall the highlight is only ever on two
+                 or three letters, so it walks. Same cycle length on all of
+                 them — duration plus repeatDelay — so the offsets hold. */
+              textShadow: {
+                duration: 1,
+                delay: 1.5 + i * 0.16,
+                repeat: Infinity,
+                repeatDelay: 9,
+                ease: "easeInOut",
+              },
+            }}
+          >
+            {glyph}
+          </motion.span>
+        </span>
+      ))}
+    </h1>
+  );
+}
+
 export default function ContactPage() {
   const uid = useId();
   const [reason, setReason] = useState("order");
@@ -200,24 +289,38 @@ export default function ContactPage() {
   return (
     <div className="ct-root">
       {/* --------------------------------------------------- 01 · the header
-          Square-edged and full-bleed on purpose: it is the page's ground, and
-          the rounded vocabulary starts at the first plate below it. */}
-      <header className="ct-head">
-        <div className="ct-shell">
-          <span className="ct-eyebrow">Contact</span>
+          The storefront masthead, carried by chrome.css's own `io-page__*`
+          classes rather than copied into this sheet — the bag and the wishlist
+          open on exactly this block, and sharing it is what keeps the three
+          from drifting apart again. That sheet loads on every (storefront)
+          route, and `io-tokens` hands it its palette here inside `.ct-root`;
+          only the band behind it is declared locally, in contact.css §01. */}
+      <header className="ct-head io-band io-tokens">
+        <div className="io-page__wrap">
+          <div className="io-page__head">
+            <div>
+              {/* The eyebrow says "Support" rather than "Contact" only so the
+                  masthead does not print the same word twice — the headline is
+                  the page's name, and one word is the whole of it. */}
+              <p className="io-page__eyebrow">Support</p>
 
-          <h1 className="ct-head__title">How can we help?</h1>
+              <Title />
 
-          <p className="ct-head__sub">
-            Sizing, shipping, returns or an order already on its way — send the
-            details once and a person picks it up from there.
-          </p>
+              <p className="io-page__lede">
+                Sizing, shipping, returns or an order already on its way — send
+                the details once and a person picks it up from there.
+              </p>
+            </div>
 
-          <ul className="ct-head__facts">
-            {FACTS.map((fact) => (
-              <li key={fact}>{fact}</li>
-            ))}
-          </ul>
+            <dl className="io-page__spec">
+              {SPECS.map((spec) => (
+                <div key={spec.label}>
+                  <dt>{spec.label}</dt>
+                  <dd>{spec.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
         </div>
       </header>
 
@@ -225,7 +328,7 @@ export default function ContactPage() {
       <section className="ct-section" id="contact-form">
         <div className="ct-shell ct-work">
           {/* ---- channels ----------------------------------------------- */}
-          <Reveal className="ct-aside">
+          <Reveal className="ct-aside" onMount>
             <div className="ct-panel">
               <h2 className="ct-h">Reach us directly</h2>
 
@@ -276,7 +379,7 @@ export default function ContactPage() {
           </Reveal>
 
           {/* ---- the form ----------------------------------------------- */}
-          <Reveal delay={0.08}>
+          <Reveal delay={0.08} onMount>
             <div className="ct-panel">
               {sent ? (
                 <Empty className="ct-sent">

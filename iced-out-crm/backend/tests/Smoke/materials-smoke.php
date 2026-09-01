@@ -87,7 +87,7 @@ function check(string $label, bool $ok, string $note = ''): void
 }
 
 /* ------------------------------------------------------------------ sign in */
-[$s] = call('POST', '/admin/auth/login', ['email' => 'admin@iced-out.example', 'password' => 'preview1']);
+[$s] = call('POST', '/admin/auth/login', ['email' => 'admin@gmail.com', 'password' => 'admin123']);
 if ($s !== 200) {
     fwrite(STDERR, "  cannot sign in ($s) — is the database seeded?\n");
     exit(1);

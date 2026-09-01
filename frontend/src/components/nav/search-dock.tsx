@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { BottomSheet } from "@/components/nav/bottom-sheet";
 import { ProductImage } from "@/components/commerce/product-image";
-import { formatPrice, useProducts } from "@/features/02-products";
+import { formatPrice, productPieceHref, useProducts } from "@/features/02-products";
 
 /** Enough to answer "is it in there", short enough to stay one glance. */
 const MAX_HITS = 8;
@@ -17,12 +17,18 @@ const SUGGESTIONS = ["Hoodie", "Overshirt", "Black", "Drop 001", "After Hours", 
 /**
  * Search, as a dock rather than a destination.
  *
- * The old glyph pushed the shopper to `/search`, which meant leaving whatever
- * they were reading to type a word — and coming back was their problem. This
- * opens over the page instead: the field lands on the bottom edge at full
- * width, results grow upward as the query narrows, and closing puts the
- * shopper back exactly where they were. Picking a hit is the only navigation
- * the dock ever does.
+ * The old glyph pushed the shopper to `/search` — a route that no longer
+ * exists — which meant leaving whatever they were reading to type a word, and
+ * coming back was their problem. This
+ * opens over the page instead: the field lands at full width on the TOP edge,
+ * results run down the page as the query narrows, and closing puts the shopper
+ * back exactly where they were. Picking a hit is the only navigation the dock
+ * ever does.
+ *
+ * The field used to dock to the bottom edge, which on a phone put it behind the
+ * on-screen keyboard the moment it took focus — the one element the shopper had
+ * to see was the one covered. Up top it clears the keyboard on every device, and
+ * it lands next to the glyph that opened it rather than a screen away.
  */
 export function SearchDock({ open, onClose }: { open: boolean; onClose: () => void }) {
   const router = useRouter();
@@ -65,12 +71,12 @@ export function SearchDock({ open, onClose }: { open: boolean; onClose: () => vo
   // usually already decided by the time they press Enter.
   useEffect(() => {
     const hit = hits[cursor];
-    if (open && hit) router.prefetch(`/product?slug=${hit.slug}`);
+    if (open && hit) router.prefetch(productPieceHref(hit));
   }, [cursor, hits, open, router]);
 
-  const go = (slug: string) => {
+  const go = (hit: (typeof hits)[number]) => {
     onClose();
-    router.push(`/product?slug=${slug}`);
+    router.push(productPieceHref(hit));
   };
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -84,12 +90,12 @@ export function SearchDock({ open, onClose }: { open: boolean; onClose: () => vo
       setCursor((current) => (current - 1 + hits.length) % hits.length);
     } else if (event.key === "Enter") {
       event.preventDefault();
-      go(hits[cursor].slug);
+      go(hits[cursor]);
     }
   };
 
   return (
-    <BottomSheet label="Search Iced_out" onClose={onClose} open={open}>
+    <BottomSheet dock="top" label="Search Iced_out" onClose={onClose} open={open}>
       <div className="io-dock__wrap">
         <div className="io-dock__field">
           <Search aria-hidden size={19} strokeWidth={1.6} />
@@ -116,7 +122,11 @@ export function SearchDock({ open, onClose }: { open: boolean; onClose: () => vo
         </div>
       </div>
 
-      <div className="io-dock__body">
+      {/* `data-lenis-prevent` is what makes the results list scroll at all
+          on the routes Lenis drives — /contact, /wishlist, /cart,
+          /account/profile and the gender edits. Without it Lenis takes the
+          wheel for the window and the dock never moves. */}
+      <div className="io-dock__body" data-lenis-prevent>
         <div className="io-dock__wrap">
           {trimmed === "" ? (
             <>
@@ -153,7 +163,7 @@ export function SearchDock({ open, onClose }: { open: boolean; onClose: () => vo
                     <Link
                       className="io-dock__hit"
                       data-active={index === cursor}
-                      href={`/product?slug=${product.slug}`}
+                      href={productPieceHref(product)}
                       onClick={onClose}
                       onMouseEnter={() => setCursor(index)}
                     >

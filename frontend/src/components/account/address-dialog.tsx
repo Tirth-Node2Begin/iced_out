@@ -124,7 +124,9 @@ export function AddressDialog({
             </Dialog.Close>
           </div>
 
-          <div className="io-modal__body">
+          {/* The form is taller than the box on a short window, and /account/profile
+              runs Lenis — without this the wheel goes to the page behind. */}
+          <div className="io-modal__body" data-lenis-prevent>
             {/* Keyed so re-opening the dialog on a different address re-seeds
                 the uncontrolled inputs — without it the second edit opens
                 holding the first one's street. */}

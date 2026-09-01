@@ -98,7 +98,7 @@ return static function (Container $container): string {
             'quality' => 82,
         ],
         'security' => [
-            'login_lockout_after' => 5,
+            'login_lockout_after' => 20,
             'login_lockout_window' => 900,
             'idempotency_ttl_hours' => 48,
         ],

@@ -1167,7 +1167,7 @@ switches from localStorage to the axios clients.
 | `04-cart/checkout-context.tsx` | `iced-out.checkout` | §8.9 draft endpoints |
 | `04-cart/checkout-flow.tsx` `complete()` | `placeOrder(...)` local | `POST /checkout/orders` (+ initiate/verify) |
 | `05-wishlist` | `iced-out-wishlist-v1` | guest: keep local; signed-in: §8.7 sync |
-| `06-search` | in-memory filter | `GET /search?q=` |
+| `nav/search-dock.tsx` | in-memory filter | `GET /search?q=` — the `06-search` feature and its `/search` route were removed; searching is the header dock, which filters the loaded catalogue |
 | `07-orders/orders-context.tsx` | `iced-out.orders` | `GET /me/orders`, `GET /me/orders/{id}`, verify/retry for `settlePayment` |
 | `07-orders/fulfilment-context.tsx` | `iced-out-fulfilment-v1` | §8.19 console orders + §8.20 shipments |
 | `08-tracking/tracking-from-order.ts` | derived | `GET /track/{token}` (file's own comment marks it as THE seam) — backend side is the `TrackingProvider` **placeholder** until the external tracking API arrives (§9.8) |

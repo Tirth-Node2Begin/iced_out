@@ -56,6 +56,49 @@ final class CatalogController
             'q' => $request->queryString('q'),
         ]);
 
+        return Response::data($this->hydrate($rows));
+    }
+
+    /**
+     * GET /catalog/trending
+     *
+     * The same product shape as `/catalog/products`, in a different ORDER: the
+     * rows come back ranked by what has actually been selling, so a rail that
+     * calls itself trending is answering the register rather than a hand-picked
+     * list. The ranking — and what it falls back to while the window is quiet —
+     * lives in `CatalogRepository::trendingProducts`.
+     *
+     *   ?audience=men|women   includes unisex, as everywhere else
+     *   ?limit=8              clamped to 1..48 in the repository
+     *
+     * Deliberately NOT a flag on the product row: nothing here changes the
+     * payload the storefront already parses, so this endpoint can be ignored by
+     * every caller that does not want it.
+     */
+    public function trending(Request $request): Response
+    {
+        $rows = $this->catalog->trendingProducts([
+            'audience' => $request->queryString('audience'),
+            'limit' => $request->queryInt('limit', CatalogRepository::TRENDING_LIMIT),
+        ]);
+
+        return Response::data($this->hydrate($rows));
+    }
+
+    /**
+     * Product rows plus their variants and photographs, in the storefront's shape.
+     *
+     * Both list endpoints go through here so they cannot drift into presenting
+     * the same product two different ways — and so neither of them ever runs a
+     * query per card: the variants and the gallery are each ONE query for the
+     * whole page.
+     *
+     * @param list<array<string, mixed>> $rows
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function hydrate(array $rows): array
+    {
         $ids = array_map(static fn (array $row): int => (int) $row['id'], $rows);
         $variants = $this->catalog->variantsForProducts($ids);
         /* The gallery hangs off the stock item behind each listing — see
@@ -63,14 +106,14 @@ final class CatalogController
            one query, the same way the variants are. */
         $photos = $this->catalog->photosForProducts($ids);
 
-        return Response::data(array_map(
+        return array_map(
             fn (array $row): array => $this->presenter->storefrontProduct(
                 $row,
                 $variants[(int) $row['id']] ?? [],
                 $photos[(int) $row['id']] ?? [],
             ),
             $rows,
-        ));
+        );
     }
 
     /**

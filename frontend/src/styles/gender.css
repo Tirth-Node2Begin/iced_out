@@ -294,26 +294,37 @@
 }
 
 /* ========================================================================== */
-/* 3 · HERO — the theme plate                                                 */
+/* 3 · HERO — one plane                                                       */
 /* ========================================================================== */
 
 /**
- * The hero runs on the house palette: the four-stop hero gradient from
- * new_style.md §2.2 — a radial glow blooming from behind the bar over a
- * top-to-bottom cool cast. It is the only section on the page with a gradient;
- * everything below it is flat `--nh-surface`, which is what makes the fold
- * read as a lift rather than a seam.
+ * THE HERO IS A SINGLE COMPOSITION, NOT A TWO-COLUMN LAYOUT.
+ *
+ * It used to be `copy | imagery` on a 1fr/0.72fr grid, and the copy — four
+ * short elements — could never fill the half it was given. The leftover sat
+ * dead centre at every viewport width, and no amount of padding tuning could
+ * close it, because the gap WAS the layout.
+ *
+ * The fix is to stop dividing the frame. The imagery is the ground (`__wall`,
+ * absolute, full bleed, four scrolling columns); a left-heavy scrim (`__scrim`)
+ * darkens the half the type sits on; and the copy floats on top (`__stage`).
+ * Three stacked planes, no seam, nothing left over to go empty.
+ *
+ * There is no fourth plane. The stage is the only row, so the copy centres on
+ * the full height of the frame with nothing below it to bias against.
  */
 .gx-hero {
   --nh-hero-top: #232b31;
   --nh-hero-mid: #1d2429;
   --nh-hero-bot: #181c20;
   --nh-hero-glow: #2c3941;
+  /* the one ink the scrim, the rail and the glass buttons all mix toward */
+  --gx-hero-shade: 20, 24, 28;
 
   position: relative;
   z-index: 2;
-  display: flex;
-  align-items: stretch;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
   min-height: 100svh;
   /* The bar overlays the hero rather than occupying space above it, so the
      pull has to be the bar's real height — `--header-height` (92px, 74px
@@ -321,6 +332,8 @@
      canvas showing through the transparent bar at the top of the page. */
   margin-top: calc(-1 * var(--header-height));
   padding-top: var(--header-height);
+  /* still the house gradient — it is what the wall's gaps and rounded tile
+     corners read against, so it has to stay under the imagery */
   background:
     radial-gradient(120% 80% at 32% 0%, var(--nh-hero-glow) 0%, rgba(44, 57, 65, 0) 62%),
     linear-gradient(
@@ -336,209 +349,28 @@
   overflow-y: visible;
 }
 
+/* --- ground: the wall of imagery ------------------------------------------ */
 /**
- * The copy column starts on the SAME vertical as `.gx-wrap` content, so the
- * headline, the filter rail and every section heading below share one left
- * edge. `max()` reproduces `.gx-wrap`'s centring without a wrapper, which the
- * hero cannot have — the image columns have to bleed past the right edge.
+ * `inset: 0` on an absolute child resolves against the PADDING box, so the wall
+ * runs up behind the transparent nav as well — which is the point. The header
+ * pad on `.gx-hero` positions the copy, not the pictures.
  */
-.gx-hero__grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 0.72fr);
-  align-items: stretch;
-  width: 100%;
-  padding-left: max(
-    var(--nh-gutter),
-    calc((100% - 1560px) / 2 + var(--nh-gutter))
-  );
-}
-
-/* --- left: the copy column ------------------------------------------------ */
-/**
- * The stack is sized to clear a 672px-tall laptop fold with the nav taken off
- * the top. Everything here is a clamp with a deliberately low floor: if the
- * copy grows past the available height the hero stops being `100svh` and the
- * scroll cue — the thing telling you there is a page below — falls under it.
- */
-.gx-hero__copy {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: clamp(0.9rem, 1.8vw, 1.6rem);
-  padding: clamp(1.5rem, 3vw, 2.5rem) clamp(1.5rem, 4.4vw, 4.5rem)
-    clamp(1.5rem, 3vw, 2.5rem) 0;
-  min-width: 0;
-}
-
-.gx-hero__title {
-  margin: 0;
-  max-width: 15ch;
-  /* the vh term keeps a 3-line headline off the fold on short windows */
-  font-size: clamp(2.2rem, min(5vw, 8.6vh), 4.5rem);
-  font-weight: 700;
-  font-stretch: 100%;
-  line-height: 1;
-  letter-spacing: -0.038em;
-  /* the reference headline is title case, not the uppercase display cut */
-  text-transform: none;
-  /* pure white, a step brighter than `--nh-ink` — the headline is the one
-     thing on the page allowed to sit at the top of the ramp */
-  color: #ffffff;
-}
-
-.gx-hero__title .gx-light {
-  font-weight: 300;
-  font-stretch: 112%;
-  letter-spacing: -0.02em;
-}
-
-.gx-hero__sub {
-  margin: 0;
-  max-width: 46ch;
-  font-size: clamp(0.9rem, 1.05vw, 1rem);
-  line-height: 1.62;
-  letter-spacing: -0.005em;
-  color: var(--nh-muted);
-}
-
-.gx-hero__cta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.gx-hero__btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.6rem;
-  height: 50px;
-  padding: 0 28px;
-  border: 0;
-  border-radius: 999px;
-  font-family: inherit;
-  font-size: 15px;
-  font-weight: 500;
-  letter-spacing: -0.005em;
-  white-space: nowrap;
-  cursor: pointer;
-  transition:
-    background-color 0.35s var(--nh-ease-soft),
-    color 0.35s var(--nh-ease-soft),
-    box-shadow 0.35s var(--nh-ease-soft),
-    transform 0.35s var(--nh-ease);
-}
-
-/* The two CTA weights are different MATERIALS, not two shades of the same one:
-   primary inverts to a light pill, secondary becomes glass. That is what keeps
-   them distinguishable on a dark page (new_style.md §2.4). */
-.gx-hero__btn--solid {
-  background: var(--nh-solid-bg);
-  color: var(--nh-solid-fg);
-}
-
-.gx-hero__btn--solid:hover {
-  background: var(--nh-solid-bg-hover);
-  transform: translateY(-1px);
-}
-
-.gx-hero__btn--outline {
-  background: var(--nh-ghost-bg);
-  color: var(--nh-ink);
-  box-shadow: inset 0 0 0 1px var(--nh-hairline);
-}
-
-.gx-hero__btn--outline:hover {
-  background: var(--nh-ghost-bg-hover);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.24);
-  transform: translateY(-1px);
-}
-
-/* --- social proof --------------------------------------------------------- */
-.gx-hero__proof {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-top: clamp(0.25rem, 1.4vw, 1.25rem);
-}
-
-.gx-hero__faces {
-  display: flex;
-  flex: none;
-  padding-left: 10px;
-}
-
-/* A monogram rather than a photograph: these stand for real reviewers now, and
-   the register holds a name, not a portrait. Stock avatars were the previous
-   answer and they were pictures of nobody. */
-.gx-hero__face {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 999px;
-  margin-left: -10px;
-  background: var(--nh-card-bg);
-  /* the 2px ring is the page background, not white — it has to read as the
-     chips being cut out of the surface */
-  box-shadow: 0 0 0 2px var(--nh-ring);
-  color: #14161a;
-  font-size: 12.5px;
-  font-weight: 500;
-  letter-spacing: 0.01em;
-  line-height: 1;
-  user-select: none;
-}
-
-/* the overflow count closes the cluster, and is the one chip that is not a
-   person — it carries the page's own palette rather than a reviewer's tint */
-.gx-hero__face--rest {
-  background: var(--nh-card-bg);
-  box-shadow:
-    0 0 0 2px var(--nh-ring),
-    inset 0 0 0 1px var(--nh-hairline);
-  color: var(--nh-muted);
-  font-size: 11.5px;
-}
-
-/* Nothing to stack — no ring floating on the plate where the faces were. */
-.gx-hero__faces:empty {
-  display: none;
-}
-
-.gx-hero__proofText {
-  margin: 0;
-  max-width: 25ch;
-  font-size: 13.5px;
-  line-height: 1.42;
-  color: var(--nh-muted);
-}
-
-.gx-hero__proofText b {
-  font-weight: 500;
-  color: var(--nh-ink);
-}
-
-/* --- right: the scrolling image columns ----------------------------------- */
-.gx-hero__media {
-  position: relative;
-  min-width: 0;
-  /* the third column is meant to run off the right edge, exactly as in the
-     reference — the bleed is the composition, not an overflow bug */
+.gx-hero__wall {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
   overflow: clip;
 }
 
 .gx-hero__rail {
   position: absolute;
-  inset: 0 auto 0 0;
+  /* pulled left and over-wide so BOTH edges are cut — a wall with a visible
+     first and last column is a gallery, not a wall */
+  inset: 0 auto 0 -6vw;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 14px;
-  /* wide enough that column three is cut by the viewport */
-  width: calc(100% + 20vw);
+  width: calc(100% + 12vw);
   height: 100%;
 }
 
@@ -599,6 +431,10 @@
   background: var(--nh-card-bg);
 }
 
+/* The house photography is shot dark on dark. Behind a scrim, on a #181c20
+   plate, the crops lost their edges entirely and the wall read as a grid of
+   empty cards — hence the lift. It is small on purpose: enough for a garment
+   to have a silhouette, not enough to turn the after-hours set grey. */
 .gx-hero__tile img {
   width: 100%;
   height: 100%;
@@ -606,40 +442,200 @@
   object-position: var(--op, 50% 50%);
   transform: scale(var(--z, 1));
   transform-origin: var(--op, 50% 50%);
+  filter: brightness(1.14) contrast(1.04);
 }
 
-/* --- the fold cue --------------------------------------------------------- */
-/* pinned to the same left edge as the headline and the rail below it */
-.gx-hero__cue {
+/* --- the scrim ------------------------------------------------------------ */
+/**
+ * Two gradients doing two jobs. The horizontal one is the type's background:
+ * near-solid where the headline sits, gone by the right edge, so the copy never
+ * needs a plate of its own. The vertical one keeps the nav readable at the top
+ * and seats the mark rail at the bottom.
+ *
+ * The left-hand stops are a CONTRAST FLOOR, not a taste call — the headline is
+ * #fff over whatever survives at 0–34%, so lightening that end breaks the text
+ * every time a pale tile scrolls past behind it.
+ */
+.gx-hero__scrim {
   position: absolute;
-  left: max(var(--nh-gutter), calc((100% - 1560px) / 2 + var(--nh-gutter)));
-  bottom: clamp(1.25rem, 2.6vw, 2rem);
-  z-index: 5;
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: rgba(241, 243, 243, 0.42);
+  inset: 0;
+  z-index: 1;
   pointer-events: none;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(var(--gx-hero-shade), 0.96) 0%,
+      rgba(var(--gx-hero-shade), 0.9) 26%,
+      rgba(var(--gx-hero-shade), 0.56) 44%,
+      rgba(var(--gx-hero-shade), 0.2) 62%,
+      rgba(var(--gx-hero-shade), 0.04) 82%,
+      rgba(var(--gx-hero-shade), 0) 100%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(var(--gx-hero-shade), 0.6) 0%,
+      rgba(var(--gx-hero-shade), 0) 20%,
+      rgba(var(--gx-hero-shade), 0) 62%,
+      rgba(var(--gx-hero-shade), 0.78) 100%
+    );
 }
 
-.gx-hero__cueInner {
+/* --- the stage: where the copy sits --------------------------------------- */
+/**
+ * The copy starts on the SAME vertical as `.gx-wrap` content, so the headline,
+ * the mark rail, the filter rail and every section heading below share one left
+ * edge. `max()` reproduces `.gx-wrap`'s centring without a wrapper, which the
+ * hero cannot have — the wall has to bleed past both edges.
+ */
+.gx-hero__stage {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding: clamp(2rem, 6vh, 4rem) var(--nh-gutter) clamp(2rem, 6vh, 4rem)
+    max(var(--nh-gutter), calc((100% - 1560px) / 2 + var(--nh-gutter)));
+}
+
+.gx-hero__copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  /* one rhythm value, scaled by viewport HEIGHT — the stack's constraint is
+     vertical fit, and a vw-scaled gap gets that exactly backwards on the short
+     wide windows where it matters */
+  gap: clamp(1rem, 2.1vh, 1.85rem);
+  width: 100%;
+  max-width: 42rem;
+  min-width: 0;
+}
+
+/* --- the kicker ----------------------------------------------------------- */
+.gx-hero__eyebrow {
   display: inline-flex;
   align-items: center;
+  gap: 0.85rem;
+  margin: 0;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+  color: rgba(241, 243, 243, 0.62);
+}
+
+/* the rule anchors the kicker to the left edge — without it a lone line of
+   small caps floats free of the headline it belongs to */
+.gx-hero__eyebrow::before {
+  content: "";
+  flex: none;
+  width: 38px;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.34);
+}
+
+/* --- the headline --------------------------------------------------------- */
+.gx-hero__title {
+  margin: 0;
+  /* the measure is set to break the headline in half — the statement lands on
+     line one and the turn on line two, which is the whole shape of the line */
+  max-width: 13ch;
+  /* the vh term is what keeps a display-scale headline off the fold on a
+     672px laptop viewport; without it the CTAs fall under the mark rail */
+  font-size: clamp(2.6rem, min(7vw, 13vh), 6.4rem);
+  font-weight: 700;
+  font-stretch: 100%;
+  line-height: 0.92;
+  letter-spacing: -0.045em;
+  /* title case, not the uppercase display cut */
+  text-transform: none;
+  /* pure white, a step brighter than `--nh-ink` — the headline is the one
+     thing on the page allowed to sit at the top of the ramp */
+  color: #ffffff;
+}
+
+/**
+ * The house display cut sets its light half at weight 300 / stretch 112%. On a
+ * variable face that is a visibly different letterform mid-sentence, and at
+ * hero scale it read as two fonts fighting inside one headline. Here the tail
+ * keeps the SAME weight, stretch and tracking and separates on TONE alone, so
+ * the line stays one voice.
+ */
+.gx-hero__title .gx-light {
+  font-weight: inherit;
+  font-stretch: inherit;
+  letter-spacing: inherit;
+  color: rgba(255, 255, 255, 0.46);
+}
+
+.gx-hero__sub {
+  margin: 0;
+  max-width: 36ch;
+  font-size: clamp(0.9375rem, 1.05vw, 1.0625rem);
+  line-height: 1.6;
+  letter-spacing: -0.005em;
+  /* a step up from `--nh-muted`: this sits over photography now rather than
+     flat surface, and the muted grey lost its edges against the paler tiles */
+  color: rgba(241, 243, 243, 0.74);
+}
+
+/* --- the buttons ---------------------------------------------------------- */
+.gx-hero__cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: clamp(0.25rem, 1.2vh, 0.75rem);
+}
+
+.gx-hero__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   gap: 0.6rem;
+  height: 52px;
+  padding: 0 30px;
+  border: 0;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 0.35s var(--nh-ease-soft),
+    color 0.35s var(--nh-ease-soft),
+    box-shadow 0.35s var(--nh-ease-soft),
+    transform 0.35s var(--nh-ease);
 }
 
-.gx-hero__cue svg {
-  animation: gx-nudge 2.4s var(--nh-ease) infinite;
+/* The two CTA weights are different MATERIALS, not two shades of the same one:
+   primary inverts to a light pill, secondary becomes glass. That is what keeps
+   them distinguishable on a dark page (new_style.md §2.4). */
+.gx-hero__btn--solid {
+  background: var(--nh-solid-bg);
+  color: var(--nh-solid-fg);
 }
 
-@keyframes gx-nudge {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(4px);
-  }
+.gx-hero__btn--solid:hover {
+  background: var(--nh-solid-bg-hover);
+  transform: translateY(-1px);
+}
+
+/* The outline button sits over photography now, so it carries its own blur —
+   a 1px hairline on its own vanished the moment a light tile passed behind. */
+.gx-hero__btn--outline {
+  background: rgba(var(--gx-hero-shade), 0.42);
+  backdrop-filter: blur(14px) saturate(1.15);
+  -webkit-backdrop-filter: blur(14px) saturate(1.15);
+  color: var(--nh-ink);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.gx-hero__btn--outline:hover {
+  background: rgba(var(--gx-hero-shade), 0.62);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.24);
+  transform: translateY(-1px);
 }
 
 /* ========================================================================== */
@@ -1934,16 +1930,14 @@
 /* ========================================================================== */
 
 @media (max-width: 1240px) {
-  .gx-hero__grid {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 0.62fr);
-  }
-
+  /* the wall drops its last column rather than narrowing all four — a tile
+     thinner than its own corner radius stops reading as a photograph */
   .gx-hero__rail {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    width: calc(100% + 16vw);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: calc(100% + 14vw);
   }
 
-  .gx-hero__col[data-col="2"] {
+  .gx-hero__col[data-col="3"] {
     display: none;
   }
 }
@@ -1974,31 +1968,40 @@
 }
 
 @media (max-width: 900px) {
-  .gx-hero {
-    min-height: auto;
+  /* Portrait keeps the full-bleed composition — the copy simply moves onto a
+     darker scrim. The old breakpoint split the hero into a copy block ABOVE a
+     58svh strip of imagery, which is the two-column layout again, stacked. */
+  .gx-hero__rail {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: calc(100% + 18vw);
   }
 
-  .gx-hero__grid {
-    grid-template-columns: minmax(0, 1fr);
+  .gx-hero__col[data-col="2"] {
+    display: none;
   }
 
-  .gx-hero__copy {
-    padding-top: clamp(3rem, 12vw, 6rem);
-    padding-bottom: clamp(2rem, 6vw, 3rem);
+  /* narrow frames give the type far less clear ground, so the horizontal wash
+     holds much longer before it opens up */
+  .gx-hero__scrim {
+    background:
+      linear-gradient(
+        90deg,
+        rgba(var(--gx-hero-shade), 0.95) 0%,
+        rgba(var(--gx-hero-shade), 0.88) 50%,
+        rgba(var(--gx-hero-shade), 0.6) 78%,
+        rgba(var(--gx-hero-shade), 0.38) 100%
+      ),
+      linear-gradient(
+        180deg,
+        rgba(var(--gx-hero-shade), 0.72) 0%,
+        rgba(var(--gx-hero-shade), 0.16) 28%,
+        rgba(var(--gx-hero-shade), 0.3) 62%,
+        rgba(var(--gx-hero-shade), 0.86) 100%
+      );
   }
 
   .gx-hero__title {
-    max-width: 18ch;
-  }
-
-  .gx-hero__media {
-    position: relative;
-    height: 58svh;
-    min-height: 22rem;
-  }
-
-  .gx-hero__cue {
-    display: none;
+    max-width: 13ch;
   }
 
   .gx-look__stage {
@@ -2050,6 +2053,10 @@
 
   .gx-look__item {
     grid-template-columns: 48px minmax(0, 1fr) auto;
+  }
+
+  .gx-hero__btn {
+    flex: 1 1 auto;
   }
 }
 

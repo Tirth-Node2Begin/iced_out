@@ -13,7 +13,7 @@ import {
 } from "@/components/gender/data";
 import { EASE_OUT, Reveal, SplitHeading, WordRamp } from "@/components/gender/motion";
 import { pieceForPin, useGenderPieces } from "@/components/gender/use-pieces";
-import { DEPTS, pieceHref } from "@/components/new-man/product-deck";
+import { backHref, DEPTS, pieceHref } from "@/components/new-man/product-deck";
 import {
   Popover,
   PopoverContent,
@@ -177,9 +177,12 @@ export function Lookbook({ content }: { content: AudienceContent }) {
               })}
             </div>
 
+            {/* The floor's own grid, not `/search?q=Drop 001` — that route is
+                gone, and the pins above are pieces from this department, so the
+                grid they came from is where "the whole look" actually is. */}
             <Link
               className="gx-pill gx-pill--solid gx-pill--foot"
-              href="/collections/view?slug=drop-001"
+              href={backHref(dept)}
               style={{ alignSelf: "flex-start" }}
             >
               Shop the whole look

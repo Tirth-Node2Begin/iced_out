@@ -6,7 +6,13 @@ import {
   filterProducts,
   type ProductListInput,
 } from "@/features/02-products/api/product-repository";
-import { catalogStore, productRecord } from "@/features/02-products/catalog-store";
+import {
+  catalogStore,
+  collectionsStore,
+  productRecord,
+  trendingStore,
+  type StoreCollection,
+} from "@/features/02-products/catalog-store";
 import type { Product } from "@/features/02-products/types/product";
 
 export const productKeys = {
@@ -95,4 +101,40 @@ export function useProduct(slug: string): CatalogQuery<Product | null> {
   const record = productRecord(slug);
 
   return useSyncExternalStore(record.subscribe, record.getSnapshot, record.getServerSnapshot);
+}
+
+/**
+ * The trending ranking, in the server's order.
+ *
+ * Kept out of `useCatalog` on purpose: this is a different endpoint answering a
+ * different question, and the two must not share a store — the catalogue is
+ * "everything for sale, in the operator's order" and this is "what is selling,
+ * best first". Sorting the first into the second in the browser is not possible
+ * anyway; the ranking is derived from the order book.
+ *
+ * Returns the state as well as the rows, so a rail can stay quiet while the read
+ * is in flight rather than flashing an empty section.
+ */
+export function useTrending(): CatalogQuery<Product[]> {
+  return useSyncExternalStore(
+    trendingStore.subscribe,
+    trendingStore.getSnapshot,
+    trendingStore.getServerSnapshot,
+  );
+}
+
+/**
+ * The shop's live chapters, in the operator's order.
+ *
+ * First row is the CURRENT one — `collections.position` is what the console
+ * reorders, so "this season" is a fact somebody maintains rather than a date
+ * this code guesses. Used by the home page's seasonal row to decide which
+ * chapter to stand on the front door when nothing is badged new.
+ */
+export function useCollections(): CatalogQuery<StoreCollection[]> {
+  return useSyncExternalStore(
+    collectionsStore.subscribe,
+    collectionsStore.getSnapshot,
+    collectionsStore.getServerSnapshot,
+  );
 }

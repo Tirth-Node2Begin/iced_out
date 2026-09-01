@@ -10,7 +10,7 @@ import {
   type Piece,
 } from "@/components/gender/data";
 import { EASE_OUT, Reveal, SplitHeading } from "@/components/gender/motion";
-import { DEPTS, pieceHref, type Dept } from "@/components/new-man/product-deck";
+import { backHref, DEPTS, pieceHref, type Dept } from "@/components/new-man/product-deck";
 import { useWishlist } from "@/features/05-wishlist/wishlist-context";
 import { cn } from "@/lib/utils";
 
@@ -131,7 +131,7 @@ export function ProductShelf({
   light,
   right,
   foot,
-  footHref = "/collections/view?slug=drop-001",
+  footHref,
   pieces,
   columns = 4,
   wide,
@@ -144,6 +144,14 @@ export function ProductShelf({
   light: string;
   right: string;
   foot: string;
+  /**
+   * Where the foot pill goes. Defaults to this floor's own grid.
+   *
+   * It used to default to `/search?q=Drop 001` — one hard-coded destination for
+   * every shelf on both floors. Search has no route any more, and the department
+   * is already known here, so the pill lands on the grid the shelf is a slice
+   * of.
+   */
   footHref?: string;
   pieces: Piece[];
   columns?: 3 | 4;
@@ -208,7 +216,7 @@ export function ProductShelf({
         </div>
 
         <Reveal className="gx-shelf__foot" delay={0.15}>
-          <Link className="gx-pill gx-pill--solid gx-pill--foot" href={footHref}>
+          <Link className="gx-pill gx-pill--solid gx-pill--foot" href={footHref ?? backHref(dept)}>
             {foot}
             <span className="gx-pill__dot">
               <ArrowUpRight aria-hidden size={14} />

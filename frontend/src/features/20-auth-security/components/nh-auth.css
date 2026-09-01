@@ -8,7 +8,7 @@
       never be a fixed pixel stack — every block-axis value is a `dvh`-aware
       clamp so the column *compresses* on a short window instead of pushing
       content past the fold. Register carries an extra field plus the legal
-      line, so it opts into `.is-dense`, which only re-points the four rhythm
+      line, so it opts into `.is-dense`, which only re-points the rhythm
       tokens; no rule is duplicated for it.
 
    2. SELF-CONTAINED. `pages.css` is imported by this route group and its
@@ -59,8 +59,17 @@
   --ia-measure: 448px;
   --ia-frame: clamp(16px, 3.4dvh, 34px);
   --ia-ctl: clamp(44px, 6.2dvh, 54px);
-  --ia-gap: clamp(11px, 2dvh, 18px);
-  --ia-title: clamp(26px, min(4.6dvh, 3.6vw), 42px);
+  --ia-gap: clamp(13px, 2.6dvh, 24px);
+  --ia-title: clamp(32px, min(5.8dvh, 4.4vw), 54px);
+
+  /* Breathing room on top of the base grid gap. `--ia-stack` separates one
+     field from the next so a label never crowds the well above it, and
+     `--ia-aside-gap` opens the band the sign-in line sits in, between the
+     last field and the CTA. Both are dvh-aware for the same reason the
+     tokens above are: on a short window they give their height back rather
+     than pushing the column past the fold. */
+  --ia-stack: clamp(6px, 1.7dvh, 16px);
+  --ia-aside-gap: clamp(12px, 3dvh, 28px);
 
   position: relative;
   display: flex;
@@ -79,11 +88,38 @@
   box-sizing: border-box;
 }
 
-/* Register: three fields + the legal line. Same design, tighter rhythm. */
+/* Register: same structure, three fields and a legal line — it pays for the
+   extra registers out of the rhythm, because the viewport is fixed. The
+   tightening is only what the height forces: the two rules below step register
+   back toward login's rhythm, and then onto it exactly, as the window grows. */
 .iox-auth.is-dense {
   --ia-ctl: clamp(42px, 5.6dvh, 52px);
-  --ia-gap: clamp(9px, 1.6dvh, 15px);
-  --ia-title: clamp(24px, min(4dvh, 3.2vw), 38px);
+  --ia-gap: clamp(11px, 2dvh, 18px);
+  --ia-title: clamp(28px, min(5dvh, 3.8vw), 46px);
+  --ia-stack: clamp(4px, 1dvh, 10px);
+  --ia-aside-gap: clamp(9px, 2.2dvh, 20px);
+}
+
+@media (min-height: 950px) {
+  .iox-auth.is-dense {
+    --ia-ctl: clamp(43px, 5.9dvh, 53px);
+    --ia-gap: clamp(12px, 2.35dvh, 21px);
+    --ia-title: clamp(30px, min(5.4dvh, 4.1vw), 50px);
+    --ia-stack: clamp(5px, 1.45dvh, 13px);
+    --ia-aside-gap: clamp(11px, 2.7dvh, 25px);
+  }
+}
+
+/* Room for the extra field and the legal line at login's full rhythm — from
+   here up the two pages are the same page with one more field. */
+@media (min-height: 1100px) {
+  .iox-auth.is-dense {
+    --ia-ctl: clamp(44px, 6.2dvh, 54px);
+    --ia-gap: clamp(13px, 2.6dvh, 24px);
+    --ia-title: clamp(32px, min(5.8dvh, 4.4vw), 54px);
+    --ia-stack: clamp(6px, 1.7dvh, 16px);
+    --ia-aside-gap: clamp(12px, 3dvh, 28px);
+  }
 }
 
 .iox-auth a:focus-visible,
@@ -123,20 +159,17 @@
   transform: translateX(-50%);
 }
 
-/* The brand row, the body and the footnote all resolve to the same 448px
-   measure, so the three blocks share one left edge and one right edge. */
+/* The top row and the body resolve to the same 448px measure, so both blocks
+   share one left edge and one right edge. */
 .iox-auth__topbar,
-.iox-auth__body,
-.iox-auth__foot {
+.iox-auth__body {
   width: min(100%, var(--ia-measure));
   margin-inline: auto;
 }
 
 .iox-auth__topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  display: grid;
+  justify-items: start;
   margin-top: var(--ia-frame);
 }
 
@@ -176,20 +209,28 @@
 /* `min-height: 0` is what lets this flex child give height back to the
    clamps instead of forcing the column taller than the viewport. */
 .iox-auth__body {
-  display: flex;
+  display: grid;
   min-height: 0;
   flex: 1;
-  flex-direction: column;
-  justify-content: center;
+  grid-template-rows: minmax(0, 1fr) auto minmax(0, 1.15fr) auto minmax(0, 1.3fr);
+  margin-bottom: var(--ia-frame);
   padding-block: clamp(14px, 3dvh, 34px);
 }
 
-/* Grid rather than flow: the back link is inline-flex, and `justify-items:
-   start` keeps it shrink-wrapped to its text instead of stretching across the
-   measure — so its hit area is the label, not the whole column. */
+.iox-auth__body > .iox-auth__back {
+  grid-row: 2;
+  justify-self: start;
+}
+
+.iox-auth__stack {
+  min-height: 0;
+  grid-row: 4;
+}
+
+/* `justify-items: start` keeps anything placed here shrink-wrapped to its own
+   text rather than stretched across the measure. */
 .iox-auth__head {
   display: grid;
-  gap: clamp(10px, 1.7dvh, 17px);
   justify-items: start;
   animation: iox-rise 700ms var(--ia-ease) both;
 }
@@ -213,9 +254,15 @@
   letter-spacing: -0.015em;
 }
 
-/* Sits inside the form grid, under the last field, so the grid gap already
-   spaces it — it only needs its own margin in the confirmation branch, where
-   it follows the success panel outside that grid. */
+/* Sits inside the form grid, under the last field. The grid gap alone put it
+   equidistant from the password well above and the CTA below, which read as
+   one crowded band; `--ia-aside-gap` opens the side facing the button so the
+   line belongs to the fields rather than floating between them. */
+.iox-auth__form .iox-auth__aside {
+  margin-top: calc(var(--ia-stack) * 0.5);
+  margin-bottom: var(--ia-aside-gap);
+}
+
 .iox-auth__aside {
   color: var(--ia-muted);
   font-size: 13.5px;
@@ -238,7 +285,7 @@
 .iox-auth__form {
   display: grid;
   gap: var(--ia-gap);
-  margin-top: clamp(18px, 3.4dvh, 34px);
+  margin-top: clamp(22px, 4dvh, 40px);
   animation: iox-rise 700ms 90ms var(--ia-ease) both;
 }
 
@@ -246,11 +293,18 @@
 
 .iox-field {
   display: grid;
-  gap: clamp(6px, 1dvh, 9px);
+  gap: clamp(9px, 1.5dvh, 13px);
 }
 
-/* Label left, optional helper link right, both on the same baseline — this is
-   where "Forgot password?" lives, so it costs no extra vertical band. */
+/* One field to the next. The grid gap sets the base rhythm for every child of
+   the form; this adds the extra step a stacked field pair needs so the second
+   label is clearly the start of a new control, not a footnote to the first. */
+.iox-field + .iox-field {
+  margin-top: var(--ia-stack);
+}
+
+/* Label row. The recovery link sits under the control now — see
+   `.iox-field__aid` — so this row carries the label alone. */
 .iox-field__top {
   display: flex;
   align-items: baseline;
@@ -266,9 +320,13 @@
   text-transform: uppercase;
 }
 
+/* "Forgot password?" sits under the well it belongs to, on the field's own
+   right edge — a row of the field grid, so the field's gap spaces it and
+   nothing overlaps the input or the reveal eye. */
 .iox-field__aid {
   color: var(--ia-muted-2);
   font-size: 10.5px;
+  justify-self: end;
   letter-spacing: 0.08em;
   line-height: 1;
   text-decoration: none;
@@ -374,8 +432,8 @@
   border-radius: 999px;
   cursor: pointer;
   font-family: var(--ia-font);
-  font-size: 12px;
-  letter-spacing: 0.06em;
+  font-size: 14px;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
   transition:
     background 350ms var(--ia-ease-soft),
@@ -387,7 +445,7 @@
 .iox-btn--primary {
   background: var(--ia-solid);
   color: var(--ia-solid-fg);
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .iox-btn--primary:hover:not(:disabled) {
@@ -422,6 +480,7 @@
   display: flex;
   align-items: center;
   gap: 16px;
+  margin-block: clamp(1px, 0.5dvh, 5px);
 }
 
 .iox-rule::before,
@@ -440,6 +499,7 @@
 }
 
 .iox-legal {
+  margin-top: var(--ia-stack);
   color: var(--ia-muted-2);
   font-size: 11px;
   line-height: 1.6;
@@ -475,31 +535,6 @@
   color: var(--ia-ink);
 }
 
-.iox-auth__foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  margin-bottom: var(--ia-frame);
-  color: var(--ia-muted-2);
-  font-size: 9.5px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  animation: iox-rise 700ms 180ms var(--ia-ease) both;
-}
-
-.iox-auth__foot > span {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.iox-auth__foot i {
-  width: 5px;
-  height: 5px;
-  border-radius: 999px;
-  background: var(--ia-muted);
-}
 
 /* ── Media column ────────────────────────────────────────────────────────── */
 
@@ -695,7 +730,24 @@
    Without the second tier, register (three fields + the legal line) clips at
    roughly 560px of viewport height once the default clamps bottom out. */
 @media (max-height: 680px) {
-  .iox-auth__head { gap: clamp(6px, 1.1dvh, 11px); }
+  /* The two breathing tokens are the first thing given back — they are the
+     newest height in the column and the least load-bearing. */
+  .iox-auth {
+    --ia-gap: clamp(11px, 2dvh, 18px);
+  }
+
+  .iox-auth.is-dense {
+    --ia-gap: clamp(9px, 1.6dvh, 15px);
+  }
+
+  .iox-auth,
+  .iox-auth.is-dense {
+    --ia-stack: clamp(2px, 0.5dvh, 5px);
+    --ia-aside-gap: clamp(4px, 1dvh, 9px);
+  }
+
+  .iox-auth__form { margin-top: clamp(18px, 3.2dvh, 30px); }
+  .iox-field { gap: clamp(6px, 1.1dvh, 10px); }
 }
 
 @media (max-height: 640px) {
@@ -704,37 +756,21 @@
     --ia-frame: clamp(10px, 2.4dvh, 18px);
     --ia-ctl: clamp(38px, 7dvh, 46px);
     --ia-gap: clamp(7px, 1.5dvh, 12px);
-    --ia-title: clamp(21px, min(4.4dvh, 3.2vw), 28px);
+    --ia-title: clamp(24px, min(4.8dvh, 3.4vw), 34px);
+    --ia-stack: 0px;
+    --ia-aside-gap: clamp(2px, 0.6dvh, 6px);
   }
 
   .iox-auth__body { padding-block: clamp(8px, 1.8dvh, 16px); }
   .iox-auth__form { margin-top: clamp(12px, 2.6dvh, 22px); }
+  .iox-field { gap: clamp(5px, 1dvh, 8px); }
+  .iox-rule { margin-block: 0; }
   .iox-auth__aside { font-size: 12.5px; }
   .iox-legal { font-size: 10.5px; }
   .iox-media__caption > p:last-of-type { display: none; }
 }
 
-@media (max-height: 600px) {
-  .iox-auth__foot { display: none; }
-}
 
-/* The footnote is two registers pinned to the ends of a 448px measure. Once
-   the column is narrower than the pair, `space-between` has nothing left to
-   give and the right-hand register runs under the panel's clip. Below that
-   width it collapses to the one line that carries the meaning. */
-@media (max-width: 520px) {
-  .iox-auth__foot {
-    justify-content: center;
-    font-size: 9px;
-    letter-spacing: 0.06em;
-  }
-
-  .iox-auth__foot > span:first-child { display: none; }
-}
-
-@media (max-width: 360px) {
-  .iox-auth__back span { display: none; }
-}
 
 @keyframes iox-rise {
   from {

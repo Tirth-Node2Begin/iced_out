@@ -7,9 +7,10 @@ import { useState } from "react";
 import { ProductImage } from "@/components/commerce/product-image";
 import { useCart } from "@/features/04-cart/cart-context";
 import { useWishlist } from "@/features/05-wishlist/wishlist-context";
-import { formatPrice, type Product } from "@/features/02-products";
+import { formatPrice, productPieceHref, type Product } from "@/features/02-products";
 
 export function ProductCard({ product }: { product: Product; index: number }) {
+  const href = productPieceHref(product);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const { addItem } = useCart();
   const { isSaved, toggle } = useWishlist();
@@ -20,7 +21,7 @@ export function ProductCard({ product }: { product: Product; index: number }) {
       <div className="product-card__media media-frame">
         <Link
           className="product-card__media-link"
-          href={`/product?slug=${product.slug}`}
+          href={href}
           aria-label={`View ${product.name}`}
         >
           <ProductImage
@@ -73,7 +74,7 @@ export function ProductCard({ product }: { product: Product; index: number }) {
       <div className="product-card__details">
         <div>
           <p>{product.category}</p>
-          <h3><Link href={`/product?slug=${product.slug}`}>{product.name}</Link></h3>
+          <h3><Link href={href}>{product.name}</Link></h3>
           <span>{product.color}</span>
         </div>
         <div className="product-price">

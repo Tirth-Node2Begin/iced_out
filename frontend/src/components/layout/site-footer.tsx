@@ -32,8 +32,11 @@ const FOOTER_COLUMNS: FooterColumn[] = [
     links: [
       { label: "Men", href: "/new-man" },
       { label: "Women", href: "/new-woman" },
-      { label: "Accessories", href: "/collections" },
-      { label: "Seasonal", href: "/sale" },
+      { label: "New drop", href: "/new-drop" },
+      /* "Seasonal" pointed at /sale, a route that no longer exists. It is
+         replaced by the wishlist rather than dropped: the column reads as a
+         set of four across the footer's three. */
+      { label: "Wishlist", href: "/wishlist" },
     ],
   },
   {

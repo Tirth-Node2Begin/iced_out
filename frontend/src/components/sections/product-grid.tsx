@@ -95,7 +95,7 @@ export function ProductGrid() {
           </div>
         )}
 
-        <Link className="text-link products-section__link" href="/collections">
+        <Link className="text-link products-section__link" href="/new-drop">
           Explore the full collection
           <ArrowRight aria-hidden="true" size={17} />
         </Link>

@@ -22,6 +22,20 @@ return [
         'rate_limit' => 'catalog',
         'name' => 'catalog.products.index',
     ],
+    /*
+     * The home page's trending rail. Its own route rather than a `?sort=` on
+     * the index, because the ordering is derived from the order book and the
+     * two reads have genuinely different costs — a listing page should not pay
+     * for a join over `order_items` it does not use.
+     */
+    [
+        'method' => 'GET',
+        'path' => '/catalog/trending',
+        'handler' => [CatalogController::class, 'trending'],
+        'audience' => Route::AUDIENCE_PUBLIC,
+        'rate_limit' => 'catalog',
+        'name' => 'catalog.products.trending',
+    ],
     [
         'method' => 'GET',
         'path' => '/catalog/products/{slug}',

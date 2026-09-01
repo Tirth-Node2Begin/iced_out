@@ -5,6 +5,7 @@ import "@/styles/order.css";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
+import { SmoothScroll } from "@/components/new-home/smooth-scroll";
 import { OrderPlacedRoute } from "@/features/07-orders/components/order-placed-route";
 
 export const metadata: Metadata = {
@@ -33,9 +34,16 @@ export const metadata: Metadata = {
  * on the prerender pass, and without it the whole route opts out of prerendering.
  */
 export default function OrderPage() {
+  /* Lenis, as on the bag and About. Outside the boundary rather than inside it:
+     the receipt is the longest screen in the group — lines, totals, timeline,
+     address — and mounting the scroll inside would mean it only starts once the
+     order has resolved, so the first flick after landing would still be a
+     stepped one. Off under prefers-reduced-motion. */
   return (
-    <Suspense fallback={<div className="co-load" role="status">Opening your order…</div>}>
-      <OrderPlacedRoute />
-    </Suspense>
+    <SmoothScroll>
+      <Suspense fallback={<div className="co-load" role="status">Opening your order…</div>}>
+        <OrderPlacedRoute />
+      </Suspense>
+    </SmoothScroll>
   );
 }

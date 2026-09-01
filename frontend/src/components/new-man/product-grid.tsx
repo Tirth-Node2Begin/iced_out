@@ -97,9 +97,10 @@ function ProductTile({
         {/* The frame itself goes to the product page. It sits under the
             controls in the corners so both of those stay pressable.
 
-            The destination is this piece's own page under /new-man, not
-            `/product?slug=${piece.slug}`: twenty tiles share four fixture slugs, so
-            that route could only ever open one of four garments and a shopper
+            The destination is this piece's own page under /new-man. The
+            storefront PDP it could have shared with the fixture underneath is
+            gone, and was never right anyway: twenty tiles share four fixture
+            slugs, so it could only ever open one of four garments and a shopper
             selecting the Nightshift Overcoat landed on the overshirt. */}
         <Link
           aria-label={`${piece.name}, ${formatPrice(price.price)} — view product`}

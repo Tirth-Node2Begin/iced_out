@@ -89,7 +89,22 @@ body:has(.hv2) {
   background-color: #101113;
 }
 
-.hv2-home {
+/**
+ * What the bar in front of this route actually measures.
+ *
+ * The hero pulls itself up by this token to sit under the bar
+ * (`.hv2-home .hv2-fashion-hero`), so it is not a spacing preference — it is a
+ * reading of `chrome.css`, which is the sheet that draws the bar here, and it
+ * has to step down at the same width chrome's own `--io-nav-h` does (860px).
+ * When the two disagree the difference shows up as bare page ground above the
+ * hero, or as the top of the hero clipped under the bar.
+ *
+ * Written `.hv2.hv2-home` rather than `.hv2-home` because the two live on one
+ * element: the 92px default further down this file is `.hv2`, at equal
+ * specificity and a later line, so a single class here loses to it and the
+ * mobile step never applied at all.
+ */
+.hv2.hv2-home {
   --hv2-nav-h: 74px;
 }
 
@@ -152,8 +167,8 @@ body:has(.hv2) {
   opacity: 0;
 }
 
-@media (max-width: 720px) {
-  .hv2-home {
+@media (max-width: 860px) {
+  .hv2.hv2-home {
     --hv2-nav-h: 62px;
   }
 }
@@ -2703,4 +2718,444 @@ body:has(.hv2) {
     left: 50%;
     translate: -50% 0;
   }
+}
+
+/* ---------------------------------------------------------------------------
+   Top trending — the four best-selling pieces, root home only.
+
+   Sits between the philosophy statement and the craft chapter, and both of
+   those are `--hv2-surface-2`, so this one takes the base ground: the page
+   keeps alternating its plate from chapter to chapter.
+
+   ONE SCREEN, and that is the constraint the whole block is built around. The
+   section used to size itself the way the grid below it does — a fixed
+   `padding-block` plus four 3/4 frames at a quarter of the page width — and at
+   a 1423x734 viewport that came out 913px tall. It could not be seen at once
+   at any scroll position, which every other chapter on this page can.
+
+   The fix is to derive the frame's height from the VIEWPORT rather than from
+   the column width, then to derive the row's width from that height so the
+   frames stay portrait. `--hv2-trend-frame` is the one figure; everything else
+   follows it, so there is a single number to move if the row ever needs to be
+   taller.
+   ------------------------------------------------------------------------ */
+.hv2-trend {
+  /* The frame's height, and the section's whole scale.
+
+     50svh, measured rather than guessed: the heading, the three lines under
+     each card and the block padding cost ~40svh between them at the 1440x734
+     viewport this was failing at, so 50 leaves the section a little under one
+     screen with room for the type to grow. The floor keeps the frames usable
+     on a short laptop in landscape; the ceiling stops them turning into
+     billboards on a tall monitor.
+
+     It sets the row's width too, which is why it is not simply as large as it
+     fits — see the row rule. At this figure the row lands near the 82vw the
+     highlights section uses, so the two rails sit on the same measure. */
+  --hv2-trend-frame: clamp(200px, 50svh, 470px);
+  --hv2-trend-gap: clamp(12px, 1.4vw, 30px);
+
+  /* The measure the heading and the photographs SHARE.
+
+     A 3/4 frame at height H is 0.75H wide, so four of them plus three gaps is
+     3H + 3 gaps — the width the row needs in order to keep its frames portrait.
+     The header takes the same figure, and that is the whole reason it is stated
+     once here rather than inlined on the row: the row is centred in the
+     section, so a header laid out to the page gutter instead started ~180px to
+     the left of the first photograph and read as a different block of the page.
+
+     `min()` against 100% is the narrow-screen escape. Under that width the
+     columns come out narrower than 0.75H and the frames simply end up shorter
+     than `--hv2-trend-frame`, which is the safe direction to be wrong in. The
+     percentage resolves against whichever element uses it, and both users are
+     children of the same flex column — so the two resolve identically. */
+  --hv2-trend-measure: min(100%, calc(var(--hv2-trend-frame) * 3 + var(--hv2-trend-gap) * 3));
+
+  background: var(--hv2-surface);
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+
+  /* On the same vertical budget as everything else here, deliberately.
+
+     It was `4.2vw` — a WIDTH — so a wide-but-short window paid 60px of padding
+     out of a 620px screen and the section came out 11px taller than the one
+     screen it is supposed to be. Height in, height out. */
+  padding-block: clamp(28px, 5svh, 88px);
+  overflow: hidden;
+}
+
+/* Centred over the row, not laid out to the page gutter.
+   ---------------------------------------------------------------------------
+   The row is narrower than the section — its width is derived from the frame
+   height so the frames stay portrait — and it is centred in what is left. A
+   header on the gutter therefore sat well to the left of the first photograph,
+   with a wedge of empty ground between the two that made the heading read as
+   belonging to the section above rather than to the pictures under it.
+
+   Centred on the SAME measure the row uses, which is what makes the two read
+   as one block. `justify-items` handles the eyebrow and the heading's own
+   wrapper — <ScrollWords> renders a plain <div> around its heading, and a grid
+   item stretches by default, so `text-align` alone would centre the words
+   inside a box that still started at the left edge. */
+.hv2-trend__head {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  gap: clamp(8px, 0.8vw, 18px);
+  width: var(--hv2-trend-measure);
+  margin-inline: auto;
+  margin-bottom: clamp(24px, 2.6vw, 56px);
+}
+
+/* ONE line, deliberately — which is what pays for the size.
+
+   This is the one section on the route that has to hold a heading AND a full
+   row of photographs inside a single screen, and a second line of heading costs
+   ~60px of that budget. Spending it on the line that is here instead buys the
+   heading 4.3vw against `.hv2-h2`'s 4.9 — a step down from the page heading
+   rather than the two the section started at. The eyebrow above already says
+   what the row is, so a second line would only be repeating it. */
+.hv2-trend__title {
+  margin: 0;
+  font-size: clamp(32px, 4.3vw, 86px);
+}
+
+/* Centred on `--hv2-trend-measure`, the width derived from the frame height so
+   the frames stay portrait — see the property for the arithmetic. The header
+   above sits on the same figure. */
+.hv2-trend__row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--hv2-trend-gap);
+  align-items: start;
+  width: var(--hv2-trend-measure);
+  margin-inline: auto;
+}
+
+.hv2-trend__card {
+  min-width: 0;
+}
+
+/* The whole card is one link — the photograph, the name and the price all go to
+   the same place, so making a shopper find the one clickable word in it would
+   be an obstacle rather than a nicety. */
+.hv2-trend__link {
+  display: grid;
+  gap: clamp(8px, 0.8vw, 16px);
+  color: inherit;
+  text-decoration: none;
+}
+
+/* `aspect-ratio` rather than a height, so the frame shrinks with its column on
+   the narrow side of the width rule above instead of being cropped by it.
+   `position: relative` is load-bearing: `.product-photo` and `.product-blank`
+   are both `position: absolute; inset: 0`, which is what makes an
+   unphotographed piece hold exactly the same box as a shot one. */
+.hv2-trend__frame {
+  position: relative;
+  display: block;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  border-radius: var(--hv2-radius-card);
+  background: var(--hv2-surface-2);
+}
+
+.hv2-trend__frame .product-photo {
+  transition: transform 0.72s var(--hv2-ease);
+}
+
+.hv2-trend__link:hover .product-photo {
+  transform: scale(1.045);
+}
+
+/* The operator's own badge — "New", "Bestseller". */
+.hv2-trend__badge {
+  position: absolute;
+  z-index: 1;
+  top: clamp(8px, 0.6vw, 14px);
+  left: clamp(8px, 0.6vw, 14px);
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--hv2-solid-bg);
+  color: var(--hv2-solid-fg);
+  font-size: clamp(9px, 0.55vw, 11px);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.hv2-trend__meta {
+  display: grid;
+  gap: clamp(2px, 0.25vw, 6px);
+}
+
+.hv2-trend__descriptor {
+  font-size: clamp(11px, 0.68vw, 13px);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--hv2-muted);
+}
+
+.hv2-trend__name {
+  font-size: clamp(16px, 1.18vw, 25px);
+  line-height: 1.18;
+  letter-spacing: -0.02em;
+  font-weight: 500;
+  color: var(--hv2-ink);
+}
+
+.hv2-trend__price {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  margin-top: clamp(1px, 0.15vw, 4px);
+  font-size: clamp(14px, 0.92vw, 18px);
+  color: var(--hv2-ink-soft);
+}
+
+.hv2-trend__price strong {
+  font-weight: 500;
+}
+
+.hv2-trend__price s {
+  color: var(--hv2-muted-2);
+  font-size: 0.88em;
+}
+
+/* Two up, and the one-screen rule is dropped with them. */
+@media (max-width: 900px) {
+  .hv2-trend {
+    /* Two rows of frames cannot fit a phone-shaped viewport alongside a
+       heading, and squeezing them until they do would leave four thumbnails.
+       The section scrolls here, like the grid below it does at the same width.
+
+       The measure goes with it: at two columns the row is the full width of the
+       shell, so the header — which reads the same property — follows it out to
+       the gutter and stays centred over it. */
+    --hv2-trend-measure: 100%;
+
+    min-height: 0;
+    display: block;
+    padding-block: clamp(56px, 8vw, 96px);
+  }
+
+  .hv2-trend__row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .hv2-trend__row { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ---------------------------------------------------------------------------
+   This season — the pieces the shop is currently selling.
+
+   It replaced the pinned collections row: three authored chapter cards inside a
+   300svh runway, with a white copy panel that shuffled between them. That was a
+   lot of scroll and a lot of machinery to show three things nobody could buy,
+   and the panel — a bright slab in the middle of a dark page — took the eye off
+   the photographs beside it. Nothing here pins and nothing shuffles.
+
+   It is laid out on the trending rail's system, not on its own: same frame
+   height derived from the viewport, same measure derived from that height, same
+   centred header over it. Two product rows on one page that size and align
+   their cards differently read as two different shops; the same geometry twice
+   reads as one. Its own custom properties rather than the rail's, so either
+   section can be retuned without moving the other.
+   ------------------------------------------------------------------------ */
+.hv2-season {
+  /* The frame's height, and the section's whole scale.
+
+     The rail's figure, for the reason above — at 50svh the heading, the three
+     lines under each card and the block padding leave the section a little
+     under one screen. The floor keeps the frames usable on a short laptop in
+     landscape; the ceiling stops them turning into billboards on a tall
+     monitor. This is what stops a card being half the viewport tall, which is
+     what the section looked like when the grid was laid out to the page gutter
+     and sized itself off the available width instead. */
+  --hv2-season-frame: clamp(200px, 50svh, 470px);
+  --hv2-season-gap: clamp(12px, 1.4vw, 30px);
+
+  /* The measure the heading and the photographs SHARE.
+
+     A 3/4 frame at height H is 0.75H wide, so four of them plus three gaps is
+     3H + 3 gaps — the width the row needs to keep its frames portrait. The
+     header takes the same figure, which is the whole reason it is stated once
+     here: the row is centred in the section, so a header laid out to the page
+     gutter starts well to the left of the first photograph and reads as a
+     different block of the page.
+
+     `min()` against 100% is the narrow-screen escape. Under that width the
+     columns come out narrower than 0.75H and the frames end up shorter than
+     `--hv2-season-frame`, which is the safe direction to be wrong in. */
+  --hv2-season-measure: min(100%, calc(var(--hv2-season-frame) * 3 + var(--hv2-season-gap) * 3));
+
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 100svh;
+  padding-block: clamp(40px, 4.2vw, 96px);
+  overflow: hidden;
+}
+
+/* Centred over the row, not laid out to the page gutter — see the measure.
+   `justify-items` handles the eyebrow and the heading's own wrapper, because
+   <ScrollWords> renders a plain <div> around its heading and a grid item
+   stretches by default: `text-align` alone would centre the words inside a box
+   that still started at the left edge. */
+.hv2-season__head {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  gap: clamp(8px, 0.8vw, 18px);
+  width: var(--hv2-season-measure);
+  margin-inline: auto;
+  margin-bottom: clamp(24px, 2.6vw, 56px);
+}
+
+/* One line, deliberately — the same trade the rail's heading makes. Two lines
+   of the page heading cost ~110px, and this section has to hold a heading AND a
+   full row of photographs inside a single screen. The eyebrow above it already
+   says what the row is. */
+.hv2-season__title {
+  margin: 0;
+  font-size: clamp(30px, 3.9vw, 78px);
+}
+
+.hv2-season__row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--hv2-season-gap);
+  align-items: start;
+  width: var(--hv2-season-measure);
+  margin-inline: auto;
+}
+
+/* The whole card is one link — the photograph, the name and the price all go to
+   the same place, so making a shopper find the one clickable word in it would
+   be an obstacle rather than a nicety. */
+.hv2-season__link {
+  display: grid;
+  gap: clamp(8px, 0.8vw, 16px);
+  color: inherit;
+  text-decoration: none;
+}
+
+.hv2-season__frame {
+  position: relative;
+  display: block;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  border-radius: var(--hv2-radius-card);
+  background: var(--hv2-surface-2);
+}
+
+/* `.product-photo` and `.product-blank` are both `position: absolute; inset: 0`
+   inside the frame, which is what makes an unphotographed piece hold exactly
+   the same box as a shot one. */
+.hv2-season__frame .product-photo {
+  transition: transform 0.72s var(--hv2-ease);
+}
+
+.hv2-season__link:hover .product-photo {
+  transform: scale(1.045);
+}
+
+/* The operator's own badge — "New", "Bestseller". */
+.hv2-season__badge {
+  position: absolute;
+  z-index: 1;
+  top: clamp(8px, 0.6vw, 14px);
+  left: clamp(8px, 0.6vw, 14px);
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: var(--hv2-solid-bg);
+  color: var(--hv2-solid-fg);
+  font-size: clamp(9px, 0.55vw, 11px);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.hv2-season__meta {
+  display: grid;
+  gap: clamp(2px, 0.25vw, 6px);
+}
+
+.hv2-season__descriptor {
+  font-size: clamp(10px, 0.62vw, 12px);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--hv2-muted);
+}
+
+.hv2-season__name {
+  font-size: clamp(15px, 1.02vw, 21px);
+  line-height: 1.2;
+  letter-spacing: -0.018em;
+  font-weight: 500;
+  color: var(--hv2-ink);
+}
+
+.hv2-season__price {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: clamp(13px, 0.83vw, 16px);
+  color: var(--hv2-ink-soft);
+}
+
+.hv2-season__price strong {
+  font-weight: 500;
+}
+
+.hv2-season__price s {
+  color: var(--hv2-muted-2);
+  font-size: 0.88em;
+}
+
+/* The way out of the section, centred under the row rather than parked in the
+   header. The header is the rail's — an eyebrow over one line of heading, and
+   nothing else — and a link hung off its right edge is what stopped it being
+   that. Below the pictures it also sits where a reader who has looked at all
+   four actually ends up. */
+.hv2-season__all {
+  /* `align-self`, not `justify-self`: the section is a flex COLUMN, so the
+     cross axis is the horizontal one. `justify-self` does nothing to a flex
+     item, which left the anchor stretched the full width of the page with its
+     underline running edge to edge. */
+  align-self: center;
+  margin-top: clamp(22px, 2.4vw, 52px);
+  font-size: clamp(11px, 0.72vw, 14px);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--hv2-ink-soft);
+  text-decoration: none;
+  padding-bottom: 3px;
+  border-bottom: 1px solid var(--hv2-hairline);
+  transition: color 0.3s var(--hv2-ease), border-color 0.3s var(--hv2-ease);
+}
+
+.hv2-season__all:hover {
+  color: var(--hv2-ink);
+  border-bottom-color: currentColor;
+}
+
+@media (max-width: 1024px) {
+  /* Two up rather than four, and the section stops trying to hold everything
+     inside one screen — with two rows of cards it cannot, and forcing it only
+     crops them. */
+  .hv2-season { min-height: 0; }
+  .hv2-season__row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .hv2-season__head { width: 100%; }
+}
+
+@media (max-width: 520px) {
+  /* Still two up. A single column of 3/4 frames is a card per screen and four
+     screens of scroll for one section; two keeps the row inside a flick, which
+     is how a phone reads a grid. */
+  .hv2-season__row { gap: clamp(16px, 4vw, 24px) clamp(9px, 2.6vw, 14px); }
 }

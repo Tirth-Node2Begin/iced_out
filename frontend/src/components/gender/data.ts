@@ -4,8 +4,8 @@
  * The storefront fixtures (`features/02-products`) carry four hero SKUs and a
  * sprite sheet — enough for a PDP, not enough to fill three editorial grids.
  * This module is the listing's own copy deck and shot list; it deliberately
- * does NOT touch `product-fixtures.ts`, so /sale, /new-drop, /search and the
- * PDPs keep quoting the same catalogue they always have.
+ * does NOT touch `product-fixtures.ts`, so /new-drop and the detail pages keep
+ * quoting the same catalogue they always have.
  *
  * IMAGERY. Only five photographs ship in /public/images, so every tile is a
  * *crop* of one of them rather than a fifth reuse of the same framing. A crop
@@ -304,13 +304,15 @@ export type AudienceContent = {
   label: string;
 
   hero: {
-    /** the headline, split into the heavy cut and the light extended tail */
+    /** the kicker above the headline — release, then audience */
+    eyebrow: string;
+    /** the headline, split into the heavy cut and its dimmed tail */
     heavy: string;
     light: string;
     sub: string;
     primary: { label: string; href: string };
     secondary: { label: string; href: string };
-    /** three columns, cycled into an infinite marquee */
+    /** three columns, cycled into an infinite marquee across the wall */
     columns: HeroTile[][];
   };
 
@@ -412,9 +414,10 @@ export const MEN: AudienceContent = {
   pieces: MEN_PIECES,
 
   hero: {
-    heavy: "Built for the Men Who ",
-    light: "Move After Dark",
-    sub: "Heavyweight silhouettes, engineered volume and utility layers cut for the hours between midnight and morning. Numbered, limited, never restocked.",
+    eyebrow: "Drop 001 · Menswear",
+    heavy: "Nothing Here ",
+    light: "Comes Back.",
+    sub: "520 GSM fleece, four-pocket canvas, articulated cargo. Built with the heft left in.",
     primary: { label: "Shop the Edit", href: "#gx-edit" },
     secondary: { label: "Explore Lookbook", href: "#gx-lookbook" },
     columns: HERO_COLUMNS_MEN,
@@ -539,9 +542,10 @@ export const WOMEN: AudienceContent = {
   pieces: WOMEN_PIECES,
 
   hero: {
-    heavy: "Structured Volume for the Women Who ",
-    light: "Set the Pace",
-    sub: "Deliberate proportion, uncompromising monochrome and layers built to hold their shape. Cut once, numbered, and released in a single run.",
+    eyebrow: "Drop 001 · Womenswear",
+    heavy: "Nothing Here ",
+    light: "Comes Back.",
+    sub: "Drape-cut trousers, clean-collar canvas, dropped-shoulder fleece. Volume that stays where it is put.",
     primary: { label: "Shop the Edit", href: "#gx-edit" },
     secondary: { label: "Explore Lookbook", href: "#gx-lookbook" },
     columns: HERO_COLUMNS_WOMEN,
@@ -667,7 +671,8 @@ export const FOOT_COLUMNS = [
       { label: "Men", href: "/new-man" },
       { label: "Women", href: "/new-woman" },
       { label: "New drop", href: "/new-drop" },
-      { label: "Sale", href: "/sale" },
+      /* "Sale" sat here and pointed at /sale, which no longer exists. The
+         Shop column is the three destinations that do. */
     ],
   },
   {
@@ -683,9 +688,15 @@ export const FOOT_COLUMNS = [
     title: "Studio",
     links: [
       { label: "About", href: "/about" },
-      { label: "Collections", href: "/collections" },
+      /* "Collections" sat here and pointed at /collections, which no longer
+         exists. It is not replaced with /new-drop: the Shop column above
+         already carries that, and a footer naming one destination twice is
+         worse than a column of three. */
       { label: "Wishlist", href: "/wishlist" },
-      { label: "Search", href: "/search" },
+      /* "Search" pointed at /search, which is gone — searching is the header's
+         dock now (`nav/search-dock`), reachable from every page, so there is
+         nothing for a footer link to open. */
+      { label: "Track order", href: "/track" },
     ],
   },
 ];

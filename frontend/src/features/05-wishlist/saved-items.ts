@@ -4,8 +4,8 @@
  * The wishlist stores ids and nothing else, and this shop has two catalogues
  * that can produce one:
  *
- * - the four storefront fixtures behind `/product/[slug]`, saved from the
- *   `<ProductCard>` heart (`features/02-products`);
+ * - the four catalogue fixtures, saved from the `<ProductCard>` heart
+ *   (`features/02-products`);
  * - the forty listing tiles behind /new-drop, /women, /new-man and /new-woman,
  *   each of which is a display layer over one of those four fixtures
  *   (`components/gender/data`).
@@ -30,7 +30,7 @@
 import { CATEGORIES, MEN, WOMEN, type Piece } from "@/components/gender/data";
 import { frameFor, productFor, sizesFor, type Frame } from "@/components/new-man/data";
 import { productSlug } from "@/components/new-man/product-deck";
-import type { Product, ProductImagePosition } from "@/features/02-products";
+import { productPieceHref, type Product, type ProductImagePosition } from "@/features/02-products";
 
 /**
  * How the piece is drawn.
@@ -68,7 +68,7 @@ export type SavedItem = {
 
 const PIECES: Piece[] = [...MEN.pieces, ...WOMEN.pieces];
 
-/** Only the men's release has per-piece routes — see `new-man/[slug]`. */
+/** Which floor a tile is on — it decides which detail route the row opens. */
 const MEN_IDS = new Set(MEN.pieces.map((piece) => piece.id));
 
 function categoryLabel(category: Piece["category"]) {
@@ -80,7 +80,7 @@ function fromProduct(product: Product): SavedItem {
     id: product.id,
     name: product.name,
     meta: `${product.category} · ${product.color}`,
-    href: `/product?slug=${product.slug}`,
+    href: productPieceHref(product),
     price: product.price,
     compareAtPrice: product.compareAtPrice,
     badge: product.badge,
@@ -101,12 +101,13 @@ function fromPiece(piece: Piece, catalogue: Product[]): SavedItem {
     id: piece.id,
     name: piece.name,
     meta: `${categoryLabel(piece.category)} · ${piece.tag}`,
-    /* A men's tile has a page of its own; a women's one does not, so it falls
-       back to the storefront PDP for the fixture it stands for — exactly where
-       the tile on /women already points. */
+    /* Each floor has its own detail route, and a tile opens the one it is
+       listed on — the same rule its grid and the lookbook row under it keep.
+       The storefront PDP this used to fall back to for women's tiles is
+       gone. */
     href: MEN_IDS.has(piece.id)
       ? `/new-man/piece?slug=${productSlug(piece)}`
-      : `/product?slug=${piece.slug}`,
+      : `/new-woman/piece?slug=${productSlug(piece)}`,
     /* The tile's own price, NOT `pricingFor` — that is /new-man's page-local
        demo discount and says so in its own doc comment. */
     price: piece.price,

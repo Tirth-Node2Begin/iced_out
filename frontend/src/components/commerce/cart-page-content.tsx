@@ -6,7 +6,7 @@ import Link from "next/link";
 import { CouponField } from "@/components/commerce/coupon-field";
 import { ProductImage } from "@/components/commerce/product-image";
 import { PageFrame } from "@/components/layout/page-frame";
-import { formatPrice } from "@/features/02-products";
+import { formatPrice, productPieceHref } from "@/features/02-products";
 import { useCart } from "@/features/04-cart/cart-context";
 import { useCheckoutModal } from "@/features/04-cart/checkout-modal-context";
 import { useStorefrontConfig } from "@/features/04-cart/storefront-config";
@@ -72,7 +72,7 @@ export function CartPageContent() {
                 <Link
                   aria-label={`View ${line.product.name}`}
                   className="io-line__media"
-                  href={`/product?slug=${line.product.slug}`}
+                  href={productPieceHref(line.product)}
                 >
                   <ProductImage
                     alt={line.product.name}
@@ -83,7 +83,7 @@ export function CartPageContent() {
 
                 <div className="io-line__body">
                   <h2 className="io-line__name">
-                    <Link href={`/product?slug=${line.product.slug}`}>{line.product.name}</Link>
+                    <Link href={productPieceHref(line.product)}>{line.product.name}</Link>
                   </h2>
 
                   <p className="io-line__meta">

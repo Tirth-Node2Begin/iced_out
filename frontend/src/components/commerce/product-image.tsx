@@ -1,3 +1,7 @@
+"use client";
+
+import { useState } from "react";
+
 import type { ProductImagePosition } from "@/features/02-products";
 
 /* The component's own rules, imported here rather than left to whichever
@@ -42,12 +46,36 @@ export function ProductImage({
   className = "",
   fallback = "none",
 }: ProductImageProps) {
-  if (src) {
+  /**
+   * A photograph whose URL does not resolve.
+   *
+   * `src` being set means the product row NAMES a media asset; it does not mean
+   * the file is there. A `media_assets` row can outlive its file — a storage
+   * directory that was not copied between environments, an asset pruned behind
+   * the catalogue's back — and the browser's answer to that is the broken-image
+   * glyph and the alt text, drawn at whatever size the frame gives it. In a
+   * full-bleed card that is a wrecked tile, and it says "this page is broken"
+   * rather than the truth, which is "this photograph is missing".
+   *
+   * So a failed load falls through to the same branches an unphotographed piece
+   * takes below. Keyed by `src` so a card that is reused for another product —
+   * the shuffling seasonal row does exactly this — retries rather than
+   * inheriting the previous piece's failure.
+   */
+  const [failed, setFailed] = useState("");
+
+  if (src && failed !== src) {
     return (
       /* A plain <img>: the src is a runtime API URL, which the static export's
          image optimiser has no build-time way to resolve. */
       /* eslint-disable-next-line @next/next/no-img-element */
-      <img alt={alt} className={`product-photo ${className}`} loading="lazy" src={src} />
+      <img
+        alt={alt}
+        className={`product-photo ${className}`}
+        loading="lazy"
+        onError={() => setFailed(src)}
+        src={src}
+      />
     );
   }
 

@@ -34,12 +34,27 @@ export function BottomSheet({
   open,
   onClose,
   label,
+  dock = "bottom",
   children,
 }: {
   open: boolean;
   onClose: () => void;
   /** Names the dialog for assistive tech — the sheets have no visible title. */
   label: string;
+  /**
+   * Which edge the panel is anchored to.
+   *
+   * The menu keeps the bottom, where the thumb is and where a list of
+   * destinations reads naturally. Search takes the top: the field is the thing
+   * being used, and docking it down put it under the on-screen keyboard on a
+   * phone and at the far edge of the screen from the glyph that opened it on a
+   * desktop. Anchoring up also lets the results run DOWN the page in reading
+   * order rather than growing backwards out of the field.
+   *
+   * Only the anchor changes — the surface, the scrim, the motion curve and the
+   * focus trap are one implementation for both.
+   */
+  dock?: "top" | "bottom";
   children: ReactNode;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
@@ -101,10 +116,17 @@ export function BottomSheet({
 
   if (!mounted) return null;
 
+  const offscreen = dock === "top" ? "-100%" : "100%";
+
   return createPortal(
     <AnimatePresence>
       {open && (
-        <div aria-label={label} aria-modal="true" className="io-dock" role="dialog">
+        <div
+          aria-label={label}
+          aria-modal="true"
+          className={`io-dock io-dock--${dock}`}
+          role="dialog"
+        >
           <motion.div
             animate={{ opacity: 1 }}
             className="io-dock__scrim"
@@ -113,11 +135,14 @@ export function BottomSheet({
             onClick={onClose}
             transition={{ duration: 0.32, ease: EASE_OUT }}
           />
+          {/* The panel slides in from the edge it is docked to, so the motion and
+              the anchor always agree — a top sheet that rose from the bottom would
+              read as the wrong surface arriving. */}
           <motion.div
             animate={{ y: 0 }}
             className="io-dock__panel"
-            exit={{ y: "100%", transition: { duration: 0.3, ease: EASE_OUT } }}
-            initial={{ y: "100%" }}
+            exit={{ y: offscreen, transition: { duration: 0.3, ease: EASE_OUT } }}
+            initial={{ y: offscreen }}
             ref={panelRef}
             transition={{ duration: 0.52, ease: EASE_OUT }}
           >

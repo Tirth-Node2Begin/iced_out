@@ -6,6 +6,8 @@ import type { ReactNode } from "react";
    load on this route and nowhere else. */
 import "@/styles/contact.css";
 
+import { SmoothScroll } from "@/components/new-home/smooth-scroll";
+
 export const metadata: Metadata = {
   title: "Contact",
   description:
@@ -13,5 +15,10 @@ export const metadata: Metadata = {
 };
 
 export default function ContactLayout({ children }: { children: ReactNode }) {
-  return children;
+  /* Lenis, the same instance About runs: this page is three tall plates read in
+     one pass, and the eased position is what stops the channel row and the FAQ
+     arriving in wheel-sized steps. It mounts here rather than in the
+     `(storefront)` layout so only this route pays for it, and it disables
+     itself outright under prefers-reduced-motion. */
+  return <SmoothScroll>{children}</SmoothScroll>;
 }

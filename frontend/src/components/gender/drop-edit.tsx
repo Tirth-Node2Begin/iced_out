@@ -27,7 +27,7 @@ import { scrollToHash } from "@/lib/in-page-scroll";
  * eight at a time.
  *
  * It used to show the first eight and nothing else, with a foot pill handing
- * anyone who wanted the rest to `/collections/view?slug=drop-001` — so the
+ * anyone who wanted the rest off to the collection listing — so the
  * filter rail was a promise the grid could not keep: narrowing to Outerwear
  * still showed eight of them and sent you somewhere unfiltered for the ninth.
  * The pager keeps the whole release on this page, inside the filter.

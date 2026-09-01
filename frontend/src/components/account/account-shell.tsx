@@ -21,11 +21,9 @@ import { PageFrame } from "@/components/layout/page-frame";
 import { formatPrice } from "@/features/02-products/utils/format-price";
 import { useProfile } from "@/features/01-users/profile-context";
 import { useOrders } from "@/features/07-orders/orders-context";
-import { useCart } from "@/features/04-cart/cart-context";
 import { isClaimed } from "@/features/10-coupons/vouchers";
 import { useVouchers } from "@/features/10-coupons/vouchers-context";
 import { useWallet } from "@/features/21-wallet/wallet-context";
-import { useWishlist } from "@/features/05-wishlist/wishlist-context";
 
 /**
  * The frame every `/account` route is served in.
@@ -110,8 +108,6 @@ function isCurrent(href: string, pathname: string) {
 
 export function AccountShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { itemCount } = useCart();
-  const { productIds: saved } = useWishlist();
   const { orders } = useOrders();
   const { profile } = useProfile();
   const { vouchers } = useVouchers();
@@ -127,21 +123,16 @@ export function AccountShell({ children }: { children: ReactNode }) {
   };
 
   return (
-    <PageFrame
-      back={backFor(pathname)}
-      eyebrow="Profile"
-      spec={[
-        /* Three numbers the app can actually prove — two of them live. */
-        { label: "Orders", value: String(orders.length).padStart(2, "0") },
-        { label: "In bag", value: String(itemCount).padStart(2, "0") },
-        { label: "Saved", value: String(saved.length).padStart(2, "0") },
-      ]}
-      title={
-        <>
-          Your <em>profile</em>
-        </>
-      }
-    >
+    /* No masthead: the account already opens with a header, and it is a better
+       one — the identity banner below prints the shopper's name, their photo
+       and the account's state. A 6rem "YOUR PROFILE" above it was the screen
+       naming itself over a card that names the person, and it cost a full
+       screen-height before the first thing anyone came here to read. The frame
+       still owns the gutter, the back link and the band; it just starts with
+       the content now. The three counts it used to print are each a row in the
+       rail (orders, wallet, vouchers) or the number in the bar's own bag and
+       wishlist badges. */
+    <PageFrame back={backFor(pathname)}>
       {/* Who the session belongs to, across the full width above everything
           else. It is the banner of the account rather than a card in the
           profile tab's column: the rail beside it prints the house, and the

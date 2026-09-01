@@ -125,7 +125,6 @@ export function StaffLoginPage() {
               <span>Work email</span>
               <input
                 autoComplete="username"
-                defaultValue="admin@iced-out.example"
                 id="admin-email"
                 name="email"
                 placeholder="you@iced-out.example"
@@ -139,7 +138,6 @@ export function StaffLoginPage() {
               <span>Password</span>
               <input
                 autoComplete="current-password"
-                defaultValue="preview1"
                 id="admin-password"
                 minLength={6}
                 name="password"

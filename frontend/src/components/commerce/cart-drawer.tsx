@@ -44,7 +44,7 @@ export function CartDrawer() {
           </div>
 
           {lines.length === 0 ? (
-            <div className="io-drawer__body">
+            <div className="io-drawer__body" data-lenis-prevent>
               <div className="io-empty">
                 <div className="io-empty__copy">
                   <span className="io-empty__glyph">
@@ -63,7 +63,10 @@ export function CartDrawer() {
             </div>
           ) : (
             <>
-              <div className="io-drawer__body">
+              {/* The drawer opens over routes Lenis drives, and it does not lock the
+                  document the way the size guide does. `data-lenis-prevent` is what
+                  hands the wheel to the lines instead of the page under them. */}
+              <div className="io-drawer__body" data-lenis-prevent>
                 <div className="io-lines">
                   {lines.map((line) => (
                     <article className="io-line" key={`${line.product.id}-${line.size}`}>

@@ -3,16 +3,6 @@
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, type ReactNode } from "react";
 
-function getRouteLabel(pathname: string) {
-  if (pathname === "/") return "Current transmission";
-  return pathname
-    .split("/")
-    .filter(Boolean)
-    .slice(-2)
-    .map((part) => part.replaceAll("-", " "))
-    .join(" / ");
-}
-
 export function RouteExperience({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const progressRef = useRef<HTMLDivElement>(null);
@@ -45,11 +35,6 @@ export function RouteExperience({ children }: { children: ReactNode }) {
         className="route-progress"
         ref={progressRef}
       />
-      <div aria-hidden="true" className="route-beacon">
-        <i />
-        <span>{getRouteLabel(pathname)}</span>
-        <b>ICE / 026</b>
-      </div>
       <div>{children}</div>
     </>
   );

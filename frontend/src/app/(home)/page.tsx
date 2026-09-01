@@ -2,16 +2,31 @@ import { AboutCraft } from "@/components/about/about-craft";
 import { CopyProvider } from "@/components/home-v2/copy";
 import { FashionHero } from "@/components/home-v2/fashion-hero";
 import { ROOT_COPY } from "@/components/home-v2/home-copy";
-import { Highlights } from "@/components/home-v2/highlights";
 import { Philosophy } from "@/components/home-v2/philosophy";
+import { Seasonal } from "@/components/home-v2/seasonal";
 import { Testimonials } from "@/components/home-v2/testimonials";
+import { Trending } from "@/components/home-v2/trending";
 import { SiteFooter } from "@/components/layout/site-footer";
 
 /**
  * The site root — the Auren studio page, rebuilt from video-frames-2/
  * (03365516…mp4). Section order follows the capture's scroll order, minus the
- * awards and selected-clients sections:
- *   hero → philosophy → craft → collections → testimonials → footer
+ * awards and selected-clients sections, plus one section the capture has no
+ * equivalent for:
+ *   hero → philosophy → TRENDING → craft → THIS SEASON → testimonials → footer
+ *
+ * The collections slot is the second exception. It ran three authored chapter
+ * cards — Drop 001, After Hours, Core Uniform — whose names, paragraphs and
+ * photographs were all written into `home-copy.ts`, pinned inside a 300svh
+ * runway, with no path from any of them to a piece a shopper could buy. It is
+ * a plain grid of published products now, so what stands on the front door is
+ * the catalogue rather than copy about it.
+ *
+ * The trending rail is the exception to "follows the capture": the capture is a
+ * design studio's site and has nothing to sell. This one does, and the root
+ * route had no path to a product on it at all — the argument for the cloth ran
+ * straight into the account of how it is made. It reads the register rather
+ * than a curated list; see `trending.tsx`.
  *
  * The capture's manifesto panel is no longer drawn here. Its statement was the
  * one line on the page that had to be read before anything else, and a
@@ -46,12 +61,23 @@ export default function HomePage() {
         <main id="main-content">
           <FashionHero />
           <Philosophy />
+          {/* What is actually selling, between the argument for the cloth and
+              the account of how it is made. Reads `GET /catalog/trending`, so
+              the four pieces are whatever the register says they are — there is
+              no list in this file to keep up to date. See `trending.tsx`. */}
+          <Trending />
           {/* Drawn from `.nh-*` rather than `.hv2`, so it needs the scope that
               declares those tokens around it — see `.nh-root.nh-about-embed`. */}
           <div className="nh-root nh-about-embed">
             <AboutCraft />
           </div>
-          <Highlights />
+          {/* This season's pieces, where the three authored collection cards
+              used to be pinned. Those named three chapters and linked to none
+              of them; this is a plain grid of published products, and which of
+              them counts as the season is answered by the backend rather than
+              by a list in this repo. See `seasonal.tsx`. /about and /home-v2
+              keep <Highlights> and its authored chapters. */}
+          <Seasonal />
           <Testimonials />
         </main>
       </CopyProvider>

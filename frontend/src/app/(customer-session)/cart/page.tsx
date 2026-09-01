@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { CartPageContent } from "@/components/commerce/cart-page-content";
+import { SmoothScroll } from "@/components/new-home/smooth-scroll";
 
 export const metadata: Metadata = { title: "Bag", robots: { index: false, follow: false } };
 
@@ -11,5 +12,12 @@ export const metadata: Metadata = { title: "Bag", robots: { index: false, follow
    the route rules — and the session is asked for at checkout, one press later,
    where it is actually needed. */
 export default function CartPage() {
-  return <CartPageContent />;
+  /* Lenis, the same instance About runs. It drives the window rather than any
+     element, so mounting it around the content here is the whole of it — no
+     layout file needed for one route. Off under prefers-reduced-motion. */
+  return (
+    <SmoothScroll>
+      <CartPageContent />
+    </SmoothScroll>
+  );
 }

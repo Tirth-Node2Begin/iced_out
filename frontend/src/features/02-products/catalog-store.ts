@@ -73,3 +73,61 @@ export function loadCatalog(): Promise<Product[]> {
 export function heldProducts(): Product[] {
   return catalogStore.peek().data;
 }
+
+/**
+ * How many ranked rows the trending rail asks for.
+ *
+ * More than the four the home page draws, on purpose: the rail alternates men
+ * and women down its four slots, so it needs enough of BOTH in the ranking to
+ * fill them. Four rows would leave a slot empty the moment the top four all
+ * happened to be menswear.
+ */
+export const TRENDING_LIMIT = 16;
+
+/**
+ * What is actually selling — `GET /catalog/trending`, ranked by the server.
+ *
+ * A store of its own rather than a sort applied to `catalogStore`, because the
+ * ORDER is the payload here: the ranking is computed from the order book (units
+ * shipped over a rolling window, returns taken back out) and the browser has no
+ * way to derive it from a product list. Reordering the catalogue client-side
+ * could only ever fake it.
+ *
+ * Rows are the same `Product` shape the catalogue returns, so everything that
+ * already renders a product — the card, the bag, the wishlist — works on these
+ * unchanged. The rank lives in the array's order and nowhere else.
+ */
+export const trendingStore = createRemoteStore<Product>(async () => {
+  const response = await publicClient.get<{ data: Product[] }>("/catalog/trending", {
+    params: { limit: TRENDING_LIMIT },
+  });
+  return response.data.data;
+});
+
+/**
+ * A live collection — the shop's chapters, in the operator's own order.
+ *
+ * `GET /catalog/collections` serves only the ones marked `Live`, so a chapter
+ * the console has scheduled but not announced is not in this list. `pieces` is
+ * how many products the collection holds, counted server-side.
+ */
+export type StoreCollection = {
+  slug: string;
+  name: string;
+  pieces: number;
+};
+
+/**
+ * The chapters the shop is currently running.
+ *
+ * A store of its own rather than something derived from the catalogue: the rows
+ * carry the operator's ORDERING (`collections.position`), which is what makes
+ * "the current chapter" a fact the console owns rather than a guess the browser
+ * makes from product data. Deriving the list by collecting distinct
+ * `product.collection` strings would lose that order, lose the empty chapters,
+ * and include ones that are not Live.
+ */
+export const collectionsStore = createRemoteStore<StoreCollection>(async () => {
+  const response = await publicClient.get<{ data: StoreCollection[] }>("/catalog/collections");
+  return response.data.data;
+});

@@ -136,12 +136,12 @@ curl -H "X-Client-Audience: public" -H "Content-Type: application/json" \
      -d '{"email":"shopper@example.com","password":"secret1"}' \
      http://127.0.0.1:8080/api/v1/auth/login
 curl -H "X-Client-Audience: public" -H "Content-Type: application/json" \
-     -d '{"email":"admin@iced-out.example","password":"preview1"}' \
+     -d '{"email":"admin@gmail.com","password":"admin123"}' \
      http://127.0.0.1:8080/api/v1/admin/auth/login
 ```
 
 Demo accounts (dev seed only): customer `shopper@example.com` / `secret1`,
-staff `admin@iced-out.example` / `preview1`.
+staff `admin@gmail.com` / `admin123`.
 
 ## Console
 

@@ -114,10 +114,30 @@
 
 /* ================================================================ 2. header */
 
+/* Every selector in this section is written one class deeper than it needs to
+   be — `.nh-nav-scope` on the descendants, doubled on the scope itself.
+   `new-home.css` declares the same bar at the same single-class specificity,
+   and both sheets are loaded on every route that mounts the header, so which
+   design won came down to which stylesheet the document happened to list last.
+   That is stable on a hard load (the layouts import new-home first, chrome
+   second) and NOT stable afterwards: the App Router appends the CSS chunk of
+   each new route to the document and never removes it, so the first
+   client-side navigation to a route that ships new-home.css without this file
+   — /about, /new-home, /new-man, /new-woman, /home-v2 — put a second copy of
+   the 92px bar after this one and the chrome routes silently adopted it.
+   On the site root that also opened an 18px band of page ground above the
+   hero, which pulls itself up by `--hv2-nav-h` (74px) rather than by whatever
+   the bar had grown to.
+
+   Specificity does not care about document order, so the extra class settles
+   it once: where chrome.css is loaded, chrome.css's bar is the bar. Routes
+   that never load it keep new-home's 92px bar exactly as before, because
+   nothing here reaches them. */
+
 /* The bar is sticky, so it keeps its own height in the flow and every page
    starts below it — no route has to remember a magic top padding. */
 .io-scope .nh-nav-scope,
-.nh-nav-scope {
+.nh-nav-scope.nh-nav-scope {
   --io-nav-h: 74px;
   --io-nav-plate: rgba(14, 15, 17, 0.74);
   --io-badge-ring: #101113;
@@ -126,7 +146,7 @@
   z-index: 80;
 }
 
-.nh-nav {
+.nh-nav-scope .nh-nav {
   position: relative;
   isolation: isolate;
 }
@@ -184,7 +204,7 @@
    the outer tracks refuse to shrink below their content and the bar overflows
    its own gutter the moment the viewport gets narrow — which is what pushed
    the wordmark off-screen and left the actions floating unanchored. */
-.nh-nav__inner {
+.nh-nav-scope .nh-nav__inner {
   position: relative;
   z-index: 2;
   display: grid;
@@ -195,7 +215,7 @@
   padding: 0 var(--nh-gutter);
 }
 
-.nh-nav__lead {
+.nh-nav-scope .nh-nav__lead {
   display: flex;
   min-width: 0;
   align-items: center;
@@ -203,7 +223,7 @@
   gap: 10px;
 }
 
-.nh-nav__brand {
+.nh-nav-scope .nh-nav__brand {
   display: inline-flex;
   min-width: 0;
   align-items: center;
@@ -212,12 +232,12 @@
   color: var(--nh-ink);
 }
 
-.nh-nav__mark {
+.nh-nav-scope .nh-nav__mark {
   width: 19px;
   height: 19px;
 }
 
-.nh-nav__wordmark {
+.nh-nav-scope .nh-nav__wordmark {
   overflow: hidden;
   font-size: 17px;
   font-weight: 500;
@@ -227,12 +247,12 @@
 }
 
 /* ---- 2.3 centre rail ---------------------------------------------------- */
-.nh-nav__rail {
+.nh-nav-scope .nh-nav__rail {
   min-width: 0;
   padding: 4px;
 }
 
-.nh-nav__pill {
+.nh-nav-scope .nh-nav__pill {
   height: 34px;
   padding: 0 14px;
   font-size: 12px;
@@ -241,7 +261,7 @@
 
 /* Matched to the icon row rather than standing a step taller than it — the two
    groups sit on one baseline now, which is most of what read as "unaligned". */
-.nh-nav__pill--solid {
+.nh-nav-scope .nh-nav__pill--solid {
   height: 38px;
   padding: 0 19px;
   font-size: 11.5px;
@@ -251,7 +271,7 @@
 }
 
 /* ---- 2.5 actions -------------------------------------------------------- */
-.nh-nav__actions {
+.nh-nav-scope .nh-nav__actions {
   display: flex;
   min-width: 0;
   align-items: center;
@@ -259,13 +279,13 @@
   gap: 8px;
 }
 
-.nh-nav__icons {
+.nh-nav-scope .nh-nav__icons {
   display: flex;
   align-items: center;
   gap: 2px;
 }
 
-.nh-nav__icon {
+.nh-nav-scope .nh-nav__icon {
   width: 38px;
   height: 38px;
 }
@@ -275,7 +295,7 @@
    rather than a smudge across it — the badge is the one lit thing in the group
    and it has to survive both the transparent bar and the frosted plate.
    Absolute, so a count arriving after hydration never re-flows the row. */
-.nh-nav__badge {
+.nh-nav-scope .nh-nav__badge {
   top: 1px;
   right: 0;
   min-width: 17px;
@@ -303,28 +323,28 @@
    in full inside the sheet, so dropping it costs nothing a menu button doesn't
    give back. */
 @media (max-width: 1179px) {
-  .nh-nav__inner {
+  .nh-nav-scope .nh-nav__inner {
     grid-template-columns: minmax(0, 1fr) auto;
   }
 
-  .nh-nav__rail {
+  .nh-nav-scope .nh-nav__rail {
     display: none;
   }
 }
 
 @media (max-width: 860px) {
-  .nh-nav-scope,
+  .nh-nav-scope.nh-nav-scope,
   .io-scope .nh-nav-scope {
     --io-nav-h: 62px;
   }
 
-  .nh-nav__icon,
+  .nh-nav-scope .nh-nav__icon,
   .io-nav__menu {
     width: 36px;
     height: 36px;
   }
 
-  .nh-nav__pill--solid {
+  .nh-nav-scope .nh-nav__pill--solid {
     height: 36px;
     padding: 0 15px;
     font-size: 11px;
@@ -332,15 +352,15 @@
 }
 
 @media (max-width: 620px) {
-  .nh-nav__wordmark {
+  .nh-nav-scope .nh-nav__wordmark {
     font-size: 15px;
   }
 
-  .nh-nav__actions {
+  .nh-nav-scope .nh-nav__actions {
     gap: 5px;
   }
 
-  .nh-nav__icons {
+  .nh-nav-scope .nh-nav__icons {
     gap: 0;
   }
 }
@@ -577,6 +597,17 @@
 /* One frame behind the bag, the wishlist and the profile, so the three screens
    the bar points at open the same way: eyebrow, one-line title, a short spec
    row, then the content. */
+.io-page,
+/* `.io-band` is the opt-in for a header that wants this band without the rest
+   of the frame. /contact is the case: it wears the masthead classes but not
+   `.io-page`, because that bundles the body padding of a frame owning a whole
+   screen, and that header owns only the top of one. */
+.io-band {
+  /* one height and one column pitch for both band layers to agree on */
+  --io-band-h: clamp(460px, 56vw, 760px);
+  --io-band-cell: clamp(58px, 6vw, 96px);
+}
+
 .io-page {
   position: relative;
   isolation: isolate;
@@ -585,22 +616,96 @@
   overflow-x: clip;
 }
 
-/* The hero band, sunk below the page rather than lit above it. A headline this
-   size wants a darker floor than the content under it — the drop into black at
-   the top and the recovery to --nh-surface by the time the body starts is what
-   separates the masthead from the page without drawing a rule across it.
-   The faint bloom on top of that black keeps the centre from going dead flat.
-   It starts behind the sticky bar so the bar dissolves into the band. */
-.io-page::before {
+/* THE HERO BAND
+   ---------------------------------------------------------------------------
+   Sunk below the page rather than lit above it. A headline this size wants a
+   darker floor than the content under it — the drop into black at the top and
+   the recovery to --nh-surface by the time the body starts is what separates
+   the masthead from the page without drawing a rule across it. It starts
+   behind the sticky bar so the bar dissolves into the band.
+
+   That black used to be the whole of it, and on a wide screen it read as what
+   it was: a flat black rectangle with a headline sitting on it. Two layers now:
+
+     ::before  the ground and the light — the same drop into black, with a cold
+               steel bloom on the centre axis behind the headline and two
+               dimmer ones set off it. The tint is the house steel the home
+               hero lights its horizon with, held under a fifth of an alpha so
+               it reads as light in the room, not as colour on a dark page.
+     ::after   the field — a measured grid at hairline strength, masked from
+               the centre out so it is at full strength under the type and gone
+               before it reaches an edge and turns into wallpaper, with the
+               house grain over it to keep the gradients from banding.
+
+   Both stop at the same height and finish by fading, so the masthead still
+   ends without a rule under it. Deliberately static: this band is on six-odd
+   routes, and drifting it would mean animating either a large repaint or a
+   grid that must not be seen to move. */
+.io-page::before,
+.io-band::before,
+.io-page::after,
+.io-band::after {
   content: "";
   position: absolute;
   z-index: -1;
   inset: calc(var(--io-nav-h, 74px) * -1) 0 auto;
-  height: clamp(420px, 54vw, 720px);
+  height: var(--io-band-h);
   pointer-events: none;
+}
+
+.io-page::before,
+.io-band::before {
   background:
-    radial-gradient(78% 62% at 50% 8%, rgba(255, 255, 255, 0.05), transparent 68%),
+    radial-gradient(50% 42% at 50% 34%, rgba(184, 205, 214, 0.2), transparent 70%),
+    radial-gradient(44% 48% at 10% 12%, rgba(142, 178, 204, 0.12), transparent 74%),
+    radial-gradient(42% 46% at 90% 24%, rgba(180, 168, 208, 0.1), transparent 76%),
+    radial-gradient(78% 62% at 50% 6%, rgba(255, 255, 255, 0.05), transparent 68%),
     linear-gradient(to bottom, #050506 0%, rgba(5, 5, 6, 0.86) 46%, transparent 100%);
+}
+
+.io-page::after,
+.io-band::after {
+  background-image:
+    url("/textures/noise.svg"),
+    repeating-linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.075) 0,
+      rgba(255, 255, 255, 0.075) 1px,
+      transparent 1px,
+      transparent var(--io-band-cell)
+    ),
+    repeating-linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.045) 0,
+      rgba(255, 255, 255, 0.045) 1px,
+      transparent 1px,
+      transparent var(--io-band-cell)
+    );
+  /* The grain rides in this layer with the rules, so the opacity is set by what
+     the grain can take, not by what the rules want — `noise.svg` is a
+     0.22-alpha plate, and over a near-black band anything above about half of
+     it stops reading as grain and starts reading as fog. The rule alphas above
+     are pitched to survive the division. */
+  opacity: 0.55;
+  -webkit-mask-image: radial-gradient(
+    68% 62% at 50% 28%,
+    #000 0%,
+    rgba(0, 0, 0, 0.5) 54%,
+    transparent 84%
+  );
+  mask-image: radial-gradient(
+    68% 62% at 50% 28%,
+    #000 0%,
+    rgba(0, 0, 0, 0.5) 54%,
+    transparent 84%
+  );
+}
+
+/* A frame with no masthead has no headline for the field to rule under — the
+   grid would just be texture behind the first panel. The light stays; the
+   ruling goes. */
+.io-page--bare::after {
+  content: none;
 }
 
 .io-page__wrap {
@@ -768,6 +873,33 @@
   padding-top: clamp(1.75rem, 3.5vw, 2.75rem);
 }
 
+/* ---- 5.0 bare frame ----------------------------------------------------- */
+/* The frame without its masthead, for a screen that prints its own header —
+   the account, whose identity banner says whose account this is on every tab.
+   Three things change together, and they only make sense together: the top
+   padding drops to the space a page needs under the bar rather than the run-up
+   to a 6rem headline, the body loses the gap it was leaving under that
+   headline, and the band behind it shortens from a hero to a wash. Left at
+   full height with nothing standing in it, the band reads as a black stripe
+   across the top of the page. */
+.io-page--bare {
+  padding-block: clamp(1.5rem, 3.2vw, 2.5rem) clamp(4rem, 9vw, 7rem);
+}
+
+.io-page--bare::before {
+  height: clamp(200px, 24vw, 320px);
+}
+
+.io-page--bare .io-page__body {
+  padding-top: 0;
+}
+
+/* The back link is the only thing above the content now, so it carries the
+   whole separation between the bar and the first card. */
+.io-page--bare .io-page__back {
+  margin-bottom: clamp(1.25rem, 2.4vw, 2rem);
+}
+
 @media (max-width: 760px) {
   .io-page__spec div + div {
     margin-left: 1.25rem;
@@ -891,100 +1023,10 @@
   }
 }
 
-/* ---- 5.1b listing plate -------------------------------------------------- */
-/* The campaign image on a listing page, after the masthead took the type.
-   It used to be a 0.44fr column beside a left-aligned headline; against a
-   centred masthead it becomes a full-measure band under it, which is also the
-   only shape that lets the signal strip run the width it was drawn for. */
-.listing-plate {
-  position: relative;
-  min-height: clamp(300px, 36vw, 520px);
-  margin-bottom: clamp(2.5rem, 5vw, 4rem);
-  overflow: hidden;
-  border-radius: var(--nh-radius-lg);
-  background: var(--nh-surface-2);
-  box-shadow: inset 0 0 0 1px var(--nh-hairline);
-}
-
-.listing-plate > img {
-  object-fit: cover;
-  transition: transform 900ms var(--nh-ease);
-}
-
-.listing-plate:hover > img {
-  transform: scale(1.02);
-}
-
-/* A floor under the strip, so the labels never sit on whatever the photograph
-   happens to be doing at the bottom edge. */
-.listing-plate::after {
-  content: "";
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  height: 55%;
-  pointer-events: none;
-  background: linear-gradient(to top, rgba(5, 5, 6, 0.88), transparent);
-}
-
-.listing-plate .listing-hero__edition {
-  top: 16px;
-  left: 16px;
-  border: 0;
-  border-radius: 999px;
-  padding: 8px 13px;
-  background: var(--nh-panel);
-  box-shadow: inset 0 0 0 1px var(--nh-hairline);
-  backdrop-filter: blur(18px);
-}
-
-.listing-plate .listing-signal {
-  position: absolute;
-  z-index: 3;
-  right: 14px;
-  bottom: 14px;
-  left: 14px;
-  border: 0;
-  border-radius: var(--nh-radius-card);
-  grid-template-columns: repeat(3, 1fr);
-  background: var(--nh-panel);
-  box-shadow: inset 0 0 0 1px var(--nh-hairline);
-  backdrop-filter: blur(18px);
-}
-
-.listing-plate .listing-signal > span {
-  min-height: 68px;
-  padding: 12px 14px;
-  border-bottom: 0;
-  box-shadow: inset 1px 0 0 0 var(--nh-hairline);
-  color: var(--nh-ink-soft);
-}
-
-.listing-plate .listing-signal > span:first-child {
-  box-shadow: none;
-}
-
 /* These sections carry their own page padding for the routes that still render
    them standalone. Inside the frame, the frame already spaced them. */
-.io-page__body > .listing-products,
 .io-page__body > .collection-index {
   padding-block: 0 clamp(1rem, 2vw, 2rem);
-}
-
-@media (max-width: 760px) {
-  .listing-plate .listing-signal {
-    grid-template-columns: 1fr;
-  }
-
-  .listing-plate .listing-signal > span {
-    min-height: 48px;
-    box-shadow: inset 0 1px 0 0 var(--nh-hairline);
-  }
-
-  .listing-plate .listing-signal > span:first-child {
-    box-shadow: none;
-  }
 }
 
 /* ---- 5.2 buttons -------------------------------------------------------- */

@@ -1,6 +1,7 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect } from "react";
 
 import { useGenderPieces } from "@/components/gender/use-pieces";
 import { ProductHero } from "@/components/new-man/product-hero";
@@ -29,12 +30,27 @@ import { DEPTS, pieceForSlug, type Dept } from "@/components/new-man/product-dec
  * `?slug=afterdark-hoodie` name the same garment.
  */
 export function PieceRoute({ dept = DEPTS.men }: { dept?: Dept } = {}) {
+  const router = useRouter();
   const slug = useSearchParams().get("slug") ?? "";
   const { pieces, loading, error, loaded } = useGenderPieces(dept.audience, {
     unisex: dept.unisex,
   });
 
   const piece = pieceForSlug(pieces, slug);
+
+  /* A slug that names nothing is not a screen of its own. Once the catalogue has
+     actually answered — `loaded` and not still in flight — an unresolvable `?slug=`
+     hands the shopper back to the department listing rather than parking them on a
+     dead-end notice. `replace` rather than `push` so Back returns to wherever the
+     bad link was followed from instead of bouncing off this route again.
+
+     Guarded on `error` too: a failed read is "we could not check", not "no such
+     piece", and redirecting on it would hide the outage behind a silent bounce. */
+  const missing = loaded && !loading && !error && !piece;
+
+  useEffect(() => {
+    if (missing) router.replace(dept.base);
+  }, [dept.base, missing, router]);
 
   if (piece) {
     return (
@@ -47,18 +63,17 @@ export function PieceRoute({ dept = DEPTS.men }: { dept?: Dept } = {}) {
     );
   }
 
+  /* The redirect above is already running — there is nothing to say while the
+     route is leaving, and the notice that used to sit here is exactly what made
+     `?slug=<anything>` look like a page of its own. */
+  if (missing) return null;
+
   /* "Reading it" is not "no such piece". Saying the second while the request is
      still out tells every visitor their link is dead for as long as it takes. */
   return (
     <main className="nmp" id="main-content">
       <div className="nh-wrap" style={{ padding: "10rem 0", textAlign: "center" }}>
-        <p className="nh-eyebrow">
-          {error
-            ? error
-            : loading || !loaded
-              ? "Reading the release…"
-              : "That piece is not in this release."}
-        </p>
+        <p className="nh-eyebrow">{error ?? "Reading the release…"}</p>
       </div>
     </main>
   );

@@ -16,9 +16,12 @@ import { Reveal, SplitHeading } from "@/components/gender/motion";
  * copy. The band scrims top and bottom into `--nh-surface` — never into white,
  * or the section would end in a bright halo (§9 rule 8).
  */
+/* The band's default destination. It used to be `/search?q=After Hours`; a
+   chapter has no route of its own and neither does search any more, so the band
+   leads to the live release instead. */
 export function LifestyleBanner({
   content,
-  href = "/collections/view?slug=after-hours",
+  href = "/new-drop",
 }: {
   content: AudienceContent;
   href?: string;

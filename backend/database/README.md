@@ -57,7 +57,7 @@ php bin/console.php seed
 | Audience | Email | Password |
 |---|---|---|
 | Customer | `shopper@example.com` | `secret1` |
-| Staff (ADMIN) | `admin@iced-out.example` | `preview1` |
+| Staff (ADMIN) | `admin@gmail.com` | `admin123` |
 
 Dev fixtures only — production gets real credentials and empty registers.
 

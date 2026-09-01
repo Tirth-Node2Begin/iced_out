@@ -25,6 +25,16 @@ export type PageSpec = { label: string; value: string };
  */
 export type PageBack = { href: string; label: string };
 
+/**
+ * A screen may open without the masthead.
+ *
+ * The account is the case it was written for: every one of its tabs prints the
+ * shopper's identity banner across the top, so a 6rem "Your profile" above that
+ * banner was the same page saying its own name twice, and it pushed the thing
+ * the shopper came for a screen-height down. Passing no `title` drops the
+ * header block and starts the body near the top of the page — the band behind
+ * it shortens to a wash rather than a hero (`.io-page--bare`).
+ */
 export function PageFrame({
   back,
   eyebrow,
@@ -34,16 +44,18 @@ export function PageFrame({
   children,
 }: {
   back?: PageBack;
-  eyebrow: string;
-  /** Takes markup so a page can set the light cut with `<em>`. */
-  title: ReactNode;
+  eyebrow?: string;
+  /** Takes markup so a page can set the light cut with `<em>`. Omit for a screen that carries its own header. */
+  title?: ReactNode;
   lede?: string;
   spec?: PageSpec[];
   children: ReactNode;
 }) {
+  const masthead = title !== undefined;
+
   return (
     <div className="io-scope">
-      <div className="io-page">
+      <div className={masthead ? "io-page" : "io-page io-page--bare"}>
         <div className="io-page__wrap">
           {back && (
             <Link
@@ -57,24 +69,26 @@ export function PageFrame({
             </Link>
           )}
 
-          <header className="io-page__head">
-            <div>
-              <p className="io-page__eyebrow">{eyebrow}</p>
-              <h1 className="io-page__title">{title}</h1>
-              {lede && <p className="io-page__lede">{lede}</p>}
-            </div>
+          {masthead && (
+            <header className="io-page__head">
+              <div>
+                {eyebrow && <p className="io-page__eyebrow">{eyebrow}</p>}
+                <h1 className="io-page__title">{title}</h1>
+                {lede && <p className="io-page__lede">{lede}</p>}
+              </div>
 
-            {spec && spec.length > 0 && (
-              <dl className="io-page__spec">
-                {spec.map((entry) => (
-                  <div key={entry.label}>
-                    <dt>{entry.label}</dt>
-                    <dd>{entry.value}</dd>
-                  </div>
-                ))}
-              </dl>
-            )}
-          </header>
+              {spec && spec.length > 0 && (
+                <dl className="io-page__spec">
+                  {spec.map((entry) => (
+                    <div key={entry.label}>
+                      <dt>{entry.label}</dt>
+                      <dd>{entry.value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
+            </header>
+          )}
 
           <div className="io-page__body">{children}</div>
         </div>

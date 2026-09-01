@@ -130,141 +130,140 @@ export function CustomerAuthPage({ mode }: { mode: CustomerAuthMode }) {
           <Link className="iox-auth__brand" href="/" aria-label="Iced out home">ICED<span>_</span>OUT</Link>
         </header>
 
+        {/* The back link rides its own row of the body grid, so the space
+            between the wordmark and the headline is split above and below it
+            rather than all falling underneath. */}
         <div className="iox-auth__body">
-          <div className="iox-auth__head">
-            <Link className="iox-auth__back" href="/">
-              <ArrowLeft size={13} aria-hidden="true" />
-              <span>Back to store</span>
-            </Link>
-            <h1 className="iox-auth__title">{page.title}</h1>
-          </div>
+          <Link className="iox-auth__back" href="/">
+            <ArrowLeft size={13} aria-hidden="true" />
+            <span>Back to store</span>
+          </Link>
 
-          {submitted ? (
-            <>
-              <div className="iox-success" role="status">
-                <MailCheck size={18} aria-hidden="true" />
-                <p>Check your inbox. If the account is eligible, recovery instructions are on their way.</p>
-              </div>
-              {aside}
-            </>
-          ) : (
-            /* Every control below carries `suppressHydrationWarning`. Password
-               managers and form fillers stamp their own bookkeeping attributes
-               (`fdprocessedid` and friends) onto inputs and buttons while the
-               HTML is still parsing — before React hydrates — and React reads
-               that as the server having rendered something the client did not.
-               The flag is one level deep, so it goes on each control rather
-               than the form. Nothing here renders differently on the two
-               sides; only a visitor's extension does. */
-            <form className="iox-auth__form" onSubmit={submit} ref={formRef}>
-              {mode === "register" && (
+          <div className="iox-auth__stack">
+            <div className="iox-auth__head">
+              <h1 className="iox-auth__title">{page.title}</h1>
+            </div>
+
+            {submitted ? (
+              <>
+                <div className="iox-success" role="status">
+                  <MailCheck size={18} aria-hidden="true" />
+                  <p>Check your inbox. If the account is eligible, recovery instructions are on their way.</p>
+                </div>
+                {aside}
+              </>
+            ) : (
+              /* Every control below carries `suppressHydrationWarning`. Password
+                 managers and form fillers stamp their own bookkeeping attributes
+                 (`fdprocessedid` and friends) onto inputs and buttons while the
+                 HTML is still parsing — before React hydrates — and React reads
+                 that as the server having rendered something the client did not.
+                 The flag is one level deep, so it goes on each control rather
+                 than the form. Nothing here renders differently on the two
+                 sides; only a visitor's extension does. */
+              <form className="iox-auth__form" onSubmit={submit} ref={formRef}>
+                {mode === "register" && (
+                  <div className="iox-field">
+                    <div className="iox-field__top">
+                      <label htmlFor="auth-name">Full name</label>
+                    </div>
+                    <div className="iox-field__control">
+                      <User size={16} aria-hidden="true" />
+                      <input id="auth-name" name="name" placeholder="Enter your full name" autoComplete="name" required suppressHydrationWarning />
+                    </div>
+                  </div>
+                )}
+
                 <div className="iox-field">
                   <div className="iox-field__top">
-                    <label htmlFor="auth-name">Full name</label>
+                    <label htmlFor="auth-email">Email address</label>
                   </div>
                   <div className="iox-field__control">
-                    <User size={16} aria-hidden="true" />
-                    <input id="auth-name" name="name" placeholder="Enter your full name" autoComplete="name" required suppressHydrationWarning />
+                    <Mail size={16} aria-hidden="true" />
+                    <input id="auth-email" name="email" type="email" placeholder="Enter your email" autoComplete="email" required suppressHydrationWarning />
                   </div>
                 </div>
-              )}
 
-              <div className="iox-field">
-                <div className="iox-field__top">
-                  <label htmlFor="auth-email">Email address</label>
-                </div>
-                <div className="iox-field__control">
-                  <Mail size={16} aria-hidden="true" />
-                  <input id="auth-email" name="email" type="email" placeholder="Enter your email" autoComplete="email" required suppressHydrationWarning />
-                </div>
-              </div>
-
-              {hasPassword && (
-                <div className="iox-field iox-field--reveal">
-                  {/* The recovery link rides the label baseline rather than a
-                      row of its own — one less band in a fixed-height column. */}
-                  <div className="iox-field__top">
-                    <label htmlFor="auth-password">{mode === "reset" ? "New password" : "Password"}</label>
+                {hasPassword && (
+                  <div className="iox-field iox-field--reveal">
+                    <div className="iox-field__top">
+                      <label htmlFor="auth-password">{mode === "reset" ? "New password" : "Password"}</label>
+                    </div>
+                    <div className="iox-field__control">
+                      <Lock size={16} aria-hidden="true" />
+                      <input
+                        id="auth-password"
+                        name="password"
+                        type={revealed ? "text" : "password"}
+                        placeholder={mode === "login" ? "Enter your password" : "Choose a password"}
+                        autoComplete={mode === "login" ? "current-password" : "new-password"}
+                        minLength={6}
+                        required
+                        suppressHydrationWarning
+                      />
+                      <button
+                        className="iox-field__reveal"
+                        type="button"
+                        onClick={() => setRevealed((on) => !on)}
+                        aria-label={revealed ? "Hide password" : "Show password"}
+                        aria-pressed={revealed}
+                        suppressHydrationWarning
+                      >
+                        {revealed ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
+                      </button>
+                    </div>
                     {mode === "login" && (
                       <Link className="iox-field__aid" href="/auth/forgot-password">Forgot password?</Link>
                     )}
                   </div>
-                  <div className="iox-field__control">
-                    <Lock size={16} aria-hidden="true" />
-                    <input
-                      id="auth-password"
-                      name="password"
-                      type={revealed ? "text" : "password"}
-                      placeholder={mode === "login" ? "Enter your password" : "Choose a password"}
-                      autoComplete={mode === "login" ? "current-password" : "new-password"}
-                      minLength={6}
-                      required
-                      suppressHydrationWarning
-                    />
+                )}
+
+                {error ? (
+                  <p className="iox-auth__error" role="alert">
+                    {error}
+                  </p>
+                ) : null}
+
+                {aside}
+
+                {/* Held closed until the handler exists — see the note on `ready`. */}
+                <button
+                  className="iox-btn iox-btn--primary"
+                  disabled={!ready || pending}
+                  type="submit"
+                  suppressHydrationWarning
+                >
+                  <span>{pending ? "One moment…" : page.action}</span>
+                  <ArrowRight size={16} aria-hidden="true" />
+                </button>
+
+                {isCredentialMode && (
+                  <>
+                    <div className="iox-rule"><span>or</span></div>
+                    {/* No provider behind it yet, so it says so rather than
+                        quietly signing somebody in as a fixture account. */}
                     <button
-                      className="iox-field__reveal"
+                      className="iox-btn iox-btn--ghost"
+                      disabled
+                      title="Google sign-in is not connected yet."
                       type="button"
-                      onClick={() => setRevealed((on) => !on)}
-                      aria-label={revealed ? "Hide password" : "Show password"}
-                      aria-pressed={revealed}
                       suppressHydrationWarning
                     >
-                      {revealed ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
+                      <GoogleMark />
+                      <span>Continue with Google</span>
                     </button>
-                  </div>
-                </div>
-              )}
+                  </>
+                )}
 
-              {error ? (
-                <p className="iox-auth__error" role="alert">
-                  {error}
-                </p>
-              ) : null}
-
-              {aside}
-
-              {/* Held closed until the handler exists — see the note on `ready`. */}
-              <button
-                className="iox-btn iox-btn--primary"
-                disabled={!ready || pending}
-                type="submit"
-                suppressHydrationWarning
-              >
-                <span>{pending ? "One moment…" : page.action}</span>
-                <ArrowRight size={16} aria-hidden="true" />
-              </button>
-
-              {isCredentialMode && (
-                <>
-                  <div className="iox-rule"><span>or</span></div>
-                  {/* No provider behind it yet, so it says so rather than
-                      quietly signing somebody in as a fixture account. */}
-                  <button
-                    className="iox-btn iox-btn--ghost"
-                    disabled
-                    title="Google sign-in is not connected yet."
-                    type="button"
-                    suppressHydrationWarning
-                  >
-                    <GoogleMark />
-                    <span>Continue with Google</span>
-                  </button>
-                </>
-              )}
-
-              {mode === "register" && (
-                <p className="iox-legal">
-                  By continuing you agree to our <Link href="/pages/terms">Terms</Link> and <Link href="/pages/privacy">Privacy Policy</Link>.
-                </p>
-              )}
-            </form>
-          )}
+                {mode === "register" && (
+                  <p className="iox-legal">
+                    By continuing you agree to our <Link href="/pages/terms">Terms</Link> and <Link href="/pages/privacy">Privacy Policy</Link>.
+                  </p>
+                )}
+              </form>
+            )}
+          </div>
         </div>
-
-        <footer className="iox-auth__foot">
-          <span><i aria-hidden="true" />Frontend preview</span>
-          <span>No credential leaves this browser</span>
-        </footer>
       </section>
 
       <AuthSplitVisual trust={mode === "register"} />

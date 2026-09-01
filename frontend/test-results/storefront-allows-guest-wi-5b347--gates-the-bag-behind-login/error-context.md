@@ -31,7 +31,7 @@ Call log:
 - banner:
   - link "Iced_out — home":
     - /url: /
-    - text: I c e d O u t
+    - text: ICED_OUT
   - navigation "Primary navigation":
     - link "Men":
       - /url: /new-man
@@ -50,50 +50,49 @@ Call log:
   - link "Login":
     - /url: /auth/login?returnTo=%2F
 - main:
-  - heading "I c e d O u t" [level=1]
-  - img "Outerwear set, gold-lit concrete"
-  - img "Layered flatlay on steel"
-  - img "Wet-floor underpass campaign frame"
-  - img "Campaign pair against a lit panel"
-  - img "Cotton overshirt, studio still"
-  - img "Concrete corridor, full-length"
-  - text: "2016"
-  - paragraph: We create timeless architectural and interior spaces focused on clarity, functionality, and modern living
-  - text: "2025"
-  - paragraph: Philosophy
-  - paragraph: Every project is shaped through proportion, light, texture, and spatial balance. We believe great design should feel natural over time, creating environments that are both functional and emotionally connected to everyday life
-  - img "Two figures in a concrete underpass"
-  - text: Meet the founders
-  - img "Elena Carter"
-  - img "Marcus Lindberg"
-  - img "Sofia Bennett"
-  - img "Daniel Foster"
-  - text: "01"
-  - heading "Elena Carter" [level=3]
-  - text: Founder & Creative Director
-  - paragraph: Leads the studio's creative vision with a focus on timeless interiors, spatial harmony, and material storytelling.
-  - text: Studio Highlights
-  - heading "Designed for creativity and collaboration" [level=2]
-  - text: "01"
-  - img "Material Library"
-  - heading "Material Library" [level=3]
-  - text: 01 Material Library
-  - paragraph: Our studio reflects the same principles we bring into every project — calm atmosphere, refined materials, natural light, and intentional design decisions that support both creativity and focus.
-  - text: "02"
-  - img "Collaborative Workspace"
-  - heading "Collaborative Workspace" [level=3]
-  - text: "03"
-  - img "Design Archive"
-  - heading "Design Archive" [level=3]
-  - heading "What our clients say" [level=2]
-  - button "Previous testimonial":
-    - img
-  - button "Next testimonial":
-    - img
-  - img "Emma Larson"
-  - text: "01"
-  - paragraph: “The team created a home that feels calm, timeless, and deeply personal. Every detail was thoughtfully considered from start to finish.”
-  - text: Emma Larson Private residence client
+  - region "Iced Out":
+    - heading "Iced Out" [level=1]
+    - img "Black ICED OUT hoodie ghost mannequin cutout"
+    - img "Cream ICED OUT knit polo sweater ghost mannequin cutout"
+    - link "Buy Now":
+      - /url: /new-drop
+    - button "Write a review"
+    - text: Be the first to review
+  - paragraph: The weight
+  - heading "Nothing here is light." [level=2]: Nothinghereislight.
+  - paragraph: Drop 001 is anchored on 520 GSM brushed fleece and the Nightshift Overcoat is pressed wool at 740. That weight is the entire argument — it is what makes a piece hang correctly the first night out and still hang correctly two winters later, long after a lighter version of the same garment has gone soft at the shoulders.
+  - img "Two figures in a concrete underpass after dark"
+  - paragraph: 02 / From weight to wear
+  - heading "Built slowly. Worn hard." [level=2]
+  - img "Heavyweight fabric study under raking studio light"
+  - img "Layered Iced_out silhouette photographed mid-movement"
+  - img "Construction detail from the third prototype pass"
+  - img "A finished piece from the numbered Drop 001 run"
+  - text: Construction log / 01 Material
+  - article:
+    - text: "01"
+    - paragraph: Material
+    - heading "Start with the hand." [level=3]
+    - paragraph: We test density, recovery, drape, and abrasion before a silhouette is allowed to exist.
+    - text: Touch / Tension / Time
+  - article:
+    - text: "02"
+    - paragraph: Form
+    - heading "Cut for the moving body." [level=3]
+    - paragraph: "Proportion is tuned in motion: reach, stride, sit, layer, repeat. Stillness is only one state."
+    - text: Range / Balance / Stack
+  - article:
+    - text: "03"
+    - paragraph: Trial
+    - heading "Review until quiet." [level=3]
+    - paragraph: Three construction passes remove friction, excess, and decorative decisions that do not work.
+    - text: Prototype / Wear / Refine
+  - article:
+    - text: "04"
+    - paragraph: Edition
+    - heading "Release less. Mean more." [level=3]
+    - paragraph: Runs stay intentionally small, letting each drop remain specific and every revision stay accountable.
+    - text: Numbered / Limited / Recorded
 - contentinfo:
   - paragraph: Gear up · every season
   - paragraph: Built for the cold starts and the long finishes. Limited runs, restocked when the season turns.
@@ -103,10 +102,10 @@ Call log:
       - /url: /new-man
     - link "Women":
       - /url: /new-woman
-    - link "Accessories":
-      - /url: /collections
-    - link "Seasonal":
-      - /url: /sale
+    - link "New drop":
+      - /url: /new-drop
+    - link "Wishlist":
+      - /url: /wishlist
     - heading "Support" [level=4]
     - link "Shipping":
       - /url: /pages/shipping-policy
@@ -205,59 +204,59 @@ Call log:
   69  |   for (const label of [
   70  |     "Men",
   71  |     "Women",
-  72  |     "Accessories",
-  73  |     "Seasonal",
-  74  |     "Shipping",
-  75  |     "Returns",
-  76  |     "Contact",
-  77  |     "About",
-  78  |   ]) {
-  79  |     await expect(footer.getByRole("link", { name: label, exact: true })).toBeVisible();
-  80  |   }
-  81  | });
-  82  | 
-  83  | test("serves the approved public destinations", async ({ page }) => {
-  84  |   test.setTimeout(240_000);
-  85  |   for (const [path, heading] of [
-  86  |     // /new-drop now serves the men's listing; /men is gone.
-  87  |     ["/new-drop", "Built for the Men Who Move After Dark"],
-  88  |     ["/women", "Structured Volume for the Women Who Set the Pace"],
-  89  |     ["/new-man", "Gear up every season"],
-  90  |     ["/new-woman", "Gear up every season"],
-  91  |     ["/collections", "Collections."],
-  92  |     ["/sale", "Sale."],
-  93  |     ["/about", "Cold by nature. Built with intent."],
-  94  |     ["/contact", "Start with context. Not a queue."],
-  95  |   ]) {
-  96  |     await page.goto(path, { waitUntil: "domcontentloaded" });
-  97  |     await expect(page.getByRole("heading", { name: heading })).toBeVisible();
-  98  |   }
-  99  | });
-  100 | 
-  101 | test("blocks direct guest checkout", async ({ page }) => {
-  102 |   await page.goto("/checkout");
-  103 |   await page.waitForURL("**/auth/login?returnTo=%2Fcheckout");
-  104 |   await expect(page.getByRole("heading", { name: "Sign in." })).toBeVisible();
-  105 | });
-  106 | 
-  107 | test("provides the complete admin payments workspace", async ({ page }) => {
-  108 |   await page.goto("/admin/payments");
-  109 |   await page.waitForURL("**/admin/login?returnTo=%2Fadmin%2Fpayments");
-  110 |   await page.getByRole("button", { name: /Enter console/ }).click();
-  111 |   await page.waitForURL("**/admin/payments");
-  112 |   await expect(page.getByRole("heading", { name: "Payments ledger" })).toBeVisible();
-  113 |   /* Both screens the area has left — money in, and money on to the bank.
-  114 |      Refunds moved to Returns, which is where a refund is decided. Scoped to
-  115 |      the toolbar pill: the console rail also carries a "Payments" link, and an
-  116 |      unqualified name matches both. */
-  117 |   const tabs = page.getByRole("navigation", { name: "Payments screens" });
-  118 |   await tabs.getByRole("link", { name: "Payouts", exact: true }).click();
-  119 |   await expect(page.getByRole("heading", { name: "Gateway payouts" })).toBeVisible();
-  120 |   await tabs.getByRole("link", { name: "Payments", exact: true }).click();
-  121 |   await expect(page.getByRole("heading", { name: "Payments ledger" })).toBeVisible();
-  122 |   await page.getByRole("link", { name: "Open pay_ICE1048" }).click();
-  123 |   await page.waitForURL("**/admin/payments/pay_ICE1048");
-  124 |   await expect(page.getByRole("heading", { name: "Payment pay_ICE1048" })).toBeVisible();
-  125 | });
-  126 | 
+  72  |     // Was "Accessories", which only ever pointed at /collections. That route is
+  73  |     // gone, so the slot carries the chapter listing that actually exists.
+  74  |     "New drop",
+  75  |     // Was "Seasonal", which only ever pointed at /sale. That route is gone.
+  76  |     "Wishlist",
+  77  |     "Shipping",
+  78  |     "Returns",
+  79  |     "Contact",
+  80  |     "About",
+  81  |   ]) {
+  82  |     await expect(footer.getByRole("link", { name: label, exact: true })).toBeVisible();
+  83  |   }
+  84  | });
+  85  | 
+  86  | test("serves the approved public destinations", async ({ page }) => {
+  87  |   test.setTimeout(240_000);
+  88  |   for (const [path, heading] of [
+  89  |     // /new-drop now serves the men's listing; /men is gone.
+  90  |     ["/new-drop", "Built for the Men Who Move After Dark"],
+  91  |     ["/women", "Structured Volume for the Women Who Set the Pace"],
+  92  |     ["/new-man", "Gear up every season"],
+  93  |     ["/new-woman", "Gear up every season"],
+  94  |     // /collections, /collections/view, /sale, /search and /product are gone —
+  95  |     // a chapter has no route of its own, the two listing pages below are the
+  96  |     // catalogue, and searching is the header's dock rather than a destination.
+  97  |     ["/about", "Cold by nature. Built with intent."],
+  98  |     ["/contact", "Start with context. Not a queue."],
+  99  |   ]) {
+  100 |     await page.goto(path, { waitUntil: "domcontentloaded" });
+  101 |     await expect(page.getByRole("heading", { name: heading })).toBeVisible();
+  102 |   }
+  103 | });
+  104 | 
+  105 | test("blocks direct guest checkout", async ({ page }) => {
+  106 |   await page.goto("/checkout");
+  107 |   await page.waitForURL("**/auth/login?returnTo=%2Fcheckout");
+  108 |   await expect(page.getByRole("heading", { name: "Sign in." })).toBeVisible();
+  109 | });
+  110 | 
+  111 | test("provides the complete admin payments workspace", async ({ page }) => {
+  112 |   await page.goto("/admin/payments");
+  113 |   await page.waitForURL("**/admin/login?returnTo=%2Fadmin%2Fpayments");
+  114 |   await page.getByRole("button", { name: /Enter console/ }).click();
+  115 |   await page.waitForURL("**/admin/payments");
+  116 |   await expect(page.getByRole("heading", { name: "Payments ledger" })).toBeVisible();
+  117 |   /* Both screens the area has left — money in, and money on to the bank.
+  118 |      Refunds moved to Returns, which is where a refund is decided. Scoped to
+  119 |      the toolbar pill: the console rail also carries a "Payments" link, and an
+  120 |      unqualified name matches both. */
+  121 |   const tabs = page.getByRole("navigation", { name: "Payments screens" });
+  122 |   await tabs.getByRole("link", { name: "Payouts", exact: true }).click();
+  123 |   await expect(page.getByRole("heading", { name: "Gateway payouts" })).toBeVisible();
+  124 |   await tabs.getByRole("link", { name: "Payments", exact: true }).click();
+  125 |   await expect(page.getByRole("heading", { name: "Payments ledger" })).toBeVisible();
+  126 |   await page.getByRole("link", { name: "Open pay_ICE1048" }).click();
 ```

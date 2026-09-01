@@ -276,8 +276,8 @@ final class FixtureParityTest extends TestCase
     private function signIn(): void
     {
         $this->send('POST', '/admin/auth/login', 'public', Json::encode([
-            'email' => 'admin@iced-out.example',
-            'password' => 'preview1',
+            'email' => 'admin@gmail.com',
+            'password' => 'admin123',
         ]));
     }
 

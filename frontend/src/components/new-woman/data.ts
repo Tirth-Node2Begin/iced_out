@@ -277,7 +277,7 @@ export const CLOSING = {
     body: "Every piece cut and finished in the Bengaluru studio, in numbered runs. When a size closes, it closes.",
     ctas: [
       { label: "Shop the edit", href: "#nw-edit" },
-      { label: "View collections", href: "/collections" },
+      { label: "View the new drop", href: "/new-drop" },
     ],
     shot: {
       src: H2("hero-04.jpg"),
