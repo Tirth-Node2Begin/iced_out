@@ -21,12 +21,14 @@ import {
   Btn,
   Card,
   DetailList,
+  Empty,
   Modal,
   Note,
   Section,
   Status,
   SwitchRow,
 } from "@/components/shell/admin-ui";
+import { useAdminRecord, useRegisterList } from "@/api/use-register";
 import { useAuth } from "@/features/20-auth-security/auth-context";
 
 /**
@@ -62,20 +64,18 @@ type Entry = {
   result: string;
 };
 
-const ACTIVITY: Entry[] = [
-  { id: "ACT-4412", when: "14:42", day: "Today", action: "Refund requested", resource: "IO-2026-1027", where: "Chrome · Bengaluru", result: "Done" },
-  { id: "ACT-4411", when: "14:19", day: "Today", action: "Order confirmed", resource: "IO-2026-1031", where: "Chrome · Bengaluru", result: "Done" },
-  { id: "ACT-4410", when: "13:58", day: "Today", action: "Stock adjusted", resource: "ADH-BLK-L · BLR-01", where: "Chrome · Bengaluru", result: "Done" },
-  { id: "ACT-4409", when: "13:02", day: "Today", action: "Coupon paused", resource: "DROP001-EARLY", where: "Chrome · Bengaluru", result: "Done" },
-  { id: "ACT-4408", when: "11:47", day: "Today", action: "Signed in", resource: "Operations console", where: "Chrome · Bengaluru", result: "Done" },
-  { id: "ACT-4407", when: "18:20", day: "Yesterday", action: "Shipment dispatched", resource: "SHP-ICE-0912", where: "Chrome · Bengaluru", result: "Done" },
-  { id: "ACT-4406", when: "17:54", day: "Yesterday", action: "Return approved", resource: "RMA-1039", where: "Chrome · Bengaluru", result: "Done" },
-  { id: "ACT-4405", when: "17:11", day: "Yesterday", action: "Product published", resource: "Adhira Cuff · Black", where: "Chrome · Bengaluru", result: "Done" },
-  { id: "ACT-4404", when: "16:32", day: "Yesterday", action: "Export requested", resource: "Settlements · Oct", where: "Chrome · Bengaluru", result: "Pending" },
-  { id: "ACT-4403", when: "15:08", day: "Yesterday", action: "Password changed", resource: "Own account", where: "Chrome · Bengaluru", result: "Done" },
-  { id: "ACT-4402", when: "09:41", day: "Yesterday", action: "Sign-in blocked", resource: "Operations console", where: "Safari · Unknown device", result: "Failed" },
-  { id: "ACT-4401", when: "09:40", day: "Yesterday", action: "Sign-in blocked", resource: "Operations console", where: "Safari · Unknown device", result: "Failed" },
-];
+/**
+ * Where the entries come from: `GET /admin/me/activity`, which returns exactly
+ * this shape — id, when, day, action, resource, where, result — five to a page.
+ *
+ * Twelve invented rows used to sit here, under a heading promising "every
+ * action the console has recorded against your name". They named orders and
+ * products that were never in this database, and they did not change when the
+ * operator did anything at all. The endpoint had been built for this screen and
+ * never connected to it.
+ */
+const ACTIVITY_PATH = "/admin/me/activity";
+
 
 /** What reaches the page. The rest is one click away, never a scroll away. */
 const PREVIEW_COUNT = 5;
@@ -136,7 +136,14 @@ export function StaffProfile() {
 
   const name = staffSession?.name ?? "Staff";
   const role = staffSession?.role ?? "Scoped access";
-  const preview = ACTIVITY.slice(0, PREVIEW_COUNT);
+  /* The account behind the session. Only fetched once signed in — with no
+     session the endpoint would 401, and this screen is behind the guard. */
+  const profile = useAdminRecord<{ name: string; email: string; phone: string }>(
+    staffSession ? "/admin/me/profile" : null,
+  );
+  const activityList = useRegisterList(ACTIVITY_PATH);
+  const activity = activityList.rows as unknown as Entry[];
+  const preview = activity.slice(0, PREVIEW_COUNT);
 
   return (
     <AdminPage
@@ -182,10 +189,20 @@ export function StaffProfile() {
           >
             <DetailList
               rows={[
-                { label: "Name", value: name },
+                { label: "Name", value: profile.data?.name ?? name },
                 { label: "Role", value: role },
-                { label: "Email", value: "aarav@iced-out.example" },
-                { label: "Member since", value: "04 Feb 2026" },
+                /* Read, not written in. The session cookie carries only a name
+                   and a role, so this row was a literal address — and it stayed
+                   that literal after the account it named was renamed, telling
+                   every operator they were signed in as somebody who no longer
+                   exists. `GET /admin/me/profile` is where the real one is. */
+                {
+                  label: "Email",
+                  value: profile.error
+                    ? "Could not be read"
+                    : (profile.data?.email ?? (profile.loaded ? "—" : "Reading…")),
+                },
+                ...(profile.data?.phone ? [{ label: "Phone", value: profile.data.phone }] : []),
               ]}
             />
           </Card>
@@ -247,26 +264,49 @@ export function StaffProfile() {
         eyebrow="Audit"
         title="Recent activity"
       >
-        <div className="aui-tablewrap">
-          <table className="aui-table">
-            <Head />
-            <tbody>
-              {preview.map((entry) => (
-                <Row entry={entry} key={entry.id} />
-              ))}
-            </tbody>
-          </table>
+        {activityList.error ? (
+          <Note tone="bad" title="Could not read the log">
+            {activityList.error}
+          </Note>
+        ) : activity.length === 0 ? (
+          /* A real state, not a blank grid: on a fresh install nobody has done
+             anything yet, and an empty table with "Showing 0 of 0" under it
+             reads like a screen that failed rather than one with nothing to
+             say. */
+          <Empty
+            copy={
+              activityList.loaded
+                ? "Nothing has been recorded against this account yet. Actions appear here as you work."
+                : "Reading the log…"
+            }
+            icon={FileClock}
+            inline
+            title={activityList.loaded ? "No activity yet" : "Loading"}
+          />
+        ) : (
+          <div className="aui-tablewrap">
+            <table className="aui-table">
+              <Head />
+              <tbody>
+                {preview.map((entry) => (
+                  <Row entry={entry} key={entry.id} />
+                ))}
+              </tbody>
+            </table>
 
-          <p className="aui-tablefoot">
-            <span>
-              Showing <strong>{preview.length}</strong> of <strong>{ACTIVITY.length}</strong>{" "}
-              recorded actions
-            </span>
-            <Btn onClick={() => setLogOpen(true)} size="sm">
-              See more <FileClock aria-hidden size={14} strokeWidth={1.7} />
-            </Btn>
-          </p>
-        </div>
+            <p className="aui-tablefoot">
+              <span>
+                Showing <strong>{preview.length}</strong> of <strong>{activity.length}</strong>{" "}
+                recorded actions
+              </span>
+              {activity.length > preview.length && (
+                <Btn onClick={() => setLogOpen(true)} size="sm">
+                  See more <FileClock aria-hidden size={14} strokeWidth={1.7} />
+                </Btn>
+              )}
+            </p>
+          </div>
+        )}
 
         <Note icon={ShieldCheck} title="This log is append-only">
           Entries cannot be edited or removed from this screen. A correction is a new entry that
@@ -282,14 +322,14 @@ export function StaffProfile() {
         size="wide"
         title="Full activity log"
         tone="sky"
-        footNote={`${ACTIVITY.length} entries · last 48 hours`}
+        footNote={`${activity.length} entries`}
         footer={<Btn onClick={() => setLogOpen(false)}>Close</Btn>}
       >
         <div className="aui-tablewrap">
           <table className="aui-table">
             <Head />
             <tbody>
-              {ACTIVITY.map((entry) => (
+              {activity.map((entry) => (
                 <Row entry={entry} key={entry.id} />
               ))}
             </tbody>

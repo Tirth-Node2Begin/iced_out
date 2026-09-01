@@ -195,7 +195,7 @@ heading("3 · Endpoints — does every GET run against the database?");
 for (const app of APPS) {
   const args = [path.join(ROOT, "tools", "probe-endpoints.php"), path.join(ROOT, app.backend)];
   args.push(app.label === "CRM" ? "admin" : "customer");
-  if (app.label === "CRM") args.push("admin@iced-out.example", "preview1");
+  if (app.label === "CRM") args.push("admin@gmail.com", "admin123");
 
   try {
     const out = run("php", args, ROOT);

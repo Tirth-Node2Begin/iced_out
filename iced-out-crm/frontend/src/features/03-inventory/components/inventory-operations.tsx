@@ -213,11 +213,11 @@ function TransfersScreen({
     <AdminPage
       eyebrow="Inventory · Transfers"
       icon={ArrowLeftRight}
-      lede="Every handoff keeps its source, destination, quantities and scan evidence, and writes an immutable movement at both ends."
+      lede="Stock moving from one warehouse to another. Each transfer records where it left, where it arrived and how many — and both warehouse counts update themselves."
       spec={[
         { label: "Open", value: pad(open) },
         { label: "Units", value: countOf(rows.reduce((sum, row) => sum + (Number(row.units) || 0), 0)) },
-        { label: "Nodes", value: pad(codes.length) },
+        { label: "Warehouses", value: pad(codes.length) },
       ]}
       title={
         <>
@@ -316,7 +316,7 @@ function NetworkScreen({ warehouses }: { warehouses: ReturnType<typeof useRegist
 
   const stats: Stat[] = [
     {
-      label: "Online nodes",
+      label: "Open warehouses",
       value: pad(online.length),
       icon: Warehouse,
       tone: online.length ? "mint" : "amber",
@@ -344,9 +344,9 @@ function NetworkScreen({ warehouses }: { warehouses: ReturnType<typeof useRegist
     <AdminPage
       eyebrow="Inventory · Network"
       icon={Warehouse}
-      lede="Capacity, courier cut-offs and stock health by location. Warehouse roles only ever see the nodes they are assigned to."
+      lede="Every place you keep stock — how much it holds, its courier cut-off, and how healthy its stock is. Staff assigned to one warehouse only ever see that one."
       spec={[
-        { label: "Nodes", value: pad(rows.length) },
+        { label: "Warehouses", value: pad(rows.length) },
         { label: "Online", value: pad(online.length) },
         { label: "Units", value: countOf(units) },
       ]}
@@ -362,7 +362,7 @@ function NetworkScreen({ warehouses }: { warehouses: ReturnType<typeof useRegist
           three inventory screens — in the toolbar, a row under the page head.
           Behind the cards they landed below the fold, which made the control
           you had just clicked appear to move. */}
-      <Section copy="Add, edit or retire a node. Retiring one requires its stock to be zero." eyebrow="Manage" title="All locations">
+      <Section copy="Add, edit or close a warehouse. Closing one requires its stock to be zero first." eyebrow="Manage" title="All locations">
         <RecordManager
           columns={WAREHOUSE_COLUMNS}
           emptyHint="No warehouses yet. Add the first one before taking stock in."

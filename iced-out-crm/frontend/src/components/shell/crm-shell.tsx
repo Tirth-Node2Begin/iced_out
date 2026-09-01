@@ -195,13 +195,19 @@ export function CrmShell({ children }: { children: ReactNode }) {
      would paint the collapsed rail and then snap it open on the next frame, and
      this component is client-only so there is no hydration pass to mismatch. */
   const [pinned, setPinned] = useState(() => {
-    if (typeof window === "undefined") return false;
+    if (typeof window === "undefined") return true;
     try {
-      return window.localStorage.getItem(PIN_KEY) === "1";
+      /* No stored value means nobody has chosen yet, and the answer to that is
+         OPEN. Collapsed, the rail is nineteen bare glyphs: someone opening this
+         console for the first time has to recognise every icon before they can
+         go anywhere, and the labels ARE the map of the business. Only an
+         explicit "0" — written by the pin control — collapses it, so an
+         operator who prefers the narrow rail still gets it on every visit. */
+      return window.localStorage.getItem(PIN_KEY) !== "0";
     } catch {
-      /* A private window, or site data blocked. An unpinned rail is the right
-         answer to "we could not find out", and it is never worth an error. */
-      return false;
+      /* A private window, or site data blocked. Open is the right answer to
+         "we could not find out", and it is never worth an error. */
+      return true;
     }
   });
   const [hovered, setHovered] = useState(false);
@@ -333,7 +339,12 @@ export function CrmShell({ children }: { children: ReactNode }) {
               <Search aria-hidden size={16} strokeWidth={1.8} />
             </i>
             <Reveal>
-              <span>Search…</span>
+              {/* "Go to", not "Search". This palette matches SCREEN names and
+                  nothing else — somebody who reads "Search" here types a
+                  customer's name, gets no results, and concludes the console
+                  cannot find their customer. Each register has its own search
+                  box over its own rows; this is the way between them. */}
+              <span>Go to…</span>
             </Reveal>
             {expanded && (
               <kbd>
@@ -525,25 +536,27 @@ export function CrmShell({ children }: { children: ReactNode }) {
         <Dialog.Portal>
           <Dialog.Overlay className="aui-overlay" />
           <Dialog.Content className="aui-palette">
-            <Dialog.Title className="sr-only">Jump to a workspace</Dialog.Title>
+            <Dialog.Title className="sr-only">Go to a screen</Dialog.Title>
             <Dialog.Description className="sr-only">
-              Search the areas you have access to and move without losing context.
+              Type the name of a screen you have access to and go straight to it.
             </Dialog.Description>
 
             <label className="aui-palette__field">
               <Search aria-hidden size={17} strokeWidth={1.7} />
-              <span className="sr-only">Search workspaces</span>
+              <span className="sr-only">Go to a screen</span>
               <input
                 autoFocus
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Type an area name…"
+                placeholder="Go to a screen — orders, products, customers…"
                 value={query}
               />
               <kbd>ESC</kbd>
             </label>
 
             <div className="aui-palette__list">
-              <span>{matches.length} destinations</span>
+              <span>
+                {matches.length} {matches.length === 1 ? "screen" : "screens"}
+              </span>
               {matches.map(({ href, label, icon: Icon }) => (
                 <Link href={href} key={href} onClick={() => setPaletteOpen(false)}>
                   <Icon aria-hidden size={17} strokeWidth={1.7} />
@@ -554,7 +567,12 @@ export function CrmShell({ children }: { children: ReactNode }) {
                   <ArrowRight aria-hidden size={15} strokeWidth={1.7} />
                 </Link>
               ))}
-              {!matches.length && <p className="aui-palette__empty">No area matches “{query}”.</p>}
+              {!matches.length && (
+                <p className="aui-palette__empty">
+                  No screen is called “{query}”. To find an order or a customer, open that
+                  screen and use the search box on it.
+                </p>
+              )}
             </div>
           </Dialog.Content>
         </Dialog.Portal>

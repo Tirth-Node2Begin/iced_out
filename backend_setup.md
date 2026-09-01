@@ -1229,7 +1229,7 @@ must produce **exactly** these, idempotently:
 
 | Domain | Required seed records |
 |---|---|
-| Users | customer `shopper@example.com` / password `secret1`, name "Iced_out Shopper", mobile `+91 98765 43210` · staff `admin@iced-out.example` / `preview1`, name **"Aarav D."**, role ADMIN |
+| Users | customer `shopper@example.com` / password `secret1`, name "Iced_out Shopper", mobile `+91 98765 43210` · staff `admin@gmail.com` / `admin123`, name **"Aarav D."**, role ADMIN |
 | Products | the 4 fixture products with full variant/stock parity: `afterdark-hoodie` (XS SOLD_OUT, L available:2 LOW_STOCK, M IN_STOCK…), `bone-utility-overshirt`, `shadow-cargo-02` (category Bottoms), `core-heavy-tee` |
 | Collections | Drop 001 / After Hours / Core Uniform |
 | Coupons | `AFTERDARK15`, `FIRSTICE10`, `FREEZE500` (§9.7 exact params) |

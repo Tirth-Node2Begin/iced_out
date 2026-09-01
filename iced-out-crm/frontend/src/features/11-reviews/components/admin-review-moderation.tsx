@@ -107,7 +107,7 @@ const FIELDS: FormField[] = [
     placeholder: "Afterdark Hoodie",
     required: true,
     createOnly: true,
-    help: "The slug or the name. A review cannot be moved to a different piece later.",
+    help: "The product name, or its web address. A review cannot be moved to a different piece later.",
   },
   { key: "rating", label: "Rating", type: "select", options: ["5", "4", "3", "2", "1"] },
   { key: "customer", label: "Customer", placeholder: "A•••• K••••", required: true },
@@ -366,6 +366,8 @@ function decisionsFor(
       icon: EyeOff,
       tone: "danger" as const,
       label: `Hide this ${row.product} review`,
+      confirmCopy:
+        "Shoppers stop seeing this review on the product page. You can publish it again from this screen.",
       onSelect: () => decide(row.id, "hide"),
       toast: {
         title: "Review hidden",

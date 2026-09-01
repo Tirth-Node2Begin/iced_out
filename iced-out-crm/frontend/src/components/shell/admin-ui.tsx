@@ -801,6 +801,15 @@ export function ConfirmDialog({
   title,
   description,
   confirmLabel = "Delete",
+  /* "Go back", not "Cancel". Half the questions this dialog asks are about
+     cancelling something, and a dismissing button reading Cancel beside a
+     confirming button reading Cancel is a coin toss rather than a choice. */
+  dismissLabel = "Go back",
+  /* Not every question worth asking is a warning. Publishing a product is
+     outward-facing and worth a pause, but it is reversible — painting its
+     button the same red as "delete this for ever" teaches people that the red
+     means nothing. */
+  tone = "danger",
   onConfirm,
 }: {
   open: boolean;
@@ -808,6 +817,8 @@ export function ConfirmDialog({
   title: string;
   description: string;
   confirmLabel?: string;
+  dismissLabel?: string;
+  tone?: "danger" | "solid";
   onConfirm: () => void;
 }) {
   return (
@@ -815,13 +826,13 @@ export function ConfirmDialog({
       description={description}
       footer={
         <>
-          <Btn onClick={() => onOpenChange(false)}>Cancel</Btn>
+          <Btn onClick={() => onOpenChange(false)}>{dismissLabel}</Btn>
           <Btn
             onClick={() => {
               onConfirm();
               onOpenChange(false);
             }}
-            variant="danger"
+            variant={tone}
           >
             {confirmLabel}
           </Btn>

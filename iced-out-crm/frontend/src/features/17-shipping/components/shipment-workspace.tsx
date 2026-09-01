@@ -260,6 +260,8 @@ function FailedDeliveries() {
               icon: Undo2,
               tone: "danger" as const,
               label: `Send ${row.id} back to the store`,
+              confirmCopy:
+                "The courier is told to bring the parcel back. The customer does not get it, and the order stays as it is until you decide what happens next.",
               onSelect: () => shipmentAction(row.id, "return-to-store"),
               toast: {
                 title: "Coming back",
@@ -524,6 +526,7 @@ function ActiveShipments() {
               icon: step.exit.to === "Cancelled" ? Ban : AlertTriangle,
               tone: "danger" as const,
               label: `${step.exit.verb} · ${row.id}`,
+              confirmCopy: `The parcel is marked ${step.exit.to.toLowerCase()}. The customer sees the change on their tracking page, and the order behind it does not move on by itself.`,
               onSelect: () => transitionShipment(row.id, step.exit.to),
               toast: {
                 title: step.exit.title,
@@ -548,7 +551,7 @@ function ActiveShipments() {
             </Btn>
           </>
         }
-        description="The order leaves the warehouse now and becomes a parcel, with its AWB and delivery promise stamped on it."
+        description="The order leaves the warehouse now and becomes a parcel, with its tracking number and delivery date stamped on it."
         icon={Truck}
         onOpenChange={setDispatching}
         open={dispatching}

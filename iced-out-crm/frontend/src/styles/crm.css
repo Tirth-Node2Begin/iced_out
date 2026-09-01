@@ -21,21 +21,31 @@
 /* A horizontal run of columns that scrolls INSIDE itself, so the page's own
    scroll stays vertical. A board that scrolls the page sideways takes the rail
    and the bar with it. */
+/* The pipeline WRAPS; it does not scroll sideways.
+   There are six stages and each one used to hold a 268px floor laid out with
+   `grid-auto-flow: column`, so the board asked for 6x268 + 5x14 = 1678px and
+   got 919px beside the rail -- it overflowed by 759px on a 1280px screen and
+   half the pipeline sat off-screen behind a scrollbar.
+   Squeezing six columns into 919px instead would leave 141px each, which is
+   narrower than the cards inside them. So the row takes as many >=240px
+   columns as actually fit and folds the rest onto the next line: three by
+   three at this width, all six in one row on a wide monitor, one per row on a
+   phone. Stage order still reads left to right, then down. */
 .crm-board {
   position: relative;
   display: grid;
   gap: 14px;
-  grid-auto-columns: minmax(268px, 1fr);
-  grid-auto-flow: column;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   margin-top: var(--aui-stack);
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-  padding-bottom: 12px;
 }
 
 .crm-col {
   display: flex;
   min-height: 220px;
+  /* A grid item's automatic minimum is its MIN-CONTENT, not zero. Without this
+     one long deal title would push its track past the 1fr it was given and
+     bring the sideways scroll back by the back door. */
+  min-width: 0;
   flex-direction: column;
   border-radius: var(--nh-radius-lg);
   background: var(--nh-surface-2);
@@ -385,7 +395,9 @@
 /* ========================================================== 5. responsive */
 @media (max-width: 780px) {
   .crm-board {
-    grid-auto-columns: minmax(240px, 78vw);
+    /* One stage per row. 78vw columns were the phone half of the same
+       sideways scroll -- you swiped through six of them to see the board. */
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .crm-task {

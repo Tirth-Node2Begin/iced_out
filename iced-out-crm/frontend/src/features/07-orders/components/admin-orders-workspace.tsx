@@ -166,6 +166,8 @@ export function AdminOrdersWorkspace() {
             icon: Ban,
             tone: "danger" as const,
             label: `Cancel ${row.id}`,
+            confirmCopy:
+              "The order is called off and the customer is told. Anything already sent for it is cancelled with it, and the stock goes back on sale.",
             onSelect: () => cancelOrder(row.id, "Store"),
             toast: {
               title: "Order cancelled",

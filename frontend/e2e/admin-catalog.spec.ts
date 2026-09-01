@@ -19,10 +19,10 @@ import { expect, test, type Page } from "@playwright/test";
  */
 async function signInStaff(page: Page, returnTo: string) {
   await page.goto(`/admin/login?returnTo=${encodeURIComponent(returnTo)}`);
-  await page.getByRole("textbox", { name: "Work email" }).fill("admin@iced-out.example");
+  await page.getByRole("textbox", { name: "Work email" }).fill("admin@gmail.com");
   // `getByLabel("Password")` also matches the field's "Show password" reveal
   // button, which resolves two elements and fails strict mode.
-  await page.getByRole("textbox", { name: "Password" }).fill("preview1");
+  await page.getByRole("textbox", { name: "Password" }).fill("admin123");
   await page.getByRole("button", { name: "Enter console" }).click();
   await expect(page).toHaveURL(returnTo);
 }

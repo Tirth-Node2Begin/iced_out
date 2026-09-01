@@ -405,6 +405,8 @@ export function AdminReturnsWorkspace({ view = "requests" }: { view?: ReturnsVie
                 icon: X,
                 tone: "danger" as const,
                 label: `Reject ${row.id}`,
+                confirmCopy:
+                  "The customer is told the return was refused, and no money or replacement goes out. Rejecting closes the request.",
                 onSelect: () => reject(row.id),
                 toast: {
                   title: "Return rejected",

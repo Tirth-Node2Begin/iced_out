@@ -8,7 +8,17 @@ import { toast } from "sonner";
 import { StatGrid, type Stat } from "@/components/shell/admin-stats";
 import { MediaField } from "@/components/shell/media-field";
 import { MediaGalleryField } from "@/components/shell/media-gallery-field";
-import { AdminPage, Btn, Empty, Field, Note, Panel, Section, Select } from "@/components/shell/admin-ui";
+import {
+  AdminPage,
+  Btn,
+  ConfirmDialog,
+  Empty,
+  Field,
+  Note,
+  Panel,
+  Section,
+  Select,
+} from "@/components/shell/admin-ui";
 import {
   RecordManager,
   type Column,
@@ -36,7 +46,7 @@ import { available, findStockItem, sizesOf, useStock } from "@/features/03-inven
  * they get the same add, edit and delete controls as everything else.
  */
 const VARIANT_COLUMNS: Column[] = [
-  { key: "id", label: "SKU", primary: true, sub: "colour" },
+  { key: "id", label: "Stock code", primary: true, sub: "colour" },
   { key: "size", label: "Size", align: "center" },
   { key: "stock", label: "In stock", align: "right", numeric: true },
   { key: "status", label: "State", status: true },
@@ -86,6 +96,8 @@ export function AdminProductEditor({ productId }: { productId: string }) {
   /* Held while a save or a publish is in flight, so neither control can be
      pressed twice into two requests. */
   const [busy, setBusy] = useState(false);
+  /* Open while the publish check is on screen. */
+  const [publishing, setPublishing] = useState(false);
 
   const product = products.find((entry) => entry.id === productId);
   /* The register is the only place a product is created, so anything that
@@ -110,7 +122,7 @@ export function AdminProductEditor({ productId }: { productId: string }) {
         back={{ href: "/catalog/products", label: "Catalogue" }}
         eyebrow="Catalog · Product editor"
         icon={Package}
-        lede="Nothing in the catalogue is filed under this slug."
+        lede="No product has that web address. It may have been renamed, or removed from the catalogue."
         title={
           <>
             Product <em>not found</em>
@@ -174,8 +186,8 @@ export function AdminProductEditor({ productId }: { productId: string }) {
 
   const stats: Stat[] = [
     { label: "State", value: product.status ?? "Draft", icon: Package, tone: product.status === "Published" ? "mint" : "amber", note: "Set below and saved with the record" },
-    { label: "Stock code", value: product.sku ?? "—", icon: Tag, tone: "sky", note: "Minted from the name" },
-    { label: "Variants", value: String(mine.length).padStart(2, "0"), icon: Tag, tone: "violet", note: "Each with its own stock" },
+    { label: "Stock code", value: product.sku ?? "—", icon: Tag, tone: "sky", note: "Made from the name" },
+    { label: "Sizes & colours", value: String(mine.length).padStart(2, "0"), icon: Tag, tone: "violet", note: "Each with its own stock" },
     { label: "In stock", value: String(inStock), icon: Package, tone: inStock ? "sky" : "rose", note: inStock ? "Across every size" : "Nothing to sell yet" },
   ];
 
@@ -187,25 +199,14 @@ export function AdminProductEditor({ productId }: { productId: string }) {
             <Save aria-hidden size={15} strokeWidth={1.8} />{" "}
             {busy ? "Saving…" : saved ? "Saved" : "Save product"}
           </Btn>
+          {/* Asks first. Publishing is the one control on this screen whose
+              effect leaves the console — the product appears on the public shop
+              for every visitor — and it sat one click away from Save, which
+              does not. It is reversible, so the question is a check rather than
+              a warning and its button is not painted red. */}
           <Btn
             disabled={busy || product.status === "Published"}
-            onClick={() => {
-              setBusy(true);
-              productRegister
-                .onUpdate({ ...product, status: "Published" }, product)
-                .then(() =>
-                  toast.success("Published", {
-                    description: `${product.name} is live on the storefront.`,
-                  }),
-                )
-                .catch((caught: unknown) =>
-                  toast.error("That could not be published", {
-                    description:
-                      caught instanceof Error ? caught.message : "The server refused the change.",
-                  }),
-                )
-                .finally(() => setBusy(false));
-            }}
+            onClick={() => setPublishing(true)}
           >
             Publish product
           </Btn>
@@ -214,9 +215,9 @@ export function AdminProductEditor({ productId }: { productId: string }) {
       back={{ href: "/catalog/products", label: "Catalogue" }}
       eyebrow="Catalog · Product editor"
       icon={Package}
-      lede="Everything about this product on one screen. A draft is always saveable; publishing is one control, not a wizard."
+      lede="Everything about this product on one screen. Save a draft at any time — nothing goes to the shop until you press Publish."
       spec={[
-        { label: "Slug", value: product.id },
+        { label: "Web address", value: product.id },
         { label: "Code", value: product.sku ?? "—" },
         { label: "State", value: product.status ?? "Draft" },
       ]}
@@ -318,7 +319,7 @@ export function AdminProductEditor({ productId }: { productId: string }) {
         <Section
           copy="What this product is filed under, and the stock record it sells from."
           eyebrow="Identity"
-          title="Slug, code and stock"
+          title="Web address, code and stock"
         >
           <Panel>
             <div style={{ display: "grid", gap: 16 }}>
@@ -393,7 +394,7 @@ export function AdminProductEditor({ productId }: { productId: string }) {
         <RecordManager
           columns={VARIANT_COLUMNS}
           derive={deriveVariant(productId)}
-          emptyHint="Nothing is buyable until this product has a size to buy. Add the first variant to get started."
+          emptyHint="Nobody can buy this until it has a size to buy. Add the first size or colour to get started."
           fields={variantFields(stockSizes)}
           filterKey="status"
           filterValues={VARIANT_STATES}
@@ -413,6 +414,32 @@ export function AdminProductEditor({ productId }: { productId: string }) {
           tone="violet"
         />
       </Section>
+
+      <ConfirmDialog
+        confirmLabel="Publish it"
+        description={`${product.name} goes on the shop straight away, where anyone visiting the site can see and buy it. You can take it down again from this screen.`}
+        onConfirm={() => {
+          setBusy(true);
+          productRegister
+            .onUpdate({ ...product, status: "Published" }, product)
+            .then(() =>
+              toast.success("Published", {
+                description: `${product.name} is live on the shop.`,
+              }),
+            )
+            .catch((caught: unknown) =>
+              toast.error("That could not be published", {
+                description:
+                  caught instanceof Error ? caught.message : "The server refused the change.",
+              }),
+            )
+            .finally(() => setBusy(false));
+        }}
+        onOpenChange={setPublishing}
+        open={publishing}
+        title="Put this on the shop?"
+        tone="solid"
+      />
     </AdminPage>
   );
 }

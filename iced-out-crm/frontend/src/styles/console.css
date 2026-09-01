@@ -2045,14 +2045,42 @@
   color: var(--nh-ink);
 }
 
+/* A TONED row action carries its colour AT REST, not only under the cursor.
+   Confirm and Cancel sit next to each other on the order register, and while
+   both were `--nh-muted` until hovered they were the same grey shape: the only
+   thing telling "approve this sale" from "call it off" was a native tooltip
+   that takes a second to appear and never appears at all on a touch screen.
+   Tinting the resting state is what makes the row readable at a glance — and
+   what stops a mis-click landing on the irreversible one. */
+.aui-iconbtn--danger {
+  background: rgba(239, 122, 128, 0.1);
+  color: var(--aui-rose);
+  box-shadow: inset 0 0 0 1px rgba(239, 122, 128, 0.22);
+}
+
 .aui-iconbtn--danger:hover {
-  background: rgba(239, 122, 128, 0.14);
+  background: rgba(239, 122, 128, 0.2);
   color: var(--aui-rose);
 }
 
-.aui-iconbtn--good:hover:not(:disabled) {
-  background: rgba(var(--aui-mint-rgb), 0.14);
+.aui-iconbtn--good:not(:disabled) {
+  background: rgba(var(--aui-mint-rgb), 0.1);
   color: var(--aui-mint);
+  box-shadow: inset 0 0 0 1px rgba(var(--aui-mint-rgb), 0.22);
+}
+
+.aui-iconbtn--good:hover:not(:disabled) {
+  background: rgba(var(--aui-mint-rgb), 0.2);
+  color: var(--aui-mint);
+}
+
+/* A held verb keeps the shape but drops the colour: "this is the right action,
+   it is just not legal yet" reads differently from "this is dangerous". */
+.aui-iconbtn--good:disabled,
+.aui-iconbtn--danger:disabled {
+  background: none;
+  color: var(--nh-muted);
+  box-shadow: none;
 }
 
 .aui-iconbtn:disabled {
@@ -3071,6 +3099,137 @@ button.aui-select {
 .aui-empty--inline .aui-empty__glyph {
   width: 38px;
   height: 38px;
+}
+
+/* ============================================ 12b. the first-run guide
+
+   Shown once, on the dashboard, to somebody who has never opened this console.
+   It sits ABOVE the trading figures deliberately: on a new install those are
+   all zero, and a wall of zeroes is the least useful thing a first-time
+   operator can be shown. The cards are numbered because the steps depend on
+   each other in that order, not because they are merely a list.            */
+
+.aui-start {
+  padding: clamp(18px, 2.4vw, 26px);
+  border-radius: var(--nh-radius-lg);
+  background: var(--nh-surface-2);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.aui-start__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.aui-start__eyebrow {
+  color: var(--nh-muted-2);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.aui-start__title {
+  margin-top: 7px;
+  font-size: clamp(1.05rem, 2vw, 1.32rem);
+  font-weight: 400;
+  font-stretch: 108%;
+  letter-spacing: -0.025em;
+}
+
+.aui-start__copy {
+  max-width: 62ch;
+  margin-top: 7px;
+  color: var(--nh-muted);
+  font-size: 12.5px;
+  line-height: 1.65;
+  text-wrap: pretty;
+}
+
+.aui-start__close {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: var(--nh-ghost-bg);
+  color: var(--nh-muted);
+  font-size: 11.5px;
+  white-space: nowrap;
+  box-shadow: inset 0 0 0 1px var(--nh-hairline-soft);
+  transition: background 160ms var(--nh-ease-soft), color 160ms var(--nh-ease-soft);
+}
+
+.aui-start__close:hover {
+  background: var(--nh-ghost-bg-hover);
+  color: var(--nh-ink);
+}
+
+.aui-start__grid {
+  display: grid;
+  margin-top: 18px;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(206px, 1fr));
+  list-style: none;
+}
+
+/* The whole card is the link, so the target is the card and not four words
+   inside it — the difference between a control a new operator hits and one
+   they miss. */
+.aui-start__card {
+  display: grid;
+  position: relative;
+  height: 100%;
+  padding: 15px 15px 16px;
+  border-radius: var(--nh-radius-card);
+  gap: 3px;
+  background: var(--nh-card-bg);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline-soft);
+  transition:
+    transform 200ms var(--nh-ease),
+    box-shadow 200ms var(--nh-ease-soft);
+}
+
+.aui-start__card:hover {
+  transform: translateY(-2px);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline);
+}
+
+.aui-start__num {
+  position: absolute;
+  top: 13px;
+  right: 14px;
+  color: var(--nh-muted-2);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.aui-start__glyph {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  margin-bottom: 9px;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--nh-ink-soft);
+  box-shadow: inset 0 0 0 1px var(--nh-hairline-soft);
+}
+
+.aui-start__label {
+  color: var(--nh-ink);
+  font-size: 13px;
+  letter-spacing: -0.01em;
+}
+
+.aui-start__hint {
+  color: var(--nh-muted);
+  font-size: 11.5px;
+  line-height: 1.55;
+  text-wrap: pretty;
 }
 
 /* ================================================ 13. account settings */

@@ -284,7 +284,7 @@ export function AdminCatalogWorkspace() {
     <AdminPage
       eyebrow="Catalog"
       icon={Package}
-      lede="List what the warehouses actually hold. Pick a stock item and one of the sizes it comes in — the slug and the stock code are minted for you, and the available count is read straight off inventory."
+      lede="Put something on the shop for sale. Pick an item you already hold in stock and the size it comes in — the web address and the product code are filled in for you, and the number available is read straight off your inventory."
       spec={[
         { label: "Products", value: String(products.length).padStart(2, "0") },
         { label: "Published", value: count(products, "Published") },

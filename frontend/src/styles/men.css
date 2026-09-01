@@ -1,0 +1,701 @@
+/* ============================================================================
+   ICED_OUT — /men
+   ----------------------------------------------------------------------------
+   The men's floor. Additive over new-home.css and scoped under `.men-root`, a
+   class the layout carries alongside `.nh-root`, so the palette, easing and
+   gutter tokens declared there resolve unchanged and nothing here can reach
+   /new-home, /new-man or /new-woman.
+
+   THE STAGE, AND WHAT THIS FLOOR ADDS TO IT
+   This hero is deliberately the house composition: one dark full-bleed screen,
+   ONE cut-out garment centred on it, the wordmark split either side, the
+   furniture pinned to the corners. That is what the root does and what
+   /new-woman does, and it is the shop's hero language — a department arriving
+   in some other layout would read as a different site.
+
+   An earlier pass here was a split-screen diptych. It was rejected, correctly:
+   a hard vertical seam with copy on one side and a photograph on the other is
+   the most generic landing-page layout there is, and it had nothing to do with
+   the rest of this shop.
+
+   So the composition is the house one, and the NEW thing is inside it — a
+   technical rig drawn over the garment:
+
+     · a measured width beneath it, ruled out from the centre with end ticks;
+     · two leader lines running from the garment out to callouts.
+
+   A viewfinder of four corner brackets framed the piece in an earlier pass and
+   has been taken out: it read as a camera overlay sitting ON the photograph
+   rather than as anything to do with the garment, and it was the third mark
+   competing for the same silhouette.
+
+   The run also CYCLES now, and the light does the switching — see `.men-hero__glow`.
+
+   That is the right new thing for menswear specifically. This floor's copy is
+   already about grams, drops and construction; the rig says the same in the
+   register a spec sheet uses, and nothing else on the site draws one.
+
+   The light differs too: the root fans sixteen rays, /new-woman lands an
+   overhead beam on a plinth, and this stands the garment on a perspective floor
+   grid under a hard rim. Same stage, different rig.
+   ========================================================================= */
+
+.men-root {
+  /* --------------------------------------------------------------------
+     COLD ACCENT SET
+     The base surfaces stay exactly as `.nh-root` declares them — this is the
+     same shop. What is added is the cold side: a steel and a graphite, used
+     for the rig, the grid, the counters and the glow. /new-woman adds a rose
+     and a champagne to the same base; the two floors are told apart by
+     temperature rather than by a second grey.
+     -------------------------------------------------------------------- */
+  --men-steel: #9fb2bd;
+  --men-steel-dim: #6d7d86;
+  --men-graphite: #b9c4c9;
+
+  --men-line: rgba(226, 238, 245, 0.12);
+  --men-line-soft: rgba(226, 238, 245, 0.07);
+  --men-line-hi: rgba(159, 178, 189, 0.5);
+  --men-fill: rgba(232, 242, 248, 0.045);
+  --men-plate: rgba(17, 20, 22, 0.76);
+  /* The wordmark's ink. Dimmer than --nh-ink on purpose: the word is BEHIND
+     the garment and the callouts, and at full ink it was the brightest thing
+     on the floor -- brighter than the piece it frames, and bright enough that
+     a callout's grey label crossing a letter simply vanished into it. This is
+     the weight of a backdrop, not of a heading. */
+  --men-word: rgba(226, 238, 245, 0.46);
+  --men-glow: rgba(159, 178, 189, 0.16);
+
+  /* The garment's height. One token: the picture, the rig that frames it and
+     the shadow under it all measure against it.
+     ------------------------------------------------------------------------
+     58svh, not 42. At the smaller figure the piece was a small object floating
+     between two enormous words — the type was the hero and the product was
+     furniture, which is the wrong way round in a shop. The root's hoodie takes
+     roughly this much of the screen, and that is the balance that works. */
+  --men-garment-h: clamp(260px, 58svh, 620px);
+}
+
+/* ---------------------------------------------------------------- primitives */
+
+.men-root .men-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--nh-muted);
+}
+
+/* A rule rather than the women's dot — the same slot, drawn with a straight
+   edge instead of a round one. */
+.men-root .men-kicker::before {
+  content: "";
+  flex: none;
+  width: 16px;
+  height: 1px;
+  background: var(--men-steel);
+}
+
+.men-root .men-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 46px;
+  padding: 0 26px;
+  /* Squared, where the women's floor is a capsule. 4px reads as cut rather than
+     moulded, which is that difference stated in one number. */
+  border-radius: 4px;
+  font-size: 11.5px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  text-decoration: none;
+  transition:
+    background-color 0.4s var(--nh-ease-soft),
+    color 0.4s var(--nh-ease-soft),
+    box-shadow 0.4s var(--nh-ease-soft),
+    transform 0.4s var(--nh-ease);
+}
+
+.men-root .men-btn__arrow {
+  display: inline-grid;
+  place-items: center;
+  transition: transform 0.4s var(--nh-ease);
+}
+
+.men-root .men-btn:hover .men-btn__arrow {
+  transform: translateX(3px);
+}
+
+.men-root .men-btn--solid {
+  color: var(--nh-solid-fg);
+  background: var(--nh-solid-bg);
+}
+
+.men-root .men-btn--solid:hover {
+  background: var(--nh-solid-bg-hover);
+  transform: translateY(-2px);
+}
+
+.men-root .men-btn--ghost {
+  color: var(--nh-ink);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--men-line);
+}
+
+.men-root .men-btn--ghost:hover {
+  background: var(--men-fill);
+  box-shadow: inset 0 0 0 1px var(--men-line-hi);
+  transform: translateY(-2px);
+}
+
+/* ================================================================== the stage */
+
+.men-root .men-hero {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  /* `clip`, never `hidden`: `overflow-x: hidden` on an ancestor turns the page
+     into a scroll container, which un-pins anything sticky further down. */
+  overflow: clip;
+  /* One screen measured from the top of the DOCUMENT. `.nh-nav-scope` is a
+     sticky 92px strip in normal flow, so a plain `100svh` would start below it
+     and run 92px past the fold. Pulling the section up by the bar's height and
+     paying it back as padding is what `.nh-hero` does on /new-man for exactly
+     the same reason — the stage owns the screen and the bar floats on it. */
+  min-height: 100svh;
+  margin-top: calc(var(--nh-nav-h, 92px) * -1);
+  padding-top: var(--nh-nav-h, 92px);
+  background: var(--nh-surface);
+}
+
+/* ------------------------------------------------------------------- light */
+
+/* A hard rim behind the garment and a cold wash low on the floor. Two
+   gradients, no fan: the root's sixteen rays are its signature, and a third
+   starburst would be the same idea again at a different angle. */
+.men-root .men-hero__field {
+  position: absolute;
+  inset: 0;
+  z-index: -3;
+  pointer-events: none;
+  background:
+    radial-gradient(30% 34% at 50% 44%, var(--men-glow) 0%, transparent 70%),
+    radial-gradient(80% 40% at 50% 100%, rgba(120, 140, 152, 0.08) 0%, transparent 72%);
+}
+
+/* The vignette, so the stage has edges and the wordmark never floats on flat
+   black. */
+.men-root .men-hero__field::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(76% 64% at 50% 46%, transparent 40%, rgba(6, 7, 8, 0.76) 100%);
+}
+
+/* --------------------------------------------------------------- floor grid */
+
+/* The plane the garment stands on.
+   ---------------------------------------------------------------------------
+   A flat grid laid down in 3D rather than a drawn perspective: the lines
+   converge because the plane is rotated, so they stay correct at every width
+   without a single hand-placed vanishing point. `perspective` lives on the
+   wrapper because it applies to an element's CHILDREN — put on the plane
+   itself it does nothing at all. */
+.men-root .men-hero__floor {
+  position: absolute;
+  inset: auto -25% 0 -25%;
+  z-index: -2;
+  height: 42%;
+  perspective: 420px;
+  perspective-origin: 50% 0%;
+  pointer-events: none;
+}
+
+.men-root .men-hero__floorPlane {
+  position: absolute;
+  inset: 0;
+  transform: rotateX(74deg);
+  transform-origin: 50% 0%;
+  background-image:
+    repeating-linear-gradient(90deg, var(--men-line) 0 1px, transparent 1px 5%),
+    repeating-linear-gradient(0deg, var(--men-line) 0 1px, transparent 1px 7%);
+  /* fades out towards the horizon, which after the rotation is the top edge */
+  -webkit-mask-image: linear-gradient(to top, rgba(0, 0, 0, 0.85) 0%, transparent 62%);
+  mask-image: linear-gradient(to top, rgba(0, 0, 0, 0.85) 0%, transparent 62%);
+}
+
+/* -------------------------------------------------------------------- type */
+
+.men-root .men-hero__kicker {
+  position: relative;
+  z-index: 4;
+  display: flex;
+  justify-content: center;
+  padding: clamp(1.25rem, 3.5vh, 2.5rem) var(--nh-gutter) 0;
+}
+
+/* The wordmark, split either side of the garment. It sits BEHIND the piece on
+   purpose — the inner edge of each half is meant to be cut off by the
+   silhouette, which is what makes the composition read as depth rather than as
+   a row of three things. */
+.men-root .men-hero__word {
+  position: absolute;
+  /* Set across the garment's chest, not above its head. Sitting high, the two
+     halves and the piece occupied different bands and the silhouette cut
+     nothing — which makes a split wordmark pointless, since being cut is the
+     entire reason to split one. */
+  inset: 22% var(--nh-gutter) auto;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: clamp(1rem, 4vw, 4rem);
+  margin: 0;
+  pointer-events: none;
+}
+
+.men-root .men-hero__half {
+  display: block;
+  overflow: hidden;
+  padding-bottom: 0.08em;
+}
+
+.men-root .men-hero__halfInner {
+  display: block;
+  font-size: clamp(2.6rem, 15vw, 13rem);
+  font-weight: 700;
+  line-height: 0.82;
+  letter-spacing: -0.045em;
+  text-transform: uppercase;
+  color: var(--men-word);
+  white-space: nowrap;
+}
+
+/* ----------------------------------------------------------------- garment */
+
+.men-root .men-hero__stage {
+  position: relative;
+  z-index: 2;
+  flex: 1 1 auto;
+  min-height: clamp(300px, 46svh, 580px);
+}
+
+.men-root .men-hero__garment {
+  position: absolute;
+  left: 50%;
+  /* Lifted off the stage's floor by exactly the room the dimension line needs.
+     At `bottom: 0` the rule was drawn below the stage entirely and landed on
+     the lede in the footer. */
+  bottom: clamp(1.75rem, 4.5vh, 3.25rem);
+  z-index: 2;
+  width: clamp(270px, 50vw, 720px);
+  /* Centred with `translate`, not `transform`: Motion writes `transform` into
+     this element's style attribute for the scroll drift, and a `transform` here
+     would simply be overwritten — the garment would jump half its width left
+     the moment the page was scrolled. The two properties compose. */
+  translate: -50% 0;
+}
+
+/* THE GLOW.
+   ---------------------------------------------------------------------------
+   A bloom sitting behind the piece and sized to it, so a cut-out on a dark
+   stage is lit rather than pasted onto one. It is the element that carries the
+   swap: it flares as a garment leaves and settles as the next one lands, which
+   is what makes the change read as something the stage is doing rather than two
+   pictures trading places.
+
+   Behind the garment in the stack but in front of the floor, so the grid stays
+   visible through its outer falloff. */
+.men-root .men-hero__glow {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  z-index: -1;
+  width: 118%;
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  border-radius: 999px;
+  pointer-events: none;
+  background: radial-gradient(
+    closest-side,
+    rgba(196, 214, 226, 0.2) 0%,
+    rgba(159, 178, 189, 0.09) 44%,
+    transparent 72%
+  );
+}
+
+/* The endless bob. It is `position: relative` even at rest because the
+   transform on it is what makes it the rig's containing block — the dimension
+   line and the callouts resolve against this box, so they travel with the
+   garment rather than staying put while it drifts out from under them. */
+.men-root .men-hero__float {
+  position: relative;
+  height: var(--men-garment-h);
+}
+
+/* Every garment in the run is absolutely positioned: during a swap there are
+   two on the stage, and neither may push the other down the page. */
+.men-root .men-hero__layer {
+  position: absolute;
+  inset: 0;
+}
+
+.men-root .men-hero__garmentImg {
+  display: block;
+  width: 100%;
+  height: var(--men-garment-h);
+  object-fit: contain;
+  object-position: 50% 100%;
+  /* Two shadows doing different jobs: the dark one drops the piece onto the
+     floor, the steel one rims the silhouette so the bloom behind it reads as
+     light falling on cloth rather than a lamp sitting behind a sticker. */
+  filter: drop-shadow(0 30px 44px rgba(0, 0, 0, 0.66))
+    drop-shadow(0 0 30px rgba(159, 178, 189, 0.22));
+  pointer-events: none;
+}
+
+/* The contact shadow where the piece meets the grid — an ellipse, not a blur of
+   the garment, because a hanging cut-out has no feet to cast one. */
+.men-root .men-hero__contact {
+  position: absolute;
+  left: 50%;
+  bottom: -8px;
+  width: 62%;
+  height: clamp(22px, 3.6vh, 44px);
+  translate: -50% 0;
+  border-radius: 999px;
+  background: radial-gradient(closest-side, rgba(4, 5, 6, 0.72), transparent 74%);
+  pointer-events: none;
+}
+
+/* ==================================================================== the rig */
+
+/* The technical overlay. It shares the garment's box exactly, so every offset
+   below is a percentage of the piece itself rather than of the screen — the rig
+   cannot drift off the garment at any width. */
+.men-root .men-hero__rig {
+  position: absolute;
+  inset: auto 0 0 0;
+  z-index: 3;
+  height: var(--men-garment-h);
+  pointer-events: none;
+}
+
+/* ---- measured width ------------------------------------------------------ */
+
+/* A dimension line under the piece, with a tick at each end and the figure set
+   on it — the way a spec sheet draws one. */
+.men-root .men-hero__dim {
+  position: absolute;
+  left: -1%;
+  right: -1%;
+  bottom: -6%;
+  height: 1px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.men-root .men-hero__dimRule {
+  position: absolute;
+  inset: 0;
+  background: var(--men-line);
+  transform-origin: 50% 50%;
+}
+
+.men-root .men-hero__dimRule::before,
+.men-root .men-hero__dimRule::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 1px;
+  height: clamp(8px, 1vw, 12px);
+  translate: 0 -50%;
+  background: var(--men-line-hi);
+}
+
+.men-root .men-hero__dimRule::before {
+  left: 0;
+}
+
+.men-root .men-hero__dimRule::after {
+  right: 0;
+}
+
+.men-root .men-hero__dimLabel {
+  position: relative;
+  padding: 0 10px;
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--men-steel);
+  background: var(--nh-surface);
+  white-space: nowrap;
+}
+
+/* ---- callouts ------------------------------------------------------------ */
+
+/* A dot on the garment, a leader line running out from it, and the label at the
+   end. `side` decides which way the line runs, so a label always lands clear of
+   the silhouette instead of on top of it. */
+.men-root .men-hero__callout {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  translate: 0 -50%;
+}
+
+.men-root .men-hero__callout--left {
+  flex-direction: row-reverse;
+}
+
+.men-root .men-hero__calloutDot {
+  flex: none;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--men-steel);
+  box-shadow: 0 0 0 3px rgba(159, 178, 189, 0.14);
+}
+
+.men-root .men-hero__calloutLine {
+  flex: none;
+  width: clamp(34px, 6vw, 96px);
+  height: 1px;
+  background: linear-gradient(90deg, var(--men-line-hi), var(--men-line));
+  transform-origin: 0 50%;
+}
+
+.men-root .men-hero__callout--left .men-hero__calloutLine {
+  background: linear-gradient(270deg, var(--men-line-hi), var(--men-line));
+  transform-origin: 100% 50%;
+}
+
+/* Plated, because a callout can land anywhere.
+   Its x/y are per-garment data, the wordmark runs the full width behind it,
+   and the two WILL cross -- "2x1, dry hand" in --men-graphite sat on top of a
+   near-white letter and disappeared completely. The dimension label below the
+   piece already solves this by punching an opaque plate through whatever is
+   behind it; this is the same move, translucent so the floor still shows. */
+.men-root .men-hero__calloutLabel {
+  display: grid;
+  gap: 3px;
+  padding: 5px 9px;
+  border-radius: 8px;
+  background: var(--men-plate);
+  box-shadow: inset 0 0 0 1px var(--men-line-soft);
+  white-space: nowrap;
+}
+
+@supports (backdrop-filter: blur(6px)) {
+  .men-root .men-hero__calloutLabel {
+    background: rgba(17, 20, 22, 0.58);
+    backdrop-filter: blur(7px);
+  }
+}
+
+.men-root .men-hero__callout--left .men-hero__calloutLabel {
+  text-align: right;
+}
+
+.men-root .men-hero__calloutKey {
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  /* Was --nh-muted-2 (#6e7477): about 2.5:1 on this plate, at 9px. The steel
+     is the quiet-but-readable grey the rest of the rig is drawn in. */
+  color: var(--men-steel);
+}
+
+.men-root .men-hero__calloutValue {
+  font-size: 11.5px;
+  letter-spacing: 0.03em;
+  /* The answer, so it is the brightest thing in the label -- the key names the
+     measurement, this IS it. */
+  color: var(--nh-ink);
+}
+
+/* --------------------------------------------------------------- furniture */
+
+/* Three slots on one row pinned to the bottom edge — the same rhythm every
+   other hero on the site keeps, carrying this floor's own facts. */
+.men-root .men-hero__foot {
+  position: relative;
+  z-index: 4;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: end;
+  gap: clamp(1rem, 3vw, 2.5rem);
+  padding: clamp(1rem, 2.5vh, 2rem) var(--nh-gutter) clamp(1.25rem, 3vh, 2.5rem);
+}
+
+.men-root .men-hero__aside {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.men-root .men-hero__aside--right {
+  justify-items: end;
+  text-align: right;
+}
+
+.men-root .men-hero__lede {
+  margin: 0;
+  max-width: 32ch;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--nh-muted);
+}
+
+.men-root .men-hero__ledger {
+  display: flex;
+  align-items: stretch;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.men-root .men-hero__stat {
+  min-width: 0;
+  padding-inline: clamp(0.7rem, 1.2vw, 1.1rem);
+}
+
+.men-root .men-hero__stat:first-child {
+  padding-inline-start: 0;
+}
+
+.men-root .men-hero__stat + .men-hero__stat {
+  border-inline-start: 1px solid var(--men-line);
+}
+
+.men-root .men-hero__statValue {
+  display: block;
+  font-size: clamp(1.05rem, 1.5vw, 1.5rem);
+  font-weight: 300;
+  font-stretch: 112%;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--nh-ink);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.men-root .men-hero__statLabel {
+  display: block;
+  margin-top: 6px;
+  font-size: 10px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--nh-muted-2);
+  white-space: nowrap;
+}
+
+.men-root .men-hero__ctas {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+.men-root .men-hero__spec {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  font-size: 10.5px;
+  line-height: 1.5;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--nh-muted);
+}
+
+.men-root .men-hero__specTick {
+  flex: none;
+  width: 7px;
+  height: 1px;
+  margin-top: 8px;
+  background: var(--men-steel);
+}
+
+.men-root .men-hero__specLine {
+  display: block;
+}
+
+/* ============================================================== breakpoints */
+
+@media (max-width: 1080px) {
+  /* The rig's labels need room outside the silhouette, and there is none once
+     the wordmark closes in. The viewfinder and the dimension stay — they sit on
+     the garment — and the leader lines with their labels go. */
+  .men-root .men-hero__callout {
+    display: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .men-root .men-hero__foot {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: start;
+    gap: clamp(1rem, 4vw, 1.5rem);
+  }
+
+  .men-root .men-hero__aside--right {
+    justify-items: start;
+    text-align: left;
+  }
+
+  .men-root .men-hero__ctas {
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  .men-root .men-hero__lede {
+    max-width: 40ch;
+  }
+
+  /* The two halves stop framing the garment and stack above it: at this width
+     the gap between them is narrower than the piece, so left-and-right would
+     read as the type colliding with the cloth rather than standing behind it. */
+  .men-root .men-hero__word {
+    inset: clamp(1.5rem, 5vh, 3rem) var(--nh-gutter) auto;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+  }
+
+  .men-root .men-hero__halfInner {
+    font-size: clamp(2.4rem, 16vw, 6rem);
+  }
+}
+
+@media (max-width: 560px) {
+  .men-root {
+    --men-garment-h: clamp(180px, 32svh, 300px);
+  }
+
+  .men-root .men-hero__lede {
+    display: none;
+  }
+
+  .men-root .men-hero__dim {
+    display: none;
+  }
+}
+
+/* ============================================================ reduced motion */
+
+@media (prefers-reduced-motion: reduce) {
+  .men-root .men-btn:hover,
+  .men-root .men-btn:hover .men-btn__arrow {
+    transform: none;
+  }
+}

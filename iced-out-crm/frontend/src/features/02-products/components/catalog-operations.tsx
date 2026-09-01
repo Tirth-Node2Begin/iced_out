@@ -64,7 +64,7 @@ export function CatalogOperations({ view }: { view: CatalogOperationsView }) {
 
   if (view === "categories") {
     const stats: Stat[] = [
-      { label: "Categories", value: String(categories.length).padStart(2, "0"), icon: Tags, tone: "sky", note: "Internal taxonomy only" },
+      { label: "Categories", value: String(categories.length).padStart(2, "0"), icon: Tags, tone: "sky", note: "Used by filters only" },
       { label: "Products classified", value: tally(categories, "products"), icon: Layers3, tone: "violet", note: "Across every category" },
     ];
 
@@ -72,7 +72,7 @@ export function CatalogOperations({ view }: { view: CatalogOperationsView }) {
       <AdminPage
         eyebrow="Catalog · Classification"
         icon={Tags}
-        lede="Internal taxonomy that powers filters and merchandising. Categories never create public routes — the storefront's navigation stays plan-controlled."
+        lede="Your own labels for grouping products — they drive the filters shoppers use. A category does not add a page to the shop; the menu is set separately."
         spec={[
           { label: "Categories", value: String(categories.length).padStart(2, "0") },
           { label: "Products", value: tally(categories, "products") },
@@ -120,7 +120,7 @@ export function CatalogOperations({ view }: { view: CatalogOperationsView }) {
     <AdminPage
       eyebrow="Catalog · Merchandising"
       icon={FolderKanban}
-      lede="Product order, campaign content and the customer-facing story, in one versioned surface per collection."
+      lede="A themed group of products with its own artwork and wording — a drop, a season, a sale. Choose which products it holds and the order they appear in."
       spec={[
         { label: "Collections", value: String(collections.length).padStart(2, "0") },
         { label: "Live", value: count(collections, "Live") },

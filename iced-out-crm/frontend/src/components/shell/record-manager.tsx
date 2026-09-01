@@ -171,6 +171,13 @@ export type RowAction = {
    */
   onSelect?: () => void | Promise<void>;
   tone?: "good" | "danger";
+  /**
+   * A `danger` verb asks before it fires. Pass `false` for one that is genuinely
+   * cheap to undo — nothing does yet, which is why it defaults to asking.
+   */
+  confirm?: false;
+  /** What agreeing to it actually costs, in the screen's own words. */
+  confirmCopy?: string;
   /** Shown, but held — for a row where the verb is right but not yet legal. */
   disabled?: boolean;
   toast?: { title: string; description?: string };
@@ -371,6 +378,9 @@ export function RecordManager({
   /* `undefined` = closed, `null` = creating, a row = editing that row. */
   const [draft, setDraft] = useState<RecordRow | null | undefined>(undefined);
   const [doomed, setDoomed] = useState<RecordRow | undefined>(undefined);
+  /* A destructive row verb waiting to be agreed to. Every `tone: "danger"`
+     action lands here first — see the note on `RowAction.confirm`. */
+  const [risky, setRisky] = useState<{ row: RecordRow; action: RowAction } | undefined>(undefined);
 
   /**
    * What the open form is currently holding.
@@ -946,7 +956,17 @@ export function RecordManager({
                             icon={action.icon}
                             key={action.label}
                             label={action.label}
-                            onClick={() => void apply(row, action)}
+                            onClick={() =>
+                              /* Danger asks first. Cancelling an order reaches
+                                 the parcel and the stock behind it, rejecting a
+                                 return closes it for the customer — none of the
+                                 five verbs wearing this tone can be taken back
+                                 from the row that fired it, and the button that
+                                 fires it is 32px wide and beside its opposite. */
+                              action.tone === "danger" && action.confirm !== false
+                                ? setRisky({ row, action })
+                                : void apply(row, action)
+                            }
                           />
                         ));
                       })()}
@@ -1167,6 +1187,23 @@ export function RecordManager({
         onOpenChange={(next) => !next && setDoomed(undefined)}
         open={doomed !== undefined}
         title={`Delete this ${singular}?`}
+      />
+
+      {/* The action's own label is the title AND the confirming button, so the
+          thing you are agreeing to is spelled out twice and never abbreviated
+          to "OK". The dismissing button says "Go back" rather than "Cancel" —
+          on the order register the verb itself IS "Cancel", and two buttons
+          reading Cancel is the worst possible pair to put under that question. */}
+      <ConfirmDialog
+        confirmLabel={risky?.action.label ?? "Continue"}
+        description={
+          risky?.action.confirmCopy ??
+          "This cannot be undone from here, and it may reach records beyond this row."
+        }
+        onConfirm={() => risky && void apply(risky.row, risky.action)}
+        onOpenChange={(next) => !next && setRisky(undefined)}
+        open={risky !== undefined}
+        title={risky ? `${risky.action.label}?` : ""}
       />
     </>
   );

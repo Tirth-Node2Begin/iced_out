@@ -325,7 +325,7 @@ export function AnalyticsOverview() {
       }
       eyebrow="Analytics"
       icon={BarChart3}
-      lede="Every analysis on one page: live counts straight off the registers, then the trading period under one date filter. No tabs — each reading is its own section."
+      lede="Every figure on one page. The counts at the top are live right now; everything below them covers the dates you choose above."
       spec={[
         { label: "Revenue", value: compactRupees(current.revenue) },
         { label: "Orders", value: countOf(current.orders) },
