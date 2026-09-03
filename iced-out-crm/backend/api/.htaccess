@@ -6,16 +6,27 @@ Options -Indexes -MultiViews
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
+    # A file that exists is served as it is. (bootstrap.php is refused further
+    # down — that is an access rule, not a routing one.)
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^ - [L]
+
     # /auth/login  →  auth/login.php   (the endpoint file that names the route)
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_FILENAME}.php -f
     RewriteRule ^(.*)$ $1.php [L]
 
-    # Anything left — parameterised paths such as /orders/ord-local-07 — goes to
-    # the front controller, which matches it against the same route table.
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteCond %{REQUEST_FILENAME} !-d
+    # EVERYTHING else goes to the front controller, which matches it against the
+    # same route table. There is no `!-d` guard, and that omission is the point.
+    #
+    # A collection with a parameterised child is a DIRECTORY here: the route
+    # /catalog/products has catalog/products/ beside it holding show.php. Guarded
+    # with `!-d`, neither rule above could fire and the request fell out of this
+    # file entirely — landing on mod_dir, then on the site's HTML 404 page.
+    # Under Apache /catalog/products, /me/addresses, /me/orders and /me/sessions
+    # answered text/html 404 instead of JSON; on the console side twenty-nine
+    # routes did. It never showed in development because `php -S` uses
+    # dev-server.php, which has always sent anything-not-a-file to the front
+    # controller — exactly what this rule now does, so the two finally agree.
     RewriteRule ^ index.php [QSA,L]
 </IfModule>
 

@@ -14,7 +14,6 @@ import {
   type StatusTone,
 } from "@/components/shell/admin-ui";
 import { ChipFilter, Toolbar } from "@/components/shell/toolbar";
-import { InventoryTabs } from "@/features/03-inventory/components/inventory-tabs";
 import { CompleteRunDialog } from "@/features/24-materials/components/complete-run-dialog";
 import { RunDialog } from "@/features/24-materials/components/run-dialog";
 import { materials as api, useRuns } from "@/features/24-materials/materials-api";
@@ -191,7 +190,6 @@ export function ProductionWorkspace() {
           </Btn>
         }
         chips={<ChipFilter counts={chipCounts} onChange={setStatus} options={FILTERS} value={status} />}
-        lead={<InventoryTabs />}
       />
 
       <Section eyebrow="Making" title="Runs">

@@ -815,3 +815,123 @@
   background: rgba(255, 90, 90, 0.09);
   box-shadow: inset 0 0 0 1px rgba(255, 90, 90, 0.22);
 }
+
+
+/* ── Recovery ─────────────────────────────────────────────────────────────
+   Three steps on the sign-in shell: address, code, new password. Everything
+   below obeys the no-scroll rule at the top of this file — the block-axis
+   values are `dvh`-aware clamps, so the tallest of the three (the code step,
+   which carries a status line, six boxes and a resend control) compresses on a
+   short window rather than pushing the button past the fold. */
+
+.iox-auth__lede {
+  margin: 0;
+  color: var(--ia-muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+/* The "what just happened" line above the fields — where the address the code
+   went to is repeated back, because the one thing somebody needs at that moment
+   is to see whether they typed it correctly. */
+.iox-sent {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--ia-surface-2);
+  box-shadow: inset 0 0 0 1px var(--ia-hairline-soft);
+  color: var(--ia-ink-soft);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.iox-sent p { margin: 0; }
+.iox-sent b { color: var(--ia-ink); font-weight: 500; overflow-wrap: anywhere; }
+
+.iox-sent svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+  color: var(--ia-ink);
+}
+
+/* Six boxes, one per digit.
+   `1fr` columns rather than a fixed width: the row has to hold its shape from a
+   360px phone to the 420px column this form sits in, and six fixed boxes plus
+   gaps either overflow at the bottom of that range or float in a puddle at the
+   top. `aspect-ratio` keeps them square as they stretch. */
+.iox-code {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: clamp(6px, 1.4vw, 10px);
+}
+
+.iox-code__box {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  aspect-ratio: 1 / 1.12;
+  background: var(--ia-surface-2);
+  box-shadow: inset 0 0 0 1px var(--ia-hairline-soft);
+  color: var(--ia-ink);
+  /* Tabular figures: a 1 and a 7 must occupy the same box, or the row visibly
+     shifts as the code is typed. */
+  font-family: var(--ia-font);
+  font-size: clamp(17px, 4.4vw, 21px);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  transition:
+    box-shadow 300ms var(--ia-ease-soft),
+    background 300ms var(--ia-ease-soft);
+}
+
+.iox-code__box:hover:not(:disabled) { box-shadow: inset 0 0 0 1px var(--ia-hairline); }
+
+.iox-code__box:focus {
+  outline: none;
+  background: var(--ia-surface-3);
+  box-shadow: inset 0 0 0 1px var(--ia-ink-soft);
+}
+
+.iox-code__box:disabled { opacity: 0.55; }
+
+/* The whole row reddens, not one box — a rejected code is wrong as a code, and
+   there is no way to know which digit was the mistake. */
+.iox-code.is-invalid .iox-code__box {
+  box-shadow: inset 0 0 0 1px rgba(255, 90, 90, 0.4);
+}
+
+.iox-resend {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 7px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ia-muted);
+  cursor: pointer;
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  transition: color 300ms var(--ia-ease-soft);
+}
+
+.iox-resend:hover:not(:disabled) { color: var(--ia-ink); }
+
+/* Not hidden while the cooldown runs, and not silent about it: the label counts
+   down, so the control explains its own unavailability instead of looking
+   broken. */
+.iox-resend:disabled { color: var(--ia-muted-2); cursor: default; }
+
+/* `.iox-field__aid` is a link on the sign-in screen and a button on the code
+   step ("use a different email"). Same appearance, so the button sheds the
+   chrome a button arrives with. */
+button.iox-field__aid {
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+}

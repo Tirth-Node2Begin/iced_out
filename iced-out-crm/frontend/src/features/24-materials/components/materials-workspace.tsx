@@ -5,7 +5,6 @@ import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { AdminPage, type StatusTone } from "@/components/shell/admin-ui";
-import { InventoryTabs } from "@/features/03-inventory/components/inventory-tabs";
 import {
   RecordManager,
   type Column,
@@ -239,7 +238,6 @@ export function MaterialsWorkspace() {
         searchKeys={["id", "name", "code", "supplier", "kind"]}
         singular="Material"
         statusTone={(row) => STATE_TONES[row.status]}
-        toolbarLead={<InventoryTabs />}
       >
         {/* The one thing a register cannot say in a column: a count here is
             never edited directly. Stock arrives on a purchase and leaves on a

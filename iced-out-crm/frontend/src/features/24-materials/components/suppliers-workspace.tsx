@@ -4,7 +4,6 @@ import { Factory } from "lucide-react";
 import { useCallback, useMemo } from "react";
 
 import { AdminPage, type StatusTone } from "@/components/shell/admin-ui";
-import { InventoryTabs } from "@/features/03-inventory/components/inventory-tabs";
 import {
   RecordManager,
   type Column,
@@ -162,7 +161,6 @@ export function SuppliersWorkspace() {
         searchKeys={["id", "name", "contactName", "email", "city"]}
         singular="Supplier"
         statusTone={(row) => STATUS_TONES[row.status]}
-        toolbarLead={<InventoryTabs />}
       />
     </AdminPage>
   );

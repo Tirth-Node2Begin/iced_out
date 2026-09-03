@@ -1,161 +1,67 @@
 "use client";
 
-import { ArrowUpRight } from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowUpRight } from "lucide-react";
 import Link from "next/link";
-import {
-  AnimatePresence,
-  motion,
-  useReducedMotion,
-  useScroll,
-  useTransform,
-} from "motion/react";
-import { useEffect, useRef, useState } from "react";
+import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { EASE_OUT } from "@/components/new-home/motion-primitives";
 import { useGenderPieces } from "@/components/gender/use-pieces";
-import {
-  HERO,
-  HERO_GARMENTS,
-  TURNTABLE,
-  type HeroGarment,
-} from "@/components/men/data";
+import { HERO, HERO_GARMENTS, RAIL } from "@/components/men/data";
 /* The shared reduced-motion multiplier. It lives under the women's folder
    because that floor needed it first; it is department-neutral, and importing
    it is what keeps one implementation of a rule both floors depend on. */
 import { useMotionScale } from "@/components/new-woman/use-motion-scale";
 
+const COUNT = HERO_GARMENTS.length;
+
 /**
  * Load choreography.
  *
  * Read in the order the stage is meant to be taken: the floor is laid, the
- * light comes up, the garment arrives and stands in it, the wordmark rises
- * either side, and only then is the rig drawn over the piece — the measured
- * width, then the callouts, each a beat after the last, the way an instrument
- * settles rather than the way a page loads.
+ * light comes up, the rail arrives standing in it, the wordmark rises either
+ * side, and the controls and the furniture land last.
  */
 const T = {
   floor: 0.08,
   glow: 0.12,
-  garment: 0.2,
-  word: 0.38,
-  dim: 0.8,
-  callouts: 0.94,
-  kicker: 1.08,
-  foot: 1.16,
+  rail: 0.2,
+  word: 0.4,
+  controls: 0.92,
+  kicker: 1.04,
+  foot: 1.12,
 } as const;
 
 /**
- * The rig: a measured width and two leader lines.
+ * Where a garment stands, given which one is currently centre.
  *
- * Everything is positioned in percentages of the GARMENT's own box rather than
- * of the screen, so the rig cannot drift off the piece at any width. It is
- * re-keyed on the garment, so a swap redraws it — the figures belong to the
- * piece, not to the stage.
- *
- * A viewfinder of four corner brackets framed the garment in an earlier pass
- * and has been removed: it read as a camera overlay sitting on the photograph
- * rather than as anything to do with the clothes.
+ * Returns -1, 0 or 1 — left flank, centre, right flank. With three pieces every
+ * one of them is always in exactly one of those places, so the rail never has a
+ * gap and never has two pieces in the same slot.
  */
-function Rig({ garment, reduce }: { garment: HeroGarment; reduce: boolean | null }) {
-  return (
-    <div aria-hidden className="men-hero__rig">
-      {/* The measured width. The rule is drawn out from its middle — a
-          dimension line is struck from the centre, not slid in from one end. */}
-      <div className="men-hero__dim">
-        <motion.span
-          animate={{ scaleX: 1, opacity: 1 }}
-          className="men-hero__dimRule"
-          initial={{ scaleX: 0, opacity: 0 }}
-          transition={{
-            duration: reduce ? 0.25 : 0.8,
-            delay: reduce ? 0 : T.dim,
-            ease: EASE_OUT,
-          }}
-        />
-        <motion.span
-          animate={{ opacity: 1 }}
-          className="men-hero__dimLabel"
-          initial={{ opacity: 0 }}
-          transition={{
-            duration: 0.45,
-            delay: reduce ? 0 : T.dim + 0.28,
-            ease: EASE_OUT,
-          }}
-        >
-          {garment.dimension}
-        </motion.span>
-      </div>
-
-      {/* The callouts. The dot lands first, then its line runs out from the dot
-          — `transform-origin` is set on the side the line grows FROM, so it
-          extends away from the garment rather than towards it. */}
-      {garment.callouts.map((callout, index) => {
-        const delay = T.callouts + index * 0.12;
-
-        return (
-          <motion.span
-            animate={{ opacity: 1 }}
-            className={`men-hero__callout men-hero__callout--${callout.side}`}
-            initial={{ opacity: 0 }}
-            key={callout.id}
-            style={
-              callout.side === "left"
-                ? { left: "auto", right: `${100 - callout.x}%`, top: `${callout.y}%` }
-                : { left: `${callout.x}%`, top: `${callout.y}%` }
-            }
-            transition={{ duration: 0.4, delay: reduce ? 0 : delay, ease: EASE_OUT }}
-          >
-            <span className="men-hero__calloutDot" />
-            <motion.span
-              animate={{ scaleX: 1 }}
-              className="men-hero__calloutLine"
-              initial={{ scaleX: 0 }}
-              transition={{
-                duration: reduce ? 0.2 : 0.5,
-                delay: reduce ? 0 : delay + 0.08,
-                ease: EASE_OUT,
-              }}
-            />
-            <motion.span
-              animate={{ opacity: 1, x: 0 }}
-              className="men-hero__calloutLabel"
-              initial={{
-                opacity: 0,
-                x: reduce ? 0 : callout.side === "left" ? 10 : -10,
-              }}
-              transition={{
-                duration: 0.5,
-                delay: reduce ? 0 : delay + 0.24,
-                ease: EASE_OUT,
-              }}
-            >
-              <span className="men-hero__calloutKey">{callout.key}</span>
-              <span className="men-hero__calloutValue">{callout.value}</span>
-            </motion.span>
-          </motion.span>
-        );
-      })}
-    </div>
-  );
+function slotOf(index: number, active: number) {
+  const rel = (index - active + COUNT) % COUNT;
+  if (rel === 0) return 0;
+  return rel === 1 ? 1 : -1;
 }
 
 /**
- * 01 — the men's hero.
+ * 01 — the men's hero, as a rail.
  *
- * The house stage, as the root and /new-woman both build it: one dark
- * full-bleed screen, a single cut-out garment centred and lit from behind, the
- * wordmark split either side of it, the furniture pinned to the corners. A
- * department arriving in some other layout would read as a different site, so
- * the composition is deliberately the shared one.
+ * The house stage — dark full-bleed screen, cut-out garments centred on it, the
+ * wordmark split either side, furniture pinned to the corners — showing THREE
+ * pieces instead of one. They stand on a single lineup: the centre piece large
+ * and lit, the two either side smaller, dimmer and set further back on the same
+ * floor.
  *
- * What is this floor's own: the piece stands on a perspective floor grid rather
- * than in a beam or a burst, a rig is drawn over it giving its measured width
- * and two points of construction, and the run CYCLES — with the glow behind the
- * garment flaring on the change, so the light is what does the switching.
+ * It advances on its own and stops the moment a shopper takes hold of it. The
+ * glow behind the centre never moves — the rail slides through the stage's
+ * light rather than carrying its own.
  *
- * Everything on the stage is decorative and marked so: the heading a screen
- * reader gets is a plain sentence naming the page (`HERO.title`), exactly as
- * the root's hero states "Iced Out" behind its flying wordmark.
+ * Everything on the stage is decorative and marked so, except the controls: the
+ * heading a screen reader gets is a plain sentence naming the page
+ * (`HERO.title`), exactly as the root's hero states "Iced Out" behind its
+ * flying wordmark.
  */
 export function MenHero() {
   const ref = useRef<HTMLElement>(null);
@@ -164,20 +70,32 @@ export function MenHero() {
 
   const { pieces, loaded } = useGenderPieces("men");
 
-  /* The run. A visitor who asked for less movement keeps whichever piece the
-     stage opened on. */
-  const [index, setIndex] = useState(0);
-  const garment = HERO_GARMENTS[index % HERO_GARMENTS.length];
+  const [active, setActive] = useState(0);
+  /**
+   * Whether a shopper has taken hold of the rail.
+   *
+   * Once they have, it stops advancing on its own. A carousel that keeps moving
+   * under someone who is driving it is the most irritating thing a hero can do,
+   * and it is worse than one that simply stops.
+   */
+  const [driven, setDriven] = useState(false);
+
+  const centre = HERO_GARMENTS[active];
+
+  const go = useCallback((next: number) => {
+    setDriven(true);
+    setActive(((next % COUNT) + COUNT) % COUNT);
+  }, []);
 
   useEffect(() => {
-    if (reduce || HERO_GARMENTS.length < 2) return;
+    if (reduce || driven || COUNT < 2) return;
 
     const hold = window.setTimeout(() => {
-      setIndex((value) => (value + 1) % HERO_GARMENTS.length);
-    }, TURNTABLE.holdMs);
+      setActive((value) => (value + 1) % COUNT);
+    }, RAIL.holdMs);
 
     return () => window.clearTimeout(hold);
-  }, [index, reduce]);
+  }, [active, driven, reduce]);
 
   const { scrollYProgress } = useScroll({
     target: ref,
@@ -185,12 +103,12 @@ export function MenHero() {
   });
 
   /* Three rates, so the stage comes apart in depth as it leaves: the wordmark
-     travels furthest because it reads as nearest, the garment less, and the
-     floor drifts the other way. Every distance is multiplied by the motion
-     scale, which is 0 for a visitor who asked for less movement — see
+     travels furthest because it reads as nearest, the rail less, and the floor
+     drifts the other way. Every distance is multiplied by the motion scale,
+     which is 0 for a visitor who asked for less movement — see
      `useMotionScale` for why that is not a branch on the style prop. */
   const wordY = useTransform(scrollYProgress, [0, 1], [0, -150 * scale]);
-  const garmentY = useTransform(scrollYProgress, [0, 1], [0, -70 * scale]);
+  const railY = useTransform(scrollYProgress, [0, 1], [0, -70 * scale]);
   const floorY = useTransform(scrollYProgress, [0, 1], [0, 50 * scale]);
   const fade = useTransform(scrollYProgress, [0, 0.85], [1, 0]);
 
@@ -236,8 +154,8 @@ export function MenHero() {
       </motion.div>
 
       <div className="men-hero__stage">
-        {/* The wordmark, behind the garment on purpose — the inner edge of each
-            half is meant to be cut off by the silhouette. */}
+        {/* The wordmark, behind the rail on purpose — the inner edge of each
+            half is meant to be cut off by the centre piece's silhouette. */}
         <motion.div
           aria-hidden
           className="men-hero__word"
@@ -264,61 +182,68 @@ export function MenHero() {
         {/* Two nested elements, one transform each: the outer takes the scroll
             drift and the inner the entrance. Sharing them on one element means
             the last one written wins and the other silently stops. */}
-        <motion.div className="men-hero__garment" style={{ y: garmentY }}>
+        <motion.div className="men-hero__rail" style={{ y: railY }}>
           <motion.div
             animate={{ opacity: 1, scale: 1, y: 0 }}
             initial={{ opacity: 0, scale: 0.94, y: 26 }}
+            style={{ height: "100%", position: "relative" }}
             transition={{
               duration: reduce ? 0.35 : 0.95,
-              delay: T.garment,
+              delay: T.rail,
               ease: EASE_OUT,
             }}
           >
-            {/* The light, and the thing that performs the swap. Re-keyed on the
-                garment so every change replays the flare: it brightens and
-                widens as the outgoing piece leaves, then settles as the new one
-                lands. Keeping it OUTSIDE the swap layers is what lets it span
-                the handover rather than leaving with either piece. */}
+            {/* The stage's light. It never moves — the rail slides through it,
+                which is what makes an advance read as the lineup travelling
+                rather than three pictures shuffling. Re-keyed on the centre
+                piece so each move replays the flare. */}
             <motion.span
               animate={
                 reduce
                   ? { opacity: 1, scale: 1 }
-                  : { opacity: [0.55, 1, 0.82], scale: [0.96, 1.1, 1] }
+                  : { opacity: [0.6, 1, 0.85], scale: [0.97, 1.08, 1] }
               }
               aria-hidden
               className="men-hero__glow"
-              initial={{ opacity: 0, scale: 0.9 }}
-              key={garment.id}
+              initial={{ opacity: 0, scale: 0.92 }}
+              key={centre.id}
               transition={{
-                duration: reduce ? 0.3 : 1.5,
-                delay: index === 0 ? T.glow : 0,
+                duration: reduce ? 0.3 : 1.4,
+                delay: active === 0 && !driven ? T.glow : 0,
                 ease: EASE_OUT,
               }}
             />
 
-            {/* The bob. A third transform on a third element — the outer takes
-                the scroll drift, the middle the entrance, this the endless
-                float. The rig rides inside it so the instrument travels with
-                the piece instead of the piece drifting out from under it. */}
-            <motion.div
-              animate={reduce ? undefined : { y: [0, -10, 0] }}
-              className="men-hero__float"
-              transition={{ duration: 6.2, ease: "easeInOut", repeat: Infinity }}
-            >
-              {/* The swap. The outgoing piece lifts and dims while the incoming
-                  one rises into place under the same flare of light, so the two
-                  are never simply cross-faded on the spot. */}
-              <AnimatePresence initial={false} mode="popLayout">
-                <motion.div
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  className="men-hero__layer"
-                  exit={{ opacity: 0, y: -22, scale: 0.97 }}
-                  initial={{ opacity: 0, y: 26, scale: 1.03 }}
+            {HERO_GARMENTS.map((garment, index) => {
+              const slot = slotOf(index, active);
+              const isCentre = slot === 0;
+
+              return (
+                <motion.button
+                  animate={{
+                    x: `${slot * RAIL.offset}%`,
+                    scale: isCentre ? 1 : RAIL.flankScale,
+                    opacity: isCentre ? 1 : RAIL.flankOpacity,
+                    /* A flank sits BEHIND the wordmark, the centre piece in
+                       front of it. At the same depth the two flanks painted
+                       over the type and chopped "MENSWEAR" into three pieces;
+                       this restores the clean split AND states the depth
+                       properly — the far garments are behind the type, the
+                       near one is in front. */
+                    zIndex: isCentre ? 3 : 0,
+                  }}
+                  aria-current={isCentre ? "true" : undefined}
+                  aria-label={isCentre ? garment.name : `Show ${garment.name}`}
+                  className="men-hero__slot"
+                  data-flank={isCentre ? undefined : ""}
+                  disabled={isCentre}
                   key={garment.id}
+                  onClick={() => go(index)}
                   transition={{
-                    duration: reduce ? 0.25 : TURNTABLE.swapSeconds,
+                    duration: reduce ? 0.2 : RAIL.slideSeconds,
                     ease: EASE_OUT,
                   }}
+                  type="button"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
@@ -329,11 +254,58 @@ export function MenHero() {
                     src={garment.src}
                   />
                   <span aria-hidden className="men-hero__contact" />
-                  <Rig garment={garment} reduce={reduce} />
-                </motion.div>
-              </AnimatePresence>
-            </motion.div>
+                </motion.button>
+              );
+            })}
           </motion.div>
+        </motion.div>
+
+        {/* The rail's controls, and the centre piece named and measured. This
+            is what is left of an earlier technical rig — the register survived,
+            it just sits under the lineup now instead of being drawn over a
+            garment. */}
+        <motion.div
+          animate={{ opacity: 1, y: 0 }}
+          className="men-hero__controls"
+          initial={{ opacity: 0, y: 14 }}
+          transition={{ duration: 0.7, delay: T.controls, ease: EASE_OUT }}
+        >
+          <div className="men-hero__nav">
+            <button
+              aria-label="Previous piece"
+              className="men-hero__navBtn"
+              onClick={() => go(active - 1)}
+              type="button"
+            >
+              <ArrowLeft aria-hidden size={15} strokeWidth={1.6} />
+            </button>
+
+            {/* Announced, because the garment on the stage changes without the
+                page navigating and a screen reader would otherwise get no word
+                of it. */}
+            <span aria-live="polite" className="men-hero__count">
+              {String(active + 1).padStart(2, "0")} / {String(COUNT).padStart(2, "0")}
+            </span>
+
+            <button
+              aria-label="Next piece"
+              className="men-hero__navBtn"
+              onClick={() => go(active + 1)}
+              type="button"
+            >
+              <ArrowRight aria-hidden size={15} strokeWidth={1.6} />
+            </button>
+          </div>
+
+          {/* The name leads and the measurement follows it quietly. Both were
+              set at the same 10.5px caps, which left the composition with a
+              208px wordmark, a 13px lede and nothing in between — so the one
+              line that says WHAT IS ON THE STAGE read as a footnote. */}
+          <p className="men-hero__name">
+            {centre.name}
+            <span aria-hidden className="men-hero__nameRule" />
+            <span className="men-hero__nameSpec">{centre.chest}</span>
+          </p>
         </motion.div>
       </div>
 

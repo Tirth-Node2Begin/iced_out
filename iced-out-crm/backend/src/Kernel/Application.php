@@ -7,7 +7,11 @@ namespace Iced\Kernel;
 use Iced\Integration\BackgroundRemoval\BackgroundRemover;
 use Iced\Integration\BackgroundRemoval\RemoveBgClient;
 use Iced\Integration\BackgroundRemoval\UnconfiguredBackgroundRemover;
+use Iced\Integration\Mail\LogMailer;
+use Iced\Integration\Mail\Mailer;
+use Iced\Integration\Mail\SmtpMailer;
 use Iced\Integration\Payments\RazorpayGateway;
+use Iced\Integration\Tracking\IthinkLogisticsTrackingProvider;
 use Iced\Integration\Tracking\PlaceholderTrackingProvider;
 use Iced\Integration\Tracking\TrackingProvider;
 use Iced\Kernel\Exception\ApiException;
@@ -159,12 +163,71 @@ final class Application
             $c->make(Logger::class),
         ));
 
-        // Spec §9.8: only the placeholder exists today. When the external
-        // provider's client is written, bind it here for a non-blank
-        // TRACKING_API_BASE_URL and leave the placeholder as the fallback.
+        /**
+         * Mail. Same arrangement as the background remover above: a driver that
+         * cannot work is never bound. `MAIL_DRIVER=smtp` with a blank
+         * `SMTP_HOST` would be a client that fails on every send, so it falls
+         * back to the log driver and says so once, where an operator will find
+         * it — rather than silently swallowing every recovery code.
+         */
+        $container->singleton(Mailer::class, static function (Container $c) use ($config): Mailer {
+            $driver = strtolower($config->string('app.mail.driver', 'log'));
+            $host = $config->string('app.mail.host');
+            $logger = $c->make(Logger::class);
+
+            if ($driver !== 'smtp') {
+                return new LogMailer($logger);
+            }
+
+            if ($host === '') {
+                $logger->warning('mail.misconfigured', [
+                    'reason' => 'MAIL_DRIVER=smtp with a blank SMTP_HOST — falling back to the log driver.',
+                ]);
+
+                return new LogMailer($logger);
+            }
+
+            return new SmtpMailer(
+                $host,
+                $config->int('app.mail.port', 587),
+                $config->string('app.mail.username'),
+                $config->string('app.mail.password'),
+                strtolower($config->string('app.mail.encryption', 'tls')),
+                $config->string('app.mail.from', 'no-reply@iced-out.example'),
+                $config->string('app.mail.from_name', 'Iced_out'),
+                $config->int('app.mail.timeout', 15),
+                $logger,
+            );
+        });
+
+        /**
+         * Order tracking (spec §9.8) — iThink Logistics when both halves of the
+         * credential are present, the placeholder otherwise.
+         *
+         * Keyed on the CREDENTIALS rather than the base URL, which has a
+         * working default: a server that has the host but no token would
+         * otherwise bind a client that can only ever be refused, and every
+         * shipment screen would report a 401 where "not connected yet" is the
+         * truthful answer.
+         */
         $container->singleton(
             TrackingProvider::class,
-            static fn (): TrackingProvider => new PlaceholderTrackingProvider(),
+            static function (Container $c) use ($config): TrackingProvider {
+                $token = $config->string('app.tracking.access_token');
+                $secret = $config->string('app.tracking.secret_key');
+
+                if ($token === '' || $secret === '') {
+                    return new PlaceholderTrackingProvider();
+                }
+
+                return new IthinkLogisticsTrackingProvider(
+                    $config->string('app.tracking.base_url', 'https://api.ithinklogistics.com/api_v3'),
+                    $token,
+                    $secret,
+                    $config->int('app.tracking.timeout', 20),
+                    $c->make(Logger::class),
+                );
+            },
         );
 
         return $app;

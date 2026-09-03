@@ -359,8 +359,16 @@ hide affordances without a second source of truth.
 ### 5.6 Credential hygiene
 
 Argon2id password hashes; per-email + per-IP login throttling with progressive lockout
-(5 failures → 15 min); `login_attempts` append-only table; all reset/OTP tokens stored hashed
-with single-use + 30 min expiry; sessions revocable (`/me/sessions`).
+(5 failures → 15 min); `login_attempts` append-only table; all reset/OTP tokens stored
+hashed with single-use expiry (password codes: 10 min, 5 attempts — §8.2); sessions
+revocable (`/me/sessions`), and a completed password reset revokes every session on the
+account for that audience.
+
+Mail is `MAIL_DRIVER` in `.env`: `log` writes the whole message to `storage/logs` and sends
+nothing (the development default — never production, a code in a log file is a code anyone
+with the log has), `smtp` talks to a real server over STARTTLS or implicit TLS. A blank
+`SMTP_HOST` falls back to `log` and logs why. `SmtpMailer` speaks the protocol over a
+socket; there is no mail dependency, for the same reason there is no framework.
 
 ### 5.7 Guest → customer "bag intent"
 
@@ -653,11 +661,36 @@ All paths are under `/api/v1`. All request/response bodies use the shapes of §7
 | 7 | `POST /auth/logout` | C | clears cookie, revokes session → `204` |
 | 8 | `GET /auth/session` | C | `{ data: { customer: CustomerProfile } }` or 401 |
 | 9 | `POST /auth/google` | P | `{ id_token }` → verify OIDC, upsert user, set cookie (backs the "Continue with Google" button) |
-| 10 | `POST /auth/password/forgot` | P | `{ email }` → always `202 { data: { accepted: true } }` (neutral) |
-| 11 | `POST /auth/password/reset` | P | `{ token, password (≥6) }` → `204`; token single-use, 30 min |
+| 10 | `POST /auth/password/forgot` | P | `{ email }` → `202 { data: { accepted: true } }`, or **422 `ICE-AUTH-EMAIL-422`** on field `email` when there is no such account. Mails a **6-digit code**, not a link — see the notes below the table |
+| 10a | `POST /auth/password/verify` | P | `{ email, code }` → `204`. Checks the code WITHOUT spending it, so the UI can move to the password step before asking for a password. Wrong/expired ⇒ 422 `ICE-AUTH-OTP-422` on field `code` |
+| 11 | `POST /auth/password/reset` | P | `{ email, code, password (≥6) }` → `204`; code single-use, 10 min, revokes every customer session on the account |
 | 12 | `POST /auth/intent` | P | `{ lines: [{ productId, size, quantity }] }` → `{ data: { intent_token } }` (signed, 15 min, no DB row) |
 | 13 | `POST /auth/intent/resume` | C | `{ intent_token }` → merges into server cart → `{ data: Cart }` |
 | 14 | `GET /auth/csrf` | P | reserved no-op returning `204` (future-proofing; UI sends no token) |
+
+**Recovery is a code, not a link.** A reset link means the email carries a clickable
+address to a page that will accept a new password — the shape of every credential-phishing
+message ever sent. A code is typed back into the tab the person opened themselves, so no
+email can put them on the wrong site, and it survives the phone-to-laptop trip a link does
+not. `10a` is the extra endpoint that shape needs, and is why there are three routes for
+two rows.
+
+**#10 names an unknown address; #87 does not.** This asymmetry is deliberate and
+is documented in both `forgotPassword()` methods. The rule is *never be the only
+oracle*: the shop's `POST /auth/register` (#5) already answers "an account with
+that email already exists", so silence at #10 would protect nothing and would
+cost a shopper who mistyped a ten-minute wait for mail that was never coming.
+The console has no public registration — login and its three password routes are
+its only public endpoints — so the same answer at #87 *would* be the one and only
+way to learn which addresses are staff, and a staff address is half of a console
+credential. Making the two responses identical would break the rule, not honour it.
+
+Only the SHA-256 of `audience|email|code` is stored, in `auth_tokens` (`purpose =
+PASSWORD_RESET`) — hashing the six digits alone would collide across accounts and would let
+a code issued to one verify against another. Five wrong guesses destroy the code
+(`auth_tokens.attempts`); a re-request inside 60 s is silently declined rather than
+reported, because "too soon" would itself confirm the address. TTL, attempt cap and
+cooldown are `security.password_otp_ttl` / `_attempts` / `_resend` in `store_settings`.
 
 ### 8.3 Profile / me (9)
 
@@ -832,8 +865,9 @@ does today.
 | 84 | `POST /console/auth/logout` | S | `204` |
 | 85 | `GET /console/auth/session` | S | session payload or 401 (RouteGuard redirects to `/admin/login?returnTo=…`) |
 | 86 | `POST /console/auth/touch` | S | slides idle expiry → `{ data: { expires_at } }` (UI throttles to 1/30 s) |
-| 87 | `POST /console/auth/password/forgot` | P | `{ email }` → always `202` (neutral — the recovery page's copy documents exactly this) |
-| 88 | `POST /console/auth/password/reset` | P | `{ email, token, password (≥12) }` → `204` |
+| 87 | `POST /console/auth/password/forgot` | P | `{ email }` → **always** `202` (neutral — the recovery page's copy documents exactly this, and unlike the shop's #10 this one never says an address is unknown; see the note under §8.2) |
+| 87a | `POST /console/auth/password/verify` | P | `{ email, code }` → `204`; checks without spending, as §8.2 `10a` |
+| 88 | `POST /console/auth/password/reset` | P | `{ email, code, password (≥12) }` → `204`; revokes every staff session on the account |
 
 ### 8.18 Console dashboard (5) — Perm `dashboard.view`
 

@@ -12,7 +12,6 @@ import {
   type FormField,
   type RecordRow,
 } from "@/components/shell/record-manager";
-import { InventoryTabs } from "@/features/03-inventory/components/inventory-tabs";
 
 export type InventoryOperationsView = "transfers" | "warehouses";
 
@@ -246,7 +245,6 @@ function TransfersScreen({
            API offers neither. It is moved along instead, by the verb on its row. */
         rows={rows}
         singular="transfer"
-        toolbarLead={<InventoryTabs />}
         tone="sky"
         rowAction={(row) => {
           const next = NEXT_TRANSFER_STEP[row.status];
@@ -381,7 +379,6 @@ function NetworkScreen({ warehouses }: { warehouses: ReturnType<typeof useRegist
              `Disabled` state. */
           rows={rows}
           singular="warehouse"
-          toolbarLead={<InventoryTabs />}
           tone="violet"
         />
       </Section>

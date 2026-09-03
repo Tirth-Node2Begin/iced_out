@@ -138,6 +138,48 @@ final class ShipmentRepository
     }
 
     /**
+     * Caches one courier scan.
+     *
+     * Separate from `appendEvent` for one reason, and it matters: that method
+     * stamps the row with `now()`, because an internal milestone happens at the
+     * moment somebody clicks it. A courier scan happened when the COURIER says
+     * it happened — often hours earlier, sometimes in a different order than it
+     * reached us — so its own timestamp is carried through verbatim. Stamping
+     * these with `now()` would make every scan on a re-poll appear to have just
+     * occurred, and a delivery timeline that reorders itself on refresh is
+     * worse than no timeline.
+     *
+     * `position` is passed in rather than derived, so the tail keeps the order
+     * the provider sorted it into.
+     */
+    public function appendExternalEvent(
+        int $shipmentId,
+        string $label,
+        string $detail,
+        string $timeLabel,
+        bool $complete,
+        int $position,
+        ?string $externalRef = null,
+    ): void {
+        $this->db->statement(
+            'INSERT INTO shipment_events
+                (shipment_id, label, detail, time_label, is_complete, position, source, external_ref, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [
+                $shipmentId,
+                mb_substr($label, 0, 80),
+                mb_substr($detail, 0, 255),
+                mb_substr($timeLabel, 0, 40),
+                $complete ? 1 : 0,
+                $position,
+                'external',
+                $externalRef === null ? null : mb_substr($externalRef, 0, 120),
+                $this->clock->nowString(),
+            ],
+        );
+    }
+
+    /**
      * The prefix and floor come from settings; the value itself is always
      * derived from what the table holds, so raising the floor can never mint a
      * duplicate.

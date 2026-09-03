@@ -36,7 +36,7 @@ export function ShipmentDetail({ shipmentId }: { shipmentId: string }) {
   /* Read from the store, not from the seed list: a parcel created by
      dispatching an order this session is not in the fixtures, and falling back
      to the first fixture would show somebody else's shipment under this id. */
-  const { shipments, shipmentAction } = useFulfilment();
+  const { shipments, shipmentAction, refreshShipment } = useFulfilment();
   const shipment = shipments.find((entry) => entry.id === shipmentId);
 
   /* The courier's own events, which only the SHOW endpoint carries — the index
@@ -52,6 +52,58 @@ export function ShipmentDetail({ shipmentId }: { shipmentId: string }) {
   /* One flag for both verbs: they are the only two on this screen and neither
      is safe to fire twice while the first is still in flight. */
   const [busy, setBusy] = useState(false);
+
+  /**
+   * Ask the courier, and say what actually came back.
+   *
+   * The three outcomes are different things and used to look identical on
+   * screen — the old handler posted, ignored the reply and toasted "refreshed
+   * from Delhivery" either way, which is the most misleading thing a tracking
+   * button can do: it reports the courier's silence as the courier's agreement.
+   *
+   *   scans cached      a success, with the count and where the parcel is
+   *   answered, empty   a success with nothing in it — the courier has the AWB
+   *                     but has not scanned it yet
+   *   nothing refreshed NOT a success. The server says why (no credentials, an
+   *                     AWB the courier does not have, a network failure) and
+   *                     that sentence is shown rather than a generic one.
+   */
+  const refreshFromCourier = async () => {
+    /* This is declared above the not-found guard below, so the row may not be
+       there yet; the courier's name is only ever decoration on the toast. */
+    const courier = shipment?.provider ?? "The courier";
+
+    setBusy(true);
+    try {
+      const result = await refreshShipment(shipmentId);
+      await detail.reload();
+
+      if (!result.refreshed) {
+        toast.warning("Nothing was refreshed", {
+          description: result.note || "The courier did not answer about this parcel.",
+        });
+
+        return;
+      }
+
+      toast.success(result.courierStatus || "Courier re-queried", {
+        description: [
+          result.scans > 0
+            ? `${result.scans} scan${result.scans === 1 ? "" : "s"} from ${courier}`
+            : `${courier} has the AWB but has not scanned it yet`,
+          result.courierEstimate ? `expected ${result.courierEstimate}` : "",
+        ]
+          .filter(Boolean)
+          .join(" · "),
+      });
+    } catch (error) {
+      toast.error("The courier could not be reached", {
+        description: error instanceof Error ? error.message : undefined,
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const run = async (action: string, done: string, describe: string) => {
     setBusy(true);
@@ -100,13 +152,7 @@ export function ShipmentDetail({ shipmentId }: { shipmentId: string }) {
     <AdminPage
       actions={
         <>
-          <Btn
-            disabled={busy}
-            onClick={() =>
-              run("refresh", "Provider re-queried", `${shipment.id} refreshed from ${shipment.provider}.`)
-            }
-            variant="solid"
-          >
+          <Btn disabled={busy} onClick={() => void refreshFromCourier()} variant="solid">
             <RefreshCw aria-hidden size={15} strokeWidth={1.7} /> Refresh provider state
           </Btn>
           <Btn disabled={busy} onClick={() => run("label", "Label ready", `AWB ${shipment.awb} reprinted.`)}>

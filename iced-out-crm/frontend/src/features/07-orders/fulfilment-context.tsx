@@ -103,12 +103,38 @@ export type FulfilmentValue = {
     status: string,
     extra?: Record<string, unknown>,
   ) => Promise<void>;
-  /** Any other shipment verb: resend, return-to-store, arrived-back, refresh. */
+  /** Any other shipment verb: resend, return-to-store, arrived-back. */
   shipmentAction: (
     shipmentId: string,
     action: string,
     body?: Record<string, unknown>,
   ) => Promise<void>;
+  /**
+   * Asks the courier what it knows — `POST /admin/shipments/{id}/refresh`.
+   *
+   * Its own method rather than another `shipmentAction`, because it is the one
+   * verb whose ANSWER matters: the others either worked or threw, while this
+   * one can succeed at the HTTP level and still have refreshed nothing (no
+   * credentials on the server, an AWB the courier has never heard of). Routing
+   * it through `shipmentAction`, which discards the body, is what let the
+   * button report "refreshed from Delhivery" over a request that fetched
+   * nothing at all.
+   */
+  refreshShipment: (shipmentId: string) => Promise<TrackingRefresh>;
+};
+
+/** What a refresh came back with. Mirrors the endpoint's added fields. */
+export type TrackingRefresh = {
+  /** True only when a courier actually answered about this parcel. */
+  refreshed: boolean;
+  /** The courier's own words for where the parcel is — "In Transit", "Delivered". */
+  courierStatus: string;
+  /** The delivery date the courier is currently promising. */
+  courierEstimate: string;
+  /** How many scans were cached against the shipment. */
+  scans: number;
+  /** Why nothing was refreshed, when nothing was. Empty on success. */
+  note: string;
 };
 
 const FulfilmentContext = createContext<FulfilmentValue | null>(null);
@@ -176,6 +202,37 @@ export function FulfilmentProvider({ children }: { children: ReactNode }) {
     [post],
   );
 
+  const refreshShipment = useCallback(
+    async (shipmentId: string): Promise<TrackingRefresh> => {
+      const response = await adminClient.post<{
+        data: {
+          refreshed?: boolean;
+          courier_status?: string;
+          courier_estimate?: string;
+          scans?: number;
+          note?: string;
+        };
+      }>(`${SHIPMENTS}/${encodeURIComponent(shipmentId)}/refresh`, {});
+
+      /* The scans are cached server-side, so the register has to be re-read
+         before the timeline on screen shows them. */
+      await refresh();
+
+      /* Two hops, not one: the client wraps the API envelope, so the payload
+         is `response.data.data`. */
+      const data = response.data?.data ?? {};
+
+      return {
+        refreshed: data.refreshed === true,
+        courierStatus: data.courier_status ?? "",
+        courierEstimate: data.courier_estimate ?? "",
+        scans: typeof data.scans === "number" ? data.scans : 0,
+        note: data.note ?? "",
+      };
+    },
+    [refresh],
+  );
+
   const value = useMemo<FulfilmentValue>(
     () => ({
       orders: orders.rows,
@@ -189,6 +246,7 @@ export function FulfilmentProvider({ children }: { children: ReactNode }) {
       dispatchOrder,
       transitionShipment,
       shipmentAction,
+      refreshShipment,
     }),
     [
       cancelOrder,
@@ -196,6 +254,7 @@ export function FulfilmentProvider({ children }: { children: ReactNode }) {
       dispatchOrder,
       orders,
       refresh,
+      refreshShipment,
       shipmentAction,
       shipments,
       transitionShipment,

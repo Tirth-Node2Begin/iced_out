@@ -37,6 +37,12 @@ return [
         'default' => ['limit' => 240, 'window' => 60, 'scope' => 'ip'],
         'auth' => ['limit' => 10, 'window' => 60, 'scope' => 'ip'],
         'password_forgot' => ['limit' => 5, 'window' => 3600, 'scope' => 'ip'],
+        // Checking a code someone was emailed. A person doing this honestly
+        // spends two of these (verify, then reset) and mistypes once or twice;
+        // the per-code attempt cap in PasswordResetService is what actually
+        // guards the six digits, and this is the ceiling on how fast an IP can
+        // work through accounts.
+        'password_otp' => ['limit' => 30, 'window' => 3600, 'scope' => 'ip'],
         'catalog' => ['limit' => 120, 'window' => 60, 'scope' => 'ip'],
         'cart' => ['limit' => 30, 'window' => 60, 'scope' => 'principal'],
         // Gateway calls cost money and time on someone else's API. A shopper
@@ -106,19 +112,53 @@ return [
         'timeout' => Env::int('REMOVE_BG_TIMEOUT', 45),
     ],
 
+    /**
+     * Mail. `driver=log` writes the whole message to storage/logs and sends
+     * nothing — the development default, and the reason the recovery flow is
+     * exercisable on a laptop with no credentials. `driver=smtp` needs a host.
+     *
+     * SMTP_PASS is a SECRET and lives here (env) rather than in `store_settings`
+     * — spec §14 forbids secrets in operator data. It is never logged and never
+     * reaches a response body.
+     *
+     * `encryption` is derived from the port when it is not set, because the two
+     * are conventionally locked together and one fewer thing to get wrong is
+     * worth the inference: 465 ⇒ implicit TLS, anything else ⇒ STARTTLS.
+     */
     'mail' => [
         'driver' => Env::string('MAIL_DRIVER', 'log'),
         'from' => Env::string('MAIL_FROM', 'no-reply@iced-out.example'),
+        'from_name' => Env::string('MAIL_FROM_NAME', 'Iced_out'),
+        'host' => Env::string('SMTP_HOST'),
+        'port' => Env::int('SMTP_PORT', 587),
+        'username' => Env::string('SMTP_USER'),
+        'password' => Env::string('SMTP_PASS'),
+        'encryption' => Env::string('SMTP_ENCRYPTION', Env::int('SMTP_PORT', 587) === 465 ? 'ssl' : 'tls'),
+        // Seconds. Somebody is watching a spinner behind this call, so it is
+        // kept close to the storefront's other user-facing integrations.
+        'timeout' => Env::int('SMTP_TIMEOUT', 15),
     ],
 
     /**
-     * External delivery-tracking API — placeholders only (spec §9.8).
-     * Blank base URL ⇒ PlaceholderTrackingProvider is bound and no courier
-     * data is ever invented.
+     * External delivery tracking — iThink Logistics (spec §9.8).
+     * https://docs.ithinklogistics.com/doc-track-order/3
+     *
+     * Both credentials blank ⇒ PlaceholderTrackingProvider is bound and no
+     * courier data is ever invented. They live in the request BODY rather than
+     * a header, which is their design, so `secret_key` is as sensitive as any
+     * password and never leaves the server.
+     *
+     * The base URL carries the version segment because their staging host uses
+     * the same path under a different name:
+     *   production  https://api.ithinklogistics.com/api_v3
+     *   staging     https://pre-alpha.ithinklogistics.com/api_v3
      */
     'tracking' => [
-        'base_url' => Env::string('TRACKING_API_BASE_URL'),
-        'api_key' => Env::string('TRACKING_API_KEY'),
+        'base_url' => Env::string('ITHINK_BASE_URL', 'https://api.ithinklogistics.com/api_v3'),
+        'access_token' => Env::string('ITHINK_ACCESS_TOKEN'),
+        'secret_key' => Env::string('ITHINK_SECRET_KEY'),
+        // Seconds. A person is watching a spinner behind this call.
+        'timeout' => Env::int('ITHINK_TIMEOUT', 20),
         'webhook_secret' => Env::string('TRACKING_API_WEBHOOK_SECRET'),
     ],
 ];

@@ -31,18 +31,25 @@
    ========================================================================= */
 
 /* =============================================================== 1. tokens */
-/* Declared on the shell AND on every surface Radix lifts out of it. A portalled
+/* Declared on the shell AND on every surface that sits outside it. A portalled
    dialog is appended to <body>, so it inherits nothing from `.aui-app`: every
    var() inside it resolves to an invalid value and the rule drops. That is how
    a modal ends up with square corners and no surface colour while looking fine
-   in the stylesheet. */
+   in the stylesheet.
+
+   `.adl` is on this list for the same reason and not because it is portalled:
+   the sign-in screen renders OUTSIDE the console shell entirely — there is
+   nothing to navigate to yet — so it inherits nothing either. Reading these
+   through one list rather than restating the palette on the login keeps a
+   surface colour a single number wherever it is drawn. */
 .aui-app,
 .aui-overlay,
 .aui-modal,
 .aui-palette,
 .aui-drawer,
 .aui-datepop,
-.aui-selectmenu {
+.aui-selectmenu,
+.adl {
   /* ---- palette — the storefront's, verbatim ---- */
   --nh-surface: #101113;
   --nh-surface-2: #16181a;
@@ -458,6 +465,58 @@
 
 .aui-rail__group:first-child {
   margin-top: 0;
+}
+
+/* ---- 3.5 an area's own screens ------------------------------------------- */
+/* Only Inventory has these, and only while you are inside it — see note 3 in
+   `crm-shell.tsx`. The seven screens used to be a tab strip inside every one of
+   the area's registers; they are a short indented run under the lane instead.
+
+   Deliberately quieter than a lane: no icon, smaller, shorter, lighter. A
+   sub-lane that competed with the lanes around it would read as nineteen more
+   areas rather than as one area's contents. The indent lines them up with the
+   lane LABELS above, not with the icons, which is what makes the run read as
+   hanging off Inventory rather than as a new group. */
+.aui-rail__sub {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  overflow: hidden;
+  padding-bottom: 4px;
+}
+
+.aui-rail__nav .aui-rail__sub a {
+  height: 30px;
+  padding-left: var(--aui-icon-slot);
+  font-size: 12.5px;
+  color: var(--nh-muted-2);
+}
+
+/* The tick that ties the run to its lane: a hairline down the indent, one
+   segment per row so it stops at the last screen and the group below is not
+   fenced off from it. The row is already `position: relative` from the base
+   nav rule, which is what this hangs on. */
+.aui-rail__nav .aui-rail__sub a::before {
+  position: absolute;
+  left: calc(var(--aui-icon-slot) - 11px);
+  width: 1px;
+  height: 100%;
+  background: var(--nh-hairline-soft);
+  content: "";
+}
+
+.aui-rail__nav .aui-rail__sub a:hover {
+  color: var(--nh-ink);
+}
+
+.aui-rail__nav .aui-rail__sub a[aria-current="page"] {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--nh-ink);
+  font-weight: 500;
+}
+
+.aui-rail__nav .aui-rail__sub a[aria-current="page"]::before {
+  background: var(--nh-ink-soft);
 }
 
 /* The nav row. Monochrome by design: no border, no ring, no accent bar, in any

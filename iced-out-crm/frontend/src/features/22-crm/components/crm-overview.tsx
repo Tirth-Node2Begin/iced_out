@@ -11,6 +11,7 @@ import {
 import Link from "next/link";
 
 import { StatGrid, type Stat } from "@/components/shell/admin-stats";
+import { isHiddenArea } from "@/config/hidden-areas";
 import { Empty, Panel, Section } from "@/components/shell/admin-ui";
 import { useCrmSummary } from "@/features/22-crm/crm-api";
 import { ACTIVITY_LABELS } from "@/features/22-crm/types";
@@ -90,15 +91,32 @@ export function CrmOverview() {
     },
   ];
 
+  /* A tile is a link, so a tile into a switched-off area is a dead end. Filter
+     by the same list the rail reads: with Deals and Contacts hidden this drops
+     four of the six and leaves leads and tasks, and if nothing is left the
+     section goes with them rather than heading an empty grid. */
+  const offered = pipeline.filter((stat) => !stat.href || !isHiddenArea(stat.href));
+  /* With Deals hidden there is no pipeline left in here — only leads and
+     tasks — so the heading says so rather than promising a forecast that was
+     filtered out three lines ago. Both strings come back on their own when the
+     area is switched back on. */
+  const showsPipeline = offered.some((stat) => stat.href === "/deals");
+
   return (
     <>
-      <Section
-        copy="Where every conversation stands, and what is late. These are positions, not a period — they do not move with the date filter above."
-        eyebrow="Relationships"
-        title="The pipeline"
-      >
-        <StatGrid stats={pipeline} />
-      </Section>
+      {offered.length > 0 && (
+        <Section
+          copy={
+            showsPipeline
+              ? "Where every conversation stands, and what is late. These are positions, not a period — they do not move with the date filter above."
+              : "Where the leads stand, and what is late. These are positions, not a period — they do not move with the date filter above."
+          }
+          eyebrow="Relationships"
+          title={showsPipeline ? "The pipeline" : "Leads and tasks"}
+        >
+          <StatGrid stats={offered} />
+        </Section>
+      )}
 
       <Section
         copy="Everything past its due date, whoever it belongs to."

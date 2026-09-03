@@ -34,6 +34,7 @@ import {
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  Fragment,
   useCallback,
   useEffect,
   useMemo,
@@ -47,6 +48,7 @@ import { PulseBell } from "@/components/shell/pulse-bell";
 import { useCrmCounts } from "@/features/22-crm/crm-api";
 import { useQueues, type Queues } from "@/features/15-dashboard/dashboard-api";
 import { useAuth } from "@/features/20-auth-security/auth-context";
+import { isHiddenArea } from "@/config/hidden-areas";
 import { crumbsFor } from "@/lib/breadcrumbs";
 
 /**
@@ -65,10 +67,16 @@ import { crumbsFor } from "@/lib/breadcrumbs";
  *  2. The frame's left margin tracks the PINNED width only. A hover-expand
  *     overlays the content deliberately — a cursor passing over the rail must
  *     never reflow the page.
- *  3. The rail lists AREAS and nothing else. Where an area has more than one
- *     screen, those screens are tabs across the top of the area
- *     (`AdminModuleNav`), never a second level in the rail. Two levels of
- *     navigation in one column is how a console becomes unlearnable.
+ *  3. The rail lists areas, and ONE area also lists its screens: Inventory
+ *     carries seven, which is more than a tab strip can hold without becoming
+ *     a second row of chrome above every register in the area. Its screens are
+ *     `children` on the lane and appear in the rail while you are in it.
+ *
+ *     Everywhere else the original rule still stands — Catalog, Payments,
+ *     Shipments and Returns keep their tabs (`AdminModuleNav`), because two or
+ *     three screens read fine as a strip and a rail that expanded under every
+ *     lane would be the unlearnable two-level tree this note was written to
+ *     prevent. The exception is the size of the area, not a change of mind.
  */
 
 type Lane = {
@@ -79,6 +87,14 @@ type Lane = {
   queue?: keyof Queues;
   /** Or one of the CRM's own counts. */
   crm?: "leads" | "tasks";
+  /**
+   * The area's own screens, listed under it while you are inside the area.
+   *
+   * Only Inventory has these — see note 3 at the top. They are declared here
+   * rather than in the feature so the rail stays the single place every
+   * destination in this console is written down.
+   */
+  children?: { href: string; label: string }[];
 };
 
 type Group = { title: string; lanes: Lane[] };
@@ -137,6 +153,19 @@ const GROUPS: Group[] = [
         label: "Inventory",
         icon: ClipboardCheck,
         queue: "stockAtRisk",
+        /* The order is the FLOW, not the alphabet — material comes in on the
+           left and leaves as a finished garment on the right. Warehouses sits
+           last because it is the place all of that happens in rather than a
+           step in it. */
+        children: [
+          { href: "/inventory/suppliers", label: "Suppliers" },
+          { href: "/inventory/purchases", label: "Purchases" },
+          { href: "/inventory/materials", label: "Materials" },
+          { href: "/inventory/production", label: "Production" },
+          { href: "/inventory/overview", label: "Stock" },
+          { href: "/inventory/transfers", label: "Transfers" },
+          { href: "/inventory/warehouses", label: "Warehouses" },
+        ],
       },
       /* The storefront's own pages, not the things sold on them. It sits beside
          Catalog because that is the order the work happens in — a garment is
@@ -156,7 +185,16 @@ const GROUPS: Group[] = [
   { title: "System", lanes: [{ href: "/settings/store", label: "Settings", icon: Settings }] },
 ];
 
-const ALL_LANES = GROUPS.flatMap((group) => group.lanes);
+/* What is actually offered. An area named in `HIDDEN_AREAS` loses its lane
+   here, which takes it out of the rail AND out of the "Go to…" palette in one
+   move, because both read this. A group left with no lanes at all drops out
+   rather than printing a heading over nothing. */
+const VISIBLE_GROUPS: Group[] = GROUPS.map((group) => ({
+  ...group,
+  lanes: group.lanes.filter((lane) => !isHiddenArea(lane.href)),
+})).filter((group) => group.lanes.length > 0);
+
+const ALL_LANES = VISIBLE_GROUPS.flatMap((group) => group.lanes);
 
 /** The area a path belongs to — the rail highlights areas, not screens. */
 function areaOf(href: string) {
@@ -181,8 +219,28 @@ function Reveal({ children }: { children: ReactNode }) {
 }
 
 export function CrmShell({ children }: { children: ReactNode }) {
+  const navRef = useRef<HTMLElement>(null);
   const pathname = usePathname();
   const router = useRouter();
+
+  /**
+   * Keep the screen you are on in view.
+   *
+   * The rail already overflowed at nineteen lanes; Inventory's seven screens
+   * push it a further ~210px, and measured at 950px and 800px tall that put the
+   * LAST of them — Warehouses — below the fold. Navigating to a screen and
+   * having the rail show no sign of where you are is worse than the tab strip
+   * this replaced, so the active row is scrolled to whenever the route changes.
+   *
+   * `block: "nearest"` does nothing when the row is already visible, which is
+   * the common case, and moves the minimum when it is not. A DOM side effect,
+   * not a setState — which is the distinction this repo's lint rule draws.
+   */
+  useEffect(() => {
+    navRef.current
+      ?.querySelector<HTMLElement>('.aui-rail__sub a[aria-current="page"]')
+      ?.scrollIntoView({ block: "nearest" });
+  }, [pathname]);
   const { staffSession, signOutStaff } = useAuth();
   /* The six commerce queue counts. The dashboard reads the same store, so
      opening the console makes one request for both. */
@@ -367,8 +425,9 @@ export function CrmShell({ children }: { children: ReactNode }) {
           aria-label="Workspace"
           className="aui-rail__nav"
           onClick={() => setDrawerOpen(false)}
+          ref={navRef}
         >
-          {GROUPS.map((group) => (
+          {VISIBLE_GROUPS.map((group) => (
             <div key={group.title}>
               <p className="aui-rail__group">
                 <Reveal>{group.title}</Reveal>
@@ -379,11 +438,24 @@ export function CrmShell({ children }: { children: ReactNode }) {
                 const badge = badgeFor(lane);
                 const Icon = lane.icon;
 
+                /* The area's screens, and only while you are standing in it.
+
+                   Two conditions, both load-bearing. `current`, because a rail
+                   that listed every area's screens at once would be a
+                   permanently open tree nineteen lanes deep — expanding on
+                   arrival is what keeps it a rail. And `expanded`, because at
+                   68px the rail is icons and a sub-lane has no icon to be; there
+                   is nothing to draw, so nothing is drawn, and the list comes
+                   back when the rail does. */
+                const screens = lane.children && expanded && current ? lane.children : null;
+
                 return (
+                  /* Fragment, so the screens sit directly under their own lane
+                     rather than after everything else in the group. */
+                  <Fragment key={lane.href}>
                   <Link
                     aria-current={current ? "page" : undefined}
                     href={lane.href}
-                    key={lane.href}
                     onMouseMove={current ? trackSpot : undefined}
                     title={expanded ? undefined : lane.label}
                   >
@@ -406,8 +478,24 @@ export function CrmShell({ children }: { children: ReactNode }) {
                       </span>
                     )}
                   </Link>
+
+                  {screens && (
+                    <div className="aui-rail__sub">
+                      {screens.map((screen) => (
+                        <Link
+                          aria-current={pathname === screen.href ? "page" : undefined}
+                          href={screen.href}
+                          key={screen.label}
+                        >
+                          <Reveal>{screen.label}</Reveal>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                  </Fragment>
                 );
               })}
+
             </div>
           ))}
         </nav>

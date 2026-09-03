@@ -7,6 +7,8 @@ namespace Iced\Controller\Console;
 use Iced\Domain\Principal;
 use Iced\Integration\Tracking\PlaceholderTrackingProvider;
 use Iced\Integration\Tracking\TrackingProvider;
+use Iced\Integration\Tracking\TrackingSnapshot;
+use Iced\Kernel\Database;
 use Iced\Kernel\Exception\NotFoundException;
 use Iced\Kernel\Exception\UnauthorizedException;
 use Iced\Kernel\Request;
@@ -18,11 +20,22 @@ use Iced\Service\Shipping\ShipmentService;
 /** Spec §8.20 — console shipments, pickups and NDR (10 endpoints). */
 final class ShipmentController
 {
+    /**
+     * Where the cached courier tail starts.
+     *
+     * High enough that no internal milestone can reach it — a shipment
+     * accumulates a handful, not a thousand — so the courier's scans always
+     * sort after the console's own without the two having to be renumbered
+     * against each other on every refresh.
+     */
+    private const EXTERNAL_POSITION_BASE = 1000;
+
     public function __construct(
         private readonly ShipmentRepository $shipments,
         private readonly ShipmentService $service,
         private readonly ShipmentPresenter $presenter,
         private readonly TrackingProvider $tracking,
+        private readonly Database $db,
     ) {
     }
 
@@ -113,11 +126,24 @@ final class ShipmentController
     }
 
     /**
-     * #107 POST /admin/shipments/{id}/refresh — PLACEHOLDER (spec §9.8).
+     * #107 POST /admin/shipments/{id}/refresh — asks iThink Logistics what the
+     * courier knows, and caches the answer (spec §9.8).
      *
-     * With the placeholder provider bound this reports honestly that nothing was
-     * refreshed rather than inventing a courier scan. When the real client is
-     * written, the snapshot's events are cached against the shipment here.
+     * The scan tail is REPLACED, not appended to: a courier re-states its whole
+     * history on every call, and a courier may also correct one (a scan
+     * withdrawn, a location fixed). Merging would leave the retracted scan on
+     * screen forever, so the external rows are dropped and rewritten inside one
+     * transaction while the internal milestones — dispatched, delivered, the
+     * console's own state machine — are never touched.
+     *
+     * `courier_status` is reported ALONGSIDE the shipment's own status rather
+     * than written over it. Delivery here closes the order, makes a COD payment
+     * collectible and marks the items return-eligible; those are things a person
+     * takes responsibility for, so this screen shows staff what the courier says
+     * and leaves the transition to the button that has an actor behind it.
+     *
+     * With the placeholder bound — no credentials on this server — nothing is
+     * cached and `note` says so, rather than a refresh appearing to succeed.
      */
     public function refresh(Request $request): Response
     {
@@ -125,12 +151,49 @@ final class ShipmentController
 
         $snapshot = $this->tracking->fetch((string) $shipment['awb'], (string) $shipment['provider']);
 
+        if ($snapshot->fromProvider) {
+            $this->cacheScans((int) $shipment['id'], $snapshot);
+        }
+
         return Response::data(
             $this->presenter->row($shipment) + [
                 'refreshed' => $snapshot->fromProvider,
-                'note' => $snapshot->fromProvider ? '' : PlaceholderTrackingProvider::NOTE,
+                'courier_status' => $snapshot->status ?? '',
+                'courier_estimate' => $snapshot->estimate ?? '',
+                'scans' => count($snapshot->events),
+                'note' => $snapshot->fromProvider
+                    ? ''
+                    : ($snapshot->note !== '' ? $snapshot->note : PlaceholderTrackingProvider::NOTE),
             ],
         );
+    }
+
+    /**
+     * Swaps the cached courier tail for the one just fetched.
+     *
+     * In a transaction because the delete and the writes are one act: a failure
+     * halfway would leave the shipment with part of a history, which reads as a
+     * parcel that has lost its scans rather than as a call that did not finish.
+     */
+    private function cacheScans(int $shipmentId, TrackingSnapshot $snapshot): void
+    {
+        $this->db->transaction(function () use ($shipmentId, $snapshot): void {
+            $this->shipments->replaceExternalEvents($shipmentId);
+
+            foreach (array_values($snapshot->events) as $position => $event) {
+                $this->shipments->appendExternalEvent(
+                    $shipmentId,
+                    $event['label'],
+                    $event['detail'],
+                    $event['time'],
+                    $event['complete'],
+                    /* Offset past the internal milestones so the courier tail
+                       sorts after them; `events()` orders by position then id. */
+                    self::EXTERNAL_POSITION_BASE + $position,
+                    $event['time'] === '' ? null : $event['label'] . '@' . $event['time'],
+                );
+            }
+        });
     }
 
     /** #108 GET /admin/pickups */

@@ -13,7 +13,6 @@ import {
   type RecordRow,
 } from "@/components/shell/record-manager";
 import { useRegisterList } from "@/api/use-register";
-import { InventoryTabs } from "@/features/03-inventory/components/inventory-tabs";
 import { AUDIENCES, availableUnits } from "@/features/03-inventory/data/stock-fixtures";
 import { useStock } from "@/features/03-inventory/stock-context";
 import { useInventoryVocabularies } from "@/features/03-inventory/vocabularies";
@@ -323,7 +322,6 @@ export function InventoryWorkspace() {
         rows={items}
         searchKeys={["itemName", "category", "itemType", "sizes", "warehouse"]}
         singular="item"
-        toolbarLead={<InventoryTabs />}
         tone="mint"
       />
 

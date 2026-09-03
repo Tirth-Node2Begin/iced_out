@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 
+import { isHiddenArea } from "@/config/hidden-areas";
 import { getRouteRule, isPublicRoute, safeReturnPath } from "@/config/route-rules";
 import { useAuth } from "@/features/20-auth-security/auth-context";
 
@@ -31,9 +32,18 @@ export function RouteGuard({ children }: { children: ReactNode }) {
   const rule = getRouteRule(pathname);
   const needsSession = rule !== undefined;
   const signedIn = staffSession !== null;
+  /* A switched-off area. The screen still exists and still works — it is just
+     not on offer, so a typed URL or an old bookmark goes to the dashboard
+     instead of reaching a page the rail no longer admits to having. */
+  const hidden = isHiddenArea(pathname);
 
   useEffect(() => {
     if (!staffReady) return;
+
+    if (hidden) {
+      router.replace("/");
+      return;
+    }
 
     if (needsSession && !signedIn) {
       const target = `${pathname}${typeof window === "undefined" ? "" : window.location.search}`;
@@ -48,13 +58,16 @@ export function RouteGuard({ children }: { children: ReactNode }) {
       const params = new URLSearchParams(typeof window === "undefined" ? "" : window.location.search);
       router.replace(safeReturnPath(params.get("returnTo")));
     }
-  }, [needsSession, pathname, router, signedIn, staffReady]);
+  }, [hidden, needsSession, pathname, router, signedIn, staffReady]);
 
   /* Nothing is painted until the session is known, and nothing behind the wall
      is painted to someone who is not through it. The blank is deliberate and
      brief: `GET /admin/auth/session` is one round trip on the same origin. */
   if (!staffReady) return <div className="aui-boot" />;
   if (needsSession && !signedIn) return <div className="aui-boot" />;
+  /* Same rule as the wall above: do not paint one frame of a screen that is
+     about to be left. */
+  if (hidden) return <div className="aui-boot" />;
 
   return <>{children}</>;
 }

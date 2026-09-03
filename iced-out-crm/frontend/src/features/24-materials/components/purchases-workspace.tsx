@@ -14,7 +14,6 @@ import {
   type StatusTone,
 } from "@/components/shell/admin-ui";
 import { ChipFilter, Toolbar } from "@/components/shell/toolbar";
-import { InventoryTabs } from "@/features/03-inventory/components/inventory-tabs";
 import { PurchaseDialog } from "@/features/24-materials/components/purchase-dialog";
 import { ReceiveDialog } from "@/features/24-materials/components/receive-dialog";
 import { materials as api, usePurchases, useSuppliers } from "@/features/24-materials/materials-api";
@@ -176,7 +175,6 @@ export function PurchasesWorkspace() {
           </Btn>
         }
         chips={<ChipFilter counts={chipCounts} onChange={setStatus} options={FILTERS} value={status} />}
-        lead={<InventoryTabs />}
       />
 
       <Section eyebrow="Incoming" title="Orders">

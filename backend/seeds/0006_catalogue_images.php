@@ -52,11 +52,22 @@ return static function (Container $container): string {
     /**
      * Where the source photographs live.
      *
-     * The frontend's `public/` folder — they are the shop's own art, and this is
-     * the one place the two halves of the project share a file. Absent (a backend
-     * deployed on its own) the seed says so and does nothing rather than failing.
+     * In the repository that is the frontend's `public/` folder — they are the
+     * shop's own art, and this is the one place the two halves of the project
+     * share a file. A deployed backend has no frontend beside it, so the live
+     * bundle carries the handful of sheets this seed actually cuts from in
+     * `seeds/data/images/` and that is checked second. Neither present ⇒ the
+     * seed says so and does nothing rather than failing.
      */
-    $images = dirname(__DIR__, 2) . '/frontend/public/images';
+    $images = '';
+
+    foreach ([dirname(__DIR__, 2) . '/frontend/public/images', __DIR__ . '/data/images'] as $candidate) {
+        if (is_dir($candidate)) {
+            $images = $candidate;
+
+            break;
+        }
+    }
 
     /**
      * The crop library, mirroring `components/gender/data.ts`.
@@ -96,8 +107,8 @@ return static function (Container $container): string {
         'wideMan' => ['iced-out-og.jpg', 0.75, 0.48, 1.9],
     ];
 
-    if (!is_dir($images)) {
-        return sprintf('no source images at %s — skipped', $images);
+    if ($images === '') {
+        return 'no source images in frontend/public/images or seeds/data/images — skipped';
     }
 
     $made = 0;

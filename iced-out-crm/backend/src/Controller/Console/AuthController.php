@@ -10,6 +10,7 @@ use Iced\Kernel\Request;
 use Iced\Kernel\Response;
 use Iced\Presenter\StaffPresenter;
 use Iced\Service\Auth\AuthService;
+use Iced\Service\Auth\PasswordResetService;
 use Iced\Service\Auth\SessionManager;
 
 /**
@@ -26,6 +27,7 @@ final class AuthController
         private readonly AuthService $auth,
         private readonly SessionManager $sessions,
         private readonly StaffPresenter $presenter,
+        private readonly PasswordResetService $reset,
     ) {
     }
 
@@ -94,5 +96,80 @@ final class AuthController
 
         // Authenticate already slid the window on the way in; report where it landed.
         return Response::data(['expires_at' => StaffPresenter::iso($principal->expiresAt)]);
+    }
+
+    /**
+     * #87 POST /admin/auth/password/forgot
+     *
+     * Always 202, always the same body — the recovery page's own copy says so
+     * in as many words, and the endpoint has to be worth that promise. Whether
+     * an address belongs to a member of staff is exactly the thing a console
+     * login screen must not confirm to whoever is typing at it.
+     *
+     * THE RETURN VALUE IS DROPPED ON PURPOSE. `request()` reports whether it
+     * matched an account, and the storefront's twin of this method uses that to
+     * answer 422 "no account with that email". This one must not, and the
+     * difference is not an oversight:
+     *
+     *   · The shop has `POST /auth/register`, which already answers "an account
+     *     with that email already exists". The oracle is open there whatever
+     *     this endpoint does, so refusing to answer only hurts the shopper who
+     *     mistyped.
+     *   · The console has no public registration. Login and the three password
+     *     routes are its ONLY public endpoints, so a "no such account" here
+     *     would be the one and only way to learn which addresses are staff —
+     *     and a staff address is half of a credential for a console that opens
+     *     every order, payment and customer record in the business.
+     *
+     * If you are here to make the two consistent: they are consistent, on the
+     * rule "never be the only oracle". Making the responses identical is what
+     * would break it.
+     */
+    public function forgotPassword(Request $request): Response
+    {
+        /** @var array{email: string} $input */
+        $input = $request->validated();
+
+        $this->reset->request($input['email'], SessionManager::AUDIENCE_STAFF);
+
+        return Response::data(['accepted' => true], 202);
+    }
+
+    /**
+     * POST /admin/auth/password/verify — checks a code without spending it, so
+     * the form can move to the password step on something known good.
+     */
+    public function verifyPasswordCode(Request $request): Response
+    {
+        /** @var array{email: string, code: string} $input */
+        $input = $request->validated();
+
+        $this->reset->verify($input['email'], $input['code'], SessionManager::AUDIENCE_STAFF);
+
+        return Response::noContent();
+    }
+
+    /**
+     * #88 POST /admin/auth/password/reset — spends the code, sets the password,
+     * and revokes every staff session on the account.
+     *
+     * No cookie comes back, and for a console account that matters more than it
+     * does on the shop: the operator signs in afterwards through the ordinary
+     * door, which is the request that writes a `login_attempts` row and starts
+     * an audited session with a name on it.
+     */
+    public function resetPassword(Request $request): Response
+    {
+        /** @var array{email: string, code: string, password: string} $input */
+        $input = $request->validated();
+
+        $this->reset->reset(
+            $input['email'],
+            $input['code'],
+            $input['password'],
+            SessionManager::AUDIENCE_STAFF,
+        );
+
+        return Response::noContent();
     }
 }

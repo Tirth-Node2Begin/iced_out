@@ -52,4 +52,56 @@ return [
         'name' => 'admin.auth.touch',
         'audit' => false,
     ],
+
+    /*
+     * #87–88 — console account recovery by emailed one-time code.
+     *
+     * PUBLIC audience, necessarily: somebody who cannot sign in cannot present
+     * a staff cookie. What keeps this from being a way into the console is that
+     * the code goes to the mailbox on the staff record and nowhere else, and
+     * that `forgot` answers 202 whether or not that record exists — so the
+     * endpoint cannot be used to find out which addresses are staff.
+     *
+     * `verify` is the extra route (see the storefront's copy of this comment):
+     * it checks a code without spending it so the form can move to the password
+     * step on something known good.
+     */
+    [
+        'method' => 'POST',
+        'path' => '/admin/auth/password/forgot',
+        'handler' => [AuthController::class, 'forgotPassword'],
+        'audience' => Route::AUDIENCE_PUBLIC,
+        'rate_limit' => 'password_forgot',
+        'name' => 'admin.auth.password.forgot',
+        'rules' => [
+            'email' => 'required|email|max:190',
+        ],
+    ],
+    [
+        'method' => 'POST',
+        'path' => '/admin/auth/password/verify',
+        'handler' => [AuthController::class, 'verifyPasswordCode'],
+        'audience' => Route::AUDIENCE_PUBLIC,
+        'rate_limit' => 'password_otp',
+        'name' => 'admin.auth.password.verify',
+        'rules' => [
+            'email' => 'required|email|max:190',
+            'code' => 'required|string|min:6|max:6',
+        ],
+    ],
+    [
+        'method' => 'POST',
+        'path' => '/admin/auth/password/reset',
+        'handler' => [AuthController::class, 'resetPassword'],
+        'audience' => Route::AUDIENCE_PUBLIC,
+        'rate_limit' => 'password_otp',
+        'name' => 'admin.auth.password.reset',
+        'rules' => [
+            'email' => 'required|email|max:190',
+            'code' => 'required|string|min:6|max:6',
+            // Twelve for staff, six for shoppers (§8.2 #11). A console account
+            // opens every order and every customer record in the shop.
+            'password' => 'required|string|min:12|max:200',
+        ],
+    ],
 ];

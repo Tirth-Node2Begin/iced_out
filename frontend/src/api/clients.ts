@@ -25,7 +25,14 @@ type ApiAudience = "public" | "customer" | "admin";
  * cookie to survive that trip.
  */
 export function apiBaseUrl(): string {
-  return process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api/v1";
+  // `||`, not `??`. Next inlines NEXT_PUBLIC_* at build time, and a variable
+  // written as `NEXT_PUBLIC_API_BASE_URL=` in an env file is inlined as the
+  // EMPTY STRING, not as undefined — which `??` happily keeps. The result is
+  // `baseURL: ""`, so every call goes to /health and /catalog/products instead
+  // of /api/v1/…, the static site answers them, and the whole shop is dead with
+  // no error anywhere that says why. An empty value means "not set" here.
+  // (features/09-payment/razorpay.ts guards the same way, for the same reason.)
+  return process.env.NEXT_PUBLIC_API_BASE_URL || "/api/v1";
 }
 
 function createClient(audience: ApiAudience): AxiosInstance {
