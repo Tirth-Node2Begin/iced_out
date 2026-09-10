@@ -136,12 +136,33 @@ final class IdAllocator
         $prefix = is_string($settings['prefix'] ?? null) ? $settings['prefix'] : 'IO-2026-';
         $start = is_int($settings['next_serial'] ?? null) ? $settings['next_serial'] : 1049;
 
+        /* ---- ORDERED AS A NUMBER, NOT AS A STRING --------------------------
+
+           `number` is VARCHAR, so `ORDER BY number DESC` sorts lexicographically:
+           once `IO-2026-10000` exists, `'9' > '1'` puts `IO-2026-9999` first.
+           The highest is then read as 9999, the next is computed as 10000, and
+           that duplicates a row `uq_orders_number` already holds — a PDOException,
+           a 500, a rolled-back transaction.
+
+           It does not fail once. EVERY checkout after the 9,999th fails, forever,
+           and it fails AFTER the card has cleared: the intent rolls back to
+           VERIFIED and the customer has paid for an order that does not exist.
+
+           Casting the serial makes the comparison arithmetic. `SUBSTRING` is
+           1-indexed, hence the +1.
+
+           `number_serial` in the ORDER BY rather than a bare CAST in the WHERE so
+           the `LIKE` prefix still narrows the scan before anything is converted. */
         $row = $this->db->selectOne(
-            'SELECT number FROM orders WHERE number LIKE ? ORDER BY number DESC LIMIT 1',
-            [$prefix . '%'],
+            'SELECT number, CAST(SUBSTRING(number, ?) AS UNSIGNED) AS number_serial
+               FROM orders
+              WHERE number LIKE ?
+              ORDER BY number_serial DESC
+              LIMIT 1',
+            [strlen($prefix) + 1, $prefix . '%'],
         );
 
-        $highest = $row === null ? $start - 1 : (int) substr((string) $row['number'], strlen($prefix));
+        $highest = $row === null ? $start - 1 : (int) $row['number_serial'];
 
         return $prefix . max($start, $highest + 1);
     }

@@ -19,12 +19,14 @@ export const SHOTS = {
  */
 export const HERO_MODEL = "/images/hero-model.png";
 
-/** The three faces stacked above the hero paragraph. */
-export const HERO_FACES = [
-  "/images/avatar-1.jpg",
-  "/images/avatar-2.jpg",
-  "/images/avatar-3.jpg",
-];
+/*
+ * The three faces that used to stack above the hero paragraph are gone.
+ *
+ * They were stock portraits: social proof asserted by the bundle, with no
+ * review, no order and no person behind any of them. `HeroReviews` reads the
+ * published register instead, and shows nothing at all when it is empty —
+ * see `components/new-home/hero-reviews.tsx`.
+ */
 
 /**
  * Spec labels pinned to the corners of the hero subject — the same register

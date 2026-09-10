@@ -15,7 +15,7 @@ use Iced\Support\Config;
  */
 final class Cors implements Middleware
 {
-    private const ALLOWED_HEADERS = 'Content-Type, X-Client-Audience, X-Request-Id, X-Client-Timezone, Accept-Language, Idempotency-Key';
+    private const ALLOWED_HEADERS = 'Content-Type, Authorization, X-Client-Audience, X-Client-Platform, X-Request-Id, X-Client-Timezone, Accept-Language, Idempotency-Key';
     private const ALLOWED_METHODS = 'GET, POST, PUT, PATCH, DELETE, OPTIONS';
 
     public function __construct(private readonly Config $config)

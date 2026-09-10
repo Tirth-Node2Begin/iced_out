@@ -1,7 +1,9 @@
 "use client";
 
-import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
+import { motion, useScroll, useTransform } from "motion/react";
 import { Fragment, useRef } from "react";
+
+import { usePerformanceProfile } from "@/lib/performance-mode";
 
 import { useBrandMorph } from "./brand-morph";
 import { HERO_PANELS, HERO_TITLE } from "./data";
@@ -28,7 +30,8 @@ import { DUR, EASE } from "./motion";
  */
 export function Hero() {
   const ref = useRef<HTMLElement>(null);
-  const reduce = useReducedMotion();
+  const profile = usePerformanceProfile();
+  const reduce = profile.reducedMotion || profile.mode === "low";
 
   /* On the site root the headline is not drawn here — <BrandMorph> draws it
      and flies it up into the bar. What stays behind is the same words at the

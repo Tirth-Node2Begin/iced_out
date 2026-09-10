@@ -16,6 +16,7 @@ use Iced\Presenter\Format;
 use Iced\Repository\AddressRepository;
 use Iced\Repository\SessionRepository;
 use Iced\Repository\UserRepository;
+use Iced\Service\Auth\AccountNotices;
 use Iced\Service\Auth\PasswordHasher;
 use Iced\Service\Auth\SessionManager;
 use Iced\Service\Media\MediaService;
@@ -32,6 +33,7 @@ final class ProfileController
         private readonly PasswordHasher $hasher,
         private readonly SessionManager $sessionManager,
         private readonly MediaService $media,
+        private readonly AccountNotices $notices,
         private readonly Database $db,
     ) {
     }
@@ -65,7 +67,35 @@ final class ProfileController
             $fields['phone'] = $normalized;
         }
 
+        $previousEmail = '';
+
         if (isset($input['email'])) {
+            $user = $this->users->findById($principal->userId);
+            $previousEmail = (string) ($user['email'] ?? '');
+
+            /* ---- changing the email needs the password ----------------------
+
+               The address on the account is where a password reset is sent, so
+               whoever controls it controls the account. This endpoint used to
+               change it on nothing but a session cookie — which turned a session
+               somebody else briefly held into permanent ownership: change the
+               email, then ask for a reset to the new one.
+
+               The current password is what distinguishes the owner from a
+               borrowed session. Nothing else about this endpoint changes; a name
+               or mobile edit is untouched. */
+            if (strcasecmp(trim($input['email']), $previousEmail) !== 0) {
+                $current = (string) ($input['currentPassword'] ?? '');
+
+                if ($current === '' || $user === null || !$this->hasher->verify($current, (string) $user['password_hash'])) {
+                    throw ValidationException::field(
+                        'currentPassword',
+                        'Enter your current password to change the email on this account.',
+                        'ICE-AUTH-422',
+                    );
+                }
+            }
+
             $existing = $this->users->findByEmail($input['email'], UserRepository::TYPE_CUSTOMER);
 
             if ($existing !== null && (int) $existing['id'] !== $principal->userId) {
@@ -77,6 +107,14 @@ final class ProfileController
         }
 
         $this->users->updateProfile($principal->userId, $fields);
+
+        /* The OLD address is told, because it is the one that can still act on
+           the news. Best effort and after the write: a mail server that is down
+           must not roll back a change the shopper has already been shown, and a
+           notice nobody could send is not worth a 500. */
+        if (isset($fields['email']) && $previousEmail !== '' && strcasecmp($fields['email'], $previousEmail) !== 0) {
+            $this->notices->emailChanged($previousEmail, (string) $fields['email'], $principal->name);
+        }
 
         return Response::data($this->presenter->profile($this->user($request)));
     }
@@ -123,6 +161,11 @@ final class ProfileController
 
         $this->users->updatePasswordHash($principal->userId, $this->hasher->hash($input['next']));
         $this->sessionManager->revokeOtherSessions($principal->userId, SessionManager::AUDIENCE_CUSTOMER, $principal->sessionId);
+
+        /* Told after the fact, to the address on the account. A password change
+           the owner did not make is the clearest single sign that somebody else
+           is inside, and it used to happen in complete silence. */
+        $this->notices->passwordChanged($principal->email, $principal->name);
 
         return Response::noContent();
     }

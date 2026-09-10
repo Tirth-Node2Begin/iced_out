@@ -90,6 +90,8 @@ final class MediaService
             throw ValidationException::field('file', 'That file is not an image.', 'ICE-MEDIA-422');
         }
 
+        $this->assertDecodable($probe);
+
         return $this->persist(
             (string) file_get_contents($temporary),
             $this->assertStorable((string) $probe['mime']),
@@ -120,7 +122,51 @@ final class MediaService
             throw ValidationException::field('file', 'That image could not be read.', 'ICE-MEDIA-422');
         }
 
+        $this->assertDecodable($probe);
+
         return $this->persist($bytes, $this->assertStorable((string) $probe['mime']), $ownerType, $ownerId);
+    }
+
+    /**
+     * Refuses an image whose PIXEL COUNT would exhaust memory, before decoding.
+     *
+     * The byte cap above is not this check, and cannot be: PNG and WebP compress
+     * flat colour enormously well, so a 30 000 x 30 000 image of nothing much
+     * fits inside the 8 MB limit and needs roughly 3.6 GB of RAM the moment
+     * `imagecreatefromstring()` expands it. The worker dies, and one request can
+     * do it repeatedly.
+     *
+     * `getimagesize()` has ALREADY returned the dimensions by this point — they
+     * were simply never looked at. This is the whole fix: read the two numbers
+     * that are already in hand and decide before allocating anything.
+     *
+     * The cap is a setting, so a store that genuinely needs larger source images
+     * can raise it without a deploy. 40 megapixels is roughly a 6500 x 6500
+     * photograph — far beyond anything a 1600px-max product image is made from.
+     *
+     * @param array<array-key, mixed> $probe the return of getimagesize()
+     *
+     * @throws ValidationException
+     */
+    private function assertDecodable(array $probe): void
+    {
+        $width = is_numeric($probe[0] ?? null) ? (int) $probe[0] : 0;
+        $height = is_numeric($probe[1] ?? null) ? (int) $probe[1] : 0;
+
+        if ($width < 1 || $height < 1) {
+            throw ValidationException::field('file', 'That image could not be read.', 'ICE-MEDIA-422');
+        }
+
+        $maxEdge = $this->settings->int('media.max_source_edge', 20000);
+        $maxPixels = $this->settings->int('media.max_pixels', 40_000_000);
+
+        if ($width > $maxEdge || $height > $maxEdge || $width * $height > $maxPixels) {
+            throw ValidationException::field(
+                'file',
+                'That image is too large to process. Please upload one under 40 megapixels.',
+                'ICE-MEDIA-422',
+            );
+        }
     }
 
     /**

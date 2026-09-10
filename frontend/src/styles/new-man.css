@@ -2604,3 +2604,20 @@
   aspect-ratio: 3 / 4;
   border-radius: 16px;
 }
+
+html[data-performance-mode="low"] .nh-root .nh-filter,
+html[data-performance-mode="low"] .nh-root .nh-mcard__flag,
+html[data-performance-mode="low"] .nh-root .nh-mcard__tool,
+html[data-motion="reduced"] .nh-root .nh-filter,
+html[data-motion="reduced"] .nh-root .nh-mcard__flag,
+html[data-motion="reduced"] .nh-root .nh-mcard__tool {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+html[data-performance-mode="low"] .nh-root .nh-mcard__media,
+html[data-performance-mode="low"] .nh-root .nh-mcard:hover .nh-mcard__media,
+html[data-motion="reduced"] .nh-root .nh-mcard__media,
+html[data-motion="reduced"] .nh-root .nh-mcard:hover .nh-mcard__media {
+  transform: none;
+}

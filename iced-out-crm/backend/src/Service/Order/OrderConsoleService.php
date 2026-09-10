@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Iced\Service\Order;
 
+use Iced\Domain\Money;
 use Iced\Domain\Principal;
 use Iced\Kernel\Database;
 use Iced\Kernel\Exception\ConflictException;
@@ -14,6 +15,7 @@ use Iced\Repository\ShipmentRepository;
 use Iced\Service\Inventory\StockService;
 use Iced\Service\Settings\StoreSettings;
 use Iced\Service\Shipping\ShipmentService;
+use Iced\Service\Wallet\WalletService;
 use Iced\Support\Clock;
 use Iced\Support\IdAllocator;
 
@@ -36,6 +38,7 @@ final class OrderConsoleService
         private readonly StockService $stock,
         private readonly ShipmentService $shipping,
         private readonly StoreSettings $settings,
+        private readonly WalletService $wallet,
         private readonly IdAllocator $ids,
         private readonly Clock $clock,
     ) {
@@ -99,6 +102,37 @@ final class OrderConsoleService
                 return $this->find($number);
             }
 
+            /* ---- YOU CANNOT CALL OFF SOMETHING ALREADY IN THEIR HANDS -------
+
+               Cancellation had no state guard at all. `console_state` only ever
+               holds Placed, Confirmed or Cancelled — delivery is recorded on the
+               SHIPMENT and mirrored into `orders.status` — so an order that had
+               been delivered still read as `Confirmed` here and cancelled
+               happily.
+
+               That was free money in the wrong direction, and it got worse the
+               moment the wallet reversal below started working: cancelling a
+               delivered order now returns the store credit for goods the
+               customer already has. `openShipments()` even excludes Delivered
+               shipments, so the one signal that something was wrong was
+               deliberately filtered out two lines further down.
+
+               A delivered order that needs unwinding goes through returns and
+               refunds, which is where the goods coming back is part of the
+               transaction. Cancellation is for an order that has not gone
+               anywhere yet, and this is the line that says so.
+
+               `orders.status` rather than the shipment rows, because it is the
+               field the check constraint governs and the one the console shows —
+               a guard that reads a different column from the one staff are
+               looking at is a guard people argue with. */
+            if ((string) $order['status'] === 'Delivered') {
+                throw new ConflictException(
+                    'ICE-ORD-409',
+                    'That order has already been delivered. Raise a return instead of cancelling it.',
+                );
+            }
+
             foreach ($this->orders->openShipments($orderId) as $shipment) {
                 $this->shipments->setStatus((int) $shipment['id'], 'Cancelled', null, null);
                 $this->shipments->appendEvent(
@@ -110,6 +144,39 @@ final class OrderConsoleService
             }
 
             $this->stock->releaseReservationsForOrder($orderId, $actor->userId);
+
+            /* ---- give the store credit back ---------------------------------
+
+               `WalletService::reverseOrder()` was written for exactly this and
+               was called from nowhere. The consequence was quiet and entirely
+               one-sided: an order part-paid from the wallet released its stock
+               when cancelled and kept the money. A shopper who spent ₹2,000 of
+               credit on an order the store then called off lost ₹2,000, with a
+               ledger that showed the debit and no matching return.
+
+               Inside the same transaction as everything else here, so a
+               cancellation that fails to write cannot credit a wallet for an
+               order that is still live.
+
+               `KIND_REVERSAL` rather than a credit of kind `order`: the debit
+               already holds that (kind, reference) pair, and the unique index on
+               it is what makes this idempotent — cancelling twice credits once,
+               which matters because the console's cancel button is retryable and
+               the first thing anyone does with a slow request is press it again.
+
+               A guest order has no account to credit. The voucher path is how
+               those are settled, and inventing a wallet for a null user_id would
+               put the money somewhere nobody can spend it. */
+            $walletApplied = Money::fromDecimalString((string) ($order['wallet_applied'] ?? '0.00'));
+
+            if ($walletApplied->paise > 0 && $order['user_id'] !== null) {
+                $this->wallet->reverseOrder(
+                    (int) $order['user_id'],
+                    $walletApplied,
+                    (string) $order['number'],
+                    sprintf('Returned when %s was cancelled.', (string) $order['number']),
+                );
+            }
 
             $this->orders->updateState($orderId, 'Cancelled', 'Cancelled', $by, (int) $order['version']);
             $this->orders->appendHistory(

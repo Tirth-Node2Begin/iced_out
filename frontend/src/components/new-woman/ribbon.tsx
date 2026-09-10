@@ -4,7 +4,6 @@ import {
   motion,
   useAnimationFrame,
   useMotionValue,
-  useReducedMotion,
   useScroll,
   useTransform,
   useVelocity,
@@ -12,6 +11,7 @@ import {
 import { useRef } from "react";
 
 import { RIBBON } from "@/components/new-woman/data";
+import { useMotionScale } from "@/components/new-woman/use-motion-scale";
 
 /** Baseline travel, in pixels per second, with the page standing still. */
 const DRIFT = 34;
@@ -42,7 +42,7 @@ const PUSH_CAP = 320;
  */
 export function Ribbon() {
   const track = useRef<HTMLDivElement>(null);
-  const reduce = useReducedMotion();
+  const reduce = useMotionScale() === 0;
 
   const x = useMotionValue(0);
   const { scrollY } = useScroll();

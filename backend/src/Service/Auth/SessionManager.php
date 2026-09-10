@@ -87,15 +87,73 @@ final class SessionManager
         return ['token' => $token, 'session_id' => $sessionId, 'expires_at' => $expiresAt];
     }
 
+    /**
+     * Who this request is, from the cookie — or from a bearer token.
+     *
+     * THE BEARER FALLBACK IS FOR NATIVE CLIENTS, and without it the phone can
+     * read but never write. A browser carries the session cookie automatically,
+     * which is what makes CSRF possible and why `OriginCheck` guards every
+     * cookie-authenticated mutation with an Origin/Referer test. A native HTTP
+     * client sends neither header, so every POST/PATCH/DELETE it made was
+     * refused with "This request is missing its origin" — the app could sign in
+     * and list things, and could not add one item to a bag.
+     *
+     * A bearer token is the opposite case: nothing sends it automatically, so
+     * there is no ambient credential for a hostile page to ride, and the
+     * Origin test has nothing to protect. `auth_credential` records which of the
+     * two was used so `OriginCheck` can tell them apart — it is set only on a
+     * token that actually resolved, so a junk header cannot wave the check away.
+     *
+     * Cookie first, deliberately: a browser that somehow carries both stays on
+     * the guarded path.
+     */
     public function resolve(Request $request, string $audience): ?Principal
     {
         $token = $request->cookie($this->cookieName($audience));
+        $credential = 'cookie';
+
+        if ($token === null || $token === '') {
+            $token = self::bearerToken($request);
+            $credential = 'bearer';
+        }
 
         if ($token === null || $token === '') {
             return null;
         }
 
-        return $this->resolveToken($token, $audience);
+        $principal = $this->resolveToken($token, $audience);
+
+        if ($principal !== null) {
+            $request->setAttribute('auth_credential', $credential);
+        }
+
+        return $principal;
+    }
+
+    /**
+     * The token out of `Authorization: Bearer …`, or null.
+     *
+     * Note for deployment: Apache and LiteSpeed strip this header from CGI and
+     * FastCGI handlers unless told not to. `api/.htaccess` copies it back into
+     * the environment two ways (`SetEnvIf` and a `RewriteRule [E=…]`), and
+     * `Request::readHeaders` reads the `REDIRECT_` form a rewrite leaves behind.
+     * When all of that fails on some particular host the remaining lever is
+     * `CGIPassAuth On`, left out of the .htaccess on purpose because an Apache
+     * older than 2.4.13 answers every request with a 500 rather than ignore a
+     * directive it does not know. A header that never arrives looks exactly
+     * like "the app is sending a bad token", so check this first.
+     */
+    public static function bearerToken(Request $request): ?string
+    {
+        $header = $request->header('authorization');
+
+        if (stripos($header, 'bearer ') !== 0) {
+            return null;
+        }
+
+        $token = trim(substr($header, 7));
+
+        return $token === '' ? null : $token;
     }
 
     /**
@@ -113,6 +171,27 @@ final class SessionManager
         $expectedType = $audience === self::AUDIENCE_STAFF ? 'STAFF' : 'CUSTOMER';
 
         if ((string) $row['type'] !== $expectedType) {
+            return null;
+        }
+
+        /* ---- A BLOCK HAS TO BITE NOW, NOT AT THE NEXT EXPIRY ---------------
+
+           Refusing a blocked account at sign-in (AuthService::login) is only
+           half of it: whoever is being blocked is usually the one holding a live
+           session right now, and a customer session lasts days. Checking only at
+           the door means "block this customer" is a decision that takes effect
+           somewhere between immediately and next week, depending on when they
+           happen to sign out — which is not a control anybody can rely on during
+           the incident that prompted it.
+
+           Every request re-reads the row, so this costs nothing extra: the
+           status is already in the SELECT that resolves the session.
+
+           Returning null rather than throwing keeps the shape the caller expects
+           — an unresolvable session, handled exactly like an expired one, so the
+           client is signed out through the path it already has instead of
+           meeting an exception from inside the middleware stack. */
+        if ((string) ($row['status'] ?? 'ACTIVE') !== 'ACTIVE') {
             return null;
         }
 

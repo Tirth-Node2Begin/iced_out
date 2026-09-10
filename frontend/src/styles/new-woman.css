@@ -1988,3 +1988,25 @@
     transition-duration: 0.01ms;
   }
 }
+
+html[data-performance-mode="low"] .nw-root .nw-ribbon__track,
+html[data-motion="reduced"] .nw-root .nw-ribbon__track {
+  transform: none !important;
+}
+
+html[data-performance-mode="low"] .nw-root .nw-card__media,
+html[data-performance-mode="low"] .nw-root .nw-card:hover .nw-card__media,
+html[data-performance-mode="low"] .nw-root .nw-hero__garmentFloat,
+html[data-motion="reduced"] .nw-root .nw-card__media,
+html[data-motion="reduced"] .nw-root .nw-card:hover .nw-card__media,
+html[data-motion="reduced"] .nw-root .nw-hero__garmentFloat {
+  transform: none;
+}
+
+html[data-performance-mode="low"] .nw-root .nw-card__flag,
+html[data-performance-mode="low"] .nw-root .nw-card__tool,
+html[data-motion="reduced"] .nw-root .nw-card__flag,
+html[data-motion="reduced"] .nw-root .nw-card__tool {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}

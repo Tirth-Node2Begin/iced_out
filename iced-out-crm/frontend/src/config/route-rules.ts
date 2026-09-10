@@ -57,6 +57,30 @@ export function getRouteRule(pathname: string) {
 }
 
 export function safeReturnPath(value: string | null, fallback = "/") {
-  if (!value || !value.startsWith("/") || value.startsWith("//")) return fallback;
-  return value;
+  if (!value) return fallback;
+
+  /* PARSE IT, DO NOT PATTERN-MATCH IT.
+     The old guard was `startsWith("/") && !startsWith("//")`, which lets
+     `/\evil.com` through — and browsers normalise a backslash to a forward
+     slash for special schemes, so Next resolves that to `https://evil.com` and
+     performs a real cross-origin navigation. On the storefront that is a
+     credible phishing hop off a genuine domain with a genuine certificate; in
+     the console it redirects an ALREADY SIGNED-IN operator off-origin with no
+     login step at all.
+
+     Handing the string to `URL` and comparing origins is the only version of
+     this that cannot be out-argued by the next encoding trick, because it uses
+     the same parser the browser will. Only the path, query and fragment survive,
+     so an absolute URL to our own origin is also normalised rather than trusted
+     whole. */
+  try {
+    const base = typeof window === "undefined" ? "http://localhost" : window.location.origin;
+    const url = new URL(value, base);
+
+    if (url.origin !== base) return fallback;
+
+    return `${url.pathname}${url.search}${url.hash}` || fallback;
+  } catch {
+    return fallback;
+  }
 }

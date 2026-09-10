@@ -3,7 +3,6 @@
 import {
   motion,
   useInView,
-  useReducedMotion,
   useScroll,
   useTransform,
   type MotionValue,
@@ -11,6 +10,7 @@ import {
 } from "motion/react";
 import { useRef, type CSSProperties, type ReactNode } from "react";
 
+import { usePerformanceProfile } from "@/lib/performance-mode";
 import { cn } from "@/lib/utils";
 
 /**
@@ -37,6 +37,11 @@ export const DUR = {
 
 export const AMOUNT = { reveal: 0.35, image: 0.2, heading: 0.4 } as const;
 
+function useLowMotion() {
+  const profile = usePerformanceProfile();
+  return profile.reducedMotion || profile.mode === "low";
+}
+
 /* ---------------------------------------------------------------------------
    Rise — the plain in-view entrance used by anything that isn't scrubbed.
    ------------------------------------------------------------------------ */
@@ -58,7 +63,7 @@ export function Rise({
   // new_style §6.10 flags that the CSS reduced-motion block does not reach
   // Motion's inline styles. Every JS-driven move on this page drops to a plain
   // opacity fade instead.
-  const reduce = useReducedMotion();
+  const reduce = useLowMotion();
 
   return (
     <motion.div
@@ -124,7 +129,7 @@ export function ScrollWords({
   spread?: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const reduce = useReducedMotion();
+  const reduce = useLowMotion();
   const { scrollYProgress } = useScroll({
     target: ref,
     // motion types offsets as a loose tuple of edge descriptors
@@ -202,7 +207,7 @@ export function ScrollWords({
 const DIGITS = Array.from({ length: 10 }, (_, i) => i);
 
 function Reel({ digit, delay, play }: { digit: number; delay: number; play: boolean }) {
-  const reduce = useReducedMotion();
+  const reduce = useLowMotion();
 
   return (
     <span className="hv2-digit">
@@ -273,7 +278,7 @@ export function RevealImage({
   priority?: boolean;
   amount?: number;
 }) {
-  const reduce = useReducedMotion();
+  const reduce = useLowMotion();
 
   // The trigger MUST live on an element that does not clip itself. Chrome
   // reports an empty intersection rect for a node under `clip-path: inset(100%)`,
@@ -354,7 +359,7 @@ export function MaskLines({
   amount?: number;
   inherit?: boolean;
 }) {
-  const reduce = useReducedMotion();
+  const reduce = useLowMotion();
 
   const trigger = inherit
     ? {}

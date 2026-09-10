@@ -44,7 +44,7 @@
  */
 
 import { spawnSync } from "node:child_process";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -62,6 +62,20 @@ const option = (name, fallback) =>
 const DOMAIN = option("domain", "iced-out.node2begin.com");
 const LAYOUT = option("layout", "flat");
 const SKIP_BUILD = flag("skip-build");
+
+/**
+ * Whether the Content-Security-Policy is ENFORCED or merely reported.
+ *
+ * Report-only is the default, and deliberately so. A CSP that is one directive
+ * short does not degrade — it breaks the page, and on a checkout that means a
+ * gateway frame that never opens. Razorpay in particular routes through
+ * per-method and per-bank subdomains that cannot all be enumerated in advance,
+ * so the honest way to arrive at the right policy is to ship it reporting,
+ * watch a real test-mode purchase, and only then turn it on:
+ *
+ *   node tools/live/build-live.mjs --csp-enforce
+ */
+const CSP_ENFORCE = flag("csp-enforce");
 
 if (LAYOUT !== "flat" && LAYOUT !== "split") {
   process.stderr.write(`Unknown --layout=${LAYOUT}. Use "flat" or "split".` + "\n");
@@ -145,6 +159,47 @@ async function template(name, replacements = {}) {
   }
 
   return text;
+}
+
+/**
+ * Every distinct inline `<script>` in the export, as `'sha256-…'` CSP sources.
+ *
+ * Walks the built HTML rather than the source, because what the policy has to
+ * allow is what the browser will actually see — after Next has rendered it, with
+ * whatever whitespace it chose. Hashing the source string would be right until
+ * the first time a build changed it by a single character, at which point every
+ * page would lose its scripts and the cause would be invisible.
+ *
+ * Only scripts with no `src` are hashed; external ones are allowed by origin.
+ * The set is deduplicated because the same bootstrap appears in every page.
+ */
+async function inlineScriptHashes(root) {
+  const hashes = new Set();
+  const pattern = /<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi;
+
+  const walk = async (directory) => {
+    for (const entry of await fs.readdir(directory, { withFileTypes: true })) {
+      const full = path.join(directory, entry.name);
+
+      if (entry.isDirectory()) {
+        await walk(full);
+        continue;
+      }
+
+      if (!entry.name.endsWith(".html")) continue;
+
+      const html = await fs.readFile(full, "utf8");
+
+      for (const [, body] of html.matchAll(pattern)) {
+        if (body === "") continue;
+        hashes.add(`'sha256-${createHash("sha256").update(body, "utf8").digest("base64")}'`);
+      }
+    }
+  };
+
+  await walk(root);
+
+  return [...hashes];
 }
 
 async function write(target, contents) {
@@ -290,8 +345,55 @@ async function assemblePublic(out) {
   await fs.cp(out, PUBLIC, { recursive: true });
   ok(`static export — ${await countFiles(PUBLIC)} files`);
 
-  await write(path.join(PUBLIC, ".htaccess"), await template("htaccess-root"));
-  ok(".htaccess — https, clean URLs, 404 page, and the /iced-out-api block");
+  /**
+   * The CSP's script hashes, computed from the HTML that is actually shipping.
+   *
+   * A static export cannot carry a per-request nonce — there is no request when
+   * the file is written — so an inline `<script>` can only be allowed by the
+   * SHA-256 of its exact contents. `frontend/src/app/layout.tsx` injects one
+   * (the performance-mode probe), and the moment anybody edits it the hash
+   * changes and every page silently loses its scripts.
+   *
+   * So the hashes are read out of the built files rather than written down
+   * anywhere: whatever inline script is in the export is what the policy
+   * allows, and the two cannot drift.
+   */
+  const scriptHashes = await inlineScriptHashes(PUBLIC);
+
+  await write(
+    path.join(PUBLIC, ".htaccess"),
+    await template("htaccess-root", {
+      SCRIPT_HASHES: scriptHashes.join(" "),
+      CSP_MODE: CSP_ENFORCE ? "Content-Security-Policy" : "Content-Security-Policy-Report-Only",
+    }),
+  );
+  ok(
+    `.htaccess — https, clean URLs, 404 page, CSP (${CSP_ENFORCE ? "enforcing" : "report-only"}, ` +
+      `${scriptHashes.length} inline script hash${scriptHashes.length === 1 ? "" : "es"})`,
+  );
+
+  /**
+   * Most of those hashes are not ours.
+   *
+   * Next.js inlines its RSC payload as `self.__next_f.push(...)` in every page,
+   * so the count grows with the number of exported pages rather than with the
+   * amount of hand-written script — which is one line, in app/layout.tsx.
+   *
+   * That is fine until the header gets big. Apache and LiteSpeed will cheerfully
+   * emit a header no proxy or browser wants, and a truncated CSP is a broken
+   * site. Warned about rather than solved, because the alternatives are worse:
+   * `'unsafe-inline'` would defeat the directive entirely, and per-page policies
+   * cannot be expressed in one .htaccess.
+   */
+  const headerBytes = scriptHashes.join(" ").length + 420;
+
+  if (headerBytes > 6000) {
+    warn(
+      `the CSP header is ~${headerBytes} bytes and getting close to the usual 8 KB server limit. ` +
+        `Most of it is Next's per-page RSC payload hashes. If it grows further, serve the policy ` +
+        `from PHP for /api/v1 and consider dropping script-src to 'self' with a nonce-less framework build.`,
+    );
+  }
 
   await write(path.join(PUBLIC, "_next", ".htaccess"), await template("htaccess-next"));
   ok("_next/.htaccess — immutable caching for the hashed bundles");
@@ -496,10 +598,47 @@ async function verifyDenyList() {
   }
 
   const raw = await fs.readFile(path.join(PUBLIC, ".htaccess"), "utf8");
+
+  /**
+   * COMMENTS ARE NOT RULES.
+   *
+   * This used to substring-match the whole file, prose included, which made the
+   * assertion worthless — and worse than worthless, because it read as proof.
+   * A template with every deny rule deleted still passed, satisfied entirely by
+   * the explanatory text:
+   *
+   *   "config", "database", "storage"  ← the paragraph explaining why they matter
+   *   "sql", "zip", "log"              ← the comments above the extension rule
+   *   ".git"                           ← the comment above the .git rule
+   *   "src"                            ← `img-src` / `frame-src` IN THE CSP
+   *   "orig"                           ← `strict-origin-when-cross-origin`
+   *
+   * The last two are the sharp lesson: adding the Content-Security-Policy made
+   * this check permanently green for two of the names it was supposed to guard,
+   * so hardening the file weakened the thing verifying it.
+   *
+   * Stripping comments first, and matching only the directive lines, means the
+   * assertion tests the rules and nothing else.
+   */
+  const directives = raw
+    .split("\n")
+    .filter((line) => !/^\s*#/.test(line))
+    .join("\n");
+
   // The rules escape dots for the regex (`autoload\.php`); compare on the plain
   // name by dropping every backslash first.
-  const rules = raw.split("\\").join("");
-  const missing = [...BACKEND_DIRS, ...PRIVATE_FILES].filter((name) => !rules.includes(name));
+  const rules = directives.split("\\").join("");
+
+  /* And the name must appear in a rule that actually DENIES. `[F,L]` is the
+     forbidden flag; `Require all denied` and `Deny from all` are the authz
+     forms. A name mentioned anywhere else — in the CSP, in a MIME type, in a
+     Header directive — does not count. */
+  const denyLines = rules
+    .split("\n")
+    .filter((line) => /\[F(,|])/.test(line) || /Require\s+all\s+denied/i.test(line) || /Deny\s+from\s+all/i.test(line))
+    .join("\n");
+
+  const missing = [...BACKEND_DIRS, ...PRIVATE_FILES].filter((name) => !denyLines.includes(name));
 
   if (missing.length > 0) {
     throw new Error(
@@ -512,7 +651,34 @@ async function verifyDenyList() {
     throw new Error('templates/htaccess-root has lost its dot-file rule — .env would be served.');
   }
 
-  ok(`deny list checked — ${BACKEND_DIRS.length} folders, ${PRIVATE_FILES.length} files, and dot-files`);
+  /**
+   * The folder list above is not enough on its own, and the reason is a real
+   * artefact rather than a hypothetical: a `LIVE.zip` — the entire deployment,
+   * `.env` and database dump inside it — was found sitting at the top level of a
+   * document root, matching no rule in this file, because every rule named a
+   * FOLDER and it was a file.
+   *
+   * So the extensions are asserted too. A build that drops one of these is a
+   * build that would serve a database dump on request.
+   */
+  const RISKY_EXTENSIONS = ["sql", "zip", "bak", "log", "swp", "orig"];
+  const uncovered = RISKY_EXTENSIONS.filter((extension) => !denyLines.includes(extension));
+
+  if (uncovered.length > 0) {
+    throw new Error(
+      `templates/htaccess-root no longer refuses these extensions: ${uncovered.join(", ")}. ` +
+        `A dump or an archive left in the document root would be downloadable.`,
+    );
+  }
+
+  if (!denyLines.includes(".git")) {
+    throw new Error('templates/htaccess-root has lost its .git rule — the repository history would be readable.');
+  }
+
+  ok(
+    `deny list checked — ${BACKEND_DIRS.length} folders, ${PRIVATE_FILES.length} files, ` +
+      `${RISKY_EXTENSIONS.length} extensions, .git and dot-files`,
+  );
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── */

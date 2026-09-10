@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Iced\Controller\Customer\CheckoutController;
 use Iced\Controller\Customer\PaymentController;
+use Iced\Controller\System\RazorpayWebhookController;
 use Iced\Kernel\Route;
 
 /**
@@ -22,7 +23,40 @@ return [
         'audience' => Route::AUDIENCE_CUSTOMER,
         // A double-tap on a slow connection must not buy the bag twice.
         'idempotent' => true,
+        /* Its own bucket, and a tight one. This used to fall through to
+           `default` — 240 a minute, counted by IP alone — and every call
+           RESERVES STOCK. Ten a minute is more than any person places and few
+           enough that a script cannot hold the catalogue hostage with unpaid
+           cash-on-delivery orders. `both`, so one account cannot do it from
+           many addresses and one address cannot do it from many accounts. */
+        'rate_limit' => 'checkout',
+        /* An order is the customer-side action with the most money attached and
+           the one a dispute is most likely to be about. The order row says what
+           was bought; the audit row says which request made it, from where. */
+        'audit' => true,
         'name' => 'checkout.orders.place',
+    ],
+
+    /**
+     * What the GATEWAY says happened, rather than what the browser reports.
+     *
+     * Public audience because Razorpay presents no cookie; what authorises it is
+     * an HMAC of the raw body under RAZORPAY_WEBHOOK_SECRET, checked with
+     * `hash_equals` in the controller. `webhooks` is the rate-limit class that
+     * has been sitting in config/app.php unused since the table was written —
+     * generous, because a gateway retries in bursts.
+     *
+     * Not `idempotent`: the Idempotency middleware keys on a header Razorpay
+     * does not send. Deduplication is `webhook_inbox`'s UNIQUE (provider,
+     * event_id) instead, which is the right key for this.
+     */
+    [
+        'method' => 'POST',
+        'path' => '/webhooks/razorpay',
+        'handler' => [RazorpayWebhookController::class, 'receive'],
+        'audience' => Route::AUDIENCE_PUBLIC,
+        'rate_limit' => 'webhooks',
+        'name' => 'webhooks.razorpay',
     ],
     /**
      * The two gateway steps that need the SECRET, and so cannot be done in the

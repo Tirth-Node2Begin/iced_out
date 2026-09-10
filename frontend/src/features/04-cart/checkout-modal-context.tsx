@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import {
   createContext,
@@ -10,8 +11,15 @@ import {
   type ReactNode,
 } from "react";
 
-import { CheckoutModal } from "@/features/04-cart/components/checkout-modal";
 import { useAuth } from "@/features/20-auth-security/auth-context";
+
+const CheckoutModal = dynamic(
+  () =>
+    import("@/features/04-cart/components/checkout-modal").then(
+      (module) => module.CheckoutModal,
+    ),
+  { ssr: false },
+);
 
 /**
  * The one way into checkout, from anywhere on the site.
@@ -39,6 +47,7 @@ const CheckoutModalContext = createContext<CheckoutModalValue | null>(null);
 
 export function CheckoutModalProvider({ children }: { children: ReactNode }) {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [checkoutUsed, setCheckoutUsed] = useState(false);
   const { isAuthenticated } = useAuth();
   const router = useRouter();
 
@@ -47,6 +56,7 @@ export function CheckoutModalProvider({ children }: { children: ReactNode }) {
       router.push(`/auth/login?returnTo=${encodeURIComponent("/checkout")}`);
       return;
     }
+    setCheckoutUsed(true);
     setCheckoutOpen(true);
   }, [isAuthenticated, router]);
 
@@ -60,7 +70,7 @@ export function CheckoutModalProvider({ children }: { children: ReactNode }) {
   return (
     <CheckoutModalContext.Provider value={value}>
       {children}
-      <CheckoutModal onOpenChange={setCheckoutOpen} open={checkoutOpen} />
+      {checkoutUsed && <CheckoutModal onOpenChange={setCheckoutOpen} open={checkoutOpen} />}
     </CheckoutModalContext.Provider>
   );
 }

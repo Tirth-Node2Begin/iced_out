@@ -182,7 +182,10 @@ export function CustomerAuthPage({ mode }: { mode: CustomerAuthMode }) {
                       type={revealed ? "text" : "password"}
                       placeholder={mode === "login" ? "Enter your password" : "Choose a password"}
                       autoComplete={mode === "login" ? "current-password" : "new-password"}
-                      minLength={6}
+                      // Eight when CHOOSING one, so the browser refuses before the
+                      // API does. One when signing in, because a shorter password
+                      // set before the minimum rose must still be typeable.
+                      minLength={mode === "login" ? 1 : 8}
                       required
                       suppressHydrationWarning
                     />

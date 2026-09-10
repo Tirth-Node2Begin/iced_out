@@ -194,6 +194,13 @@ final class Request
             if (str_starts_with($key, 'HTTP_')) {
                 $name = strtolower(str_replace('_', '-', substr($key, 5)));
                 $headers[$name] = $value;
+            } elseif ($key === 'REDIRECT_HTTP_AUTHORIZATION') {
+                /* Apache and LiteSpeed drop Authorization before a CGI/FastCGI
+                   handler sees it. `api/.htaccess` copies it back with
+                   [E=HTTP_AUTHORIZATION:…], and a rewritten request arrives with
+                   the REDIRECT_ prefix on it. Read only when the real header is
+                   absent, so the genuine one always wins. */
+                $headers['authorization'] ??= $value;
             } elseif (in_array($key, ['CONTENT_TYPE', 'CONTENT_LENGTH'], true)) {
                 $headers[strtolower(str_replace('_', '-', $key))] = $value;
             }

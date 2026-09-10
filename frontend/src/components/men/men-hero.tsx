@@ -2,7 +2,7 @@
 
 import { ArrowLeft, ArrowRight, ArrowUpRight } from "lucide-react";
 import Link from "next/link";
-import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
+import { motion, useScroll, useTransform } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { EASE_OUT } from "@/components/new-home/motion-primitives";
@@ -65,8 +65,8 @@ function slotOf(index: number, active: number) {
  */
 export function MenHero() {
   const ref = useRef<HTMLElement>(null);
-  const reduce = useReducedMotion();
   const scale = useMotionScale();
+  const lowMotion = scale === 0;
 
   const { pieces, loaded } = useGenderPieces("men");
 
@@ -88,14 +88,14 @@ export function MenHero() {
   }, []);
 
   useEffect(() => {
-    if (reduce || driven || COUNT < 2) return;
+    if (lowMotion || driven || COUNT < 2) return;
 
     const hold = window.setTimeout(() => {
       setActive((value) => (value + 1) % COUNT);
     }, RAIL.holdMs);
 
     return () => window.clearTimeout(hold);
-  }, [active, driven, reduce]);
+  }, [active, driven, lowMotion]);
 
   const { scrollYProgress } = useScroll({
     target: ref,
@@ -125,8 +125,13 @@ export function MenHero() {
   };
 
   return (
-    <section className="men-hero" ref={ref}>
-      <div aria-hidden className="men-hero__field" />
+    <section className="men-hero" data-active={centre.id} ref={ref}>
+      <div aria-hidden className="men-hero__field">
+        <span className="men-hero__beam men-hero__beam--left" />
+        <span className="men-hero__beam men-hero__beam--centre" />
+        <span className="men-hero__beam men-hero__beam--right" />
+        <span className="men-hero__scan" />
+      </div>
 
       <motion.div aria-hidden className="men-hero__floor" style={{ y: floorY }}>
         <motion.div
@@ -134,7 +139,7 @@ export function MenHero() {
           className="men-hero__floorPlane"
           initial={{ opacity: 0 }}
           transition={{
-            duration: reduce ? 0.3 : 1.4,
+            duration: lowMotion ? 0.3 : 1.4,
             delay: T.floor,
             ease: EASE_OUT,
           }}
@@ -154,6 +159,13 @@ export function MenHero() {
       </motion.div>
 
       <div className="men-hero__stage">
+        <div aria-hidden className="men-hero__bay">
+          <span className="men-hero__bayPanel men-hero__bayPanel--left" />
+          <span className="men-hero__bayPanel men-hero__bayPanel--right" />
+          <span className="men-hero__horizon" />
+          <span className="men-hero__plinth" />
+        </div>
+
         {/* The wordmark, behind the rail on purpose — the inner edge of each
             half is meant to be cut off by the centre piece's silhouette. */}
         <motion.div
@@ -168,8 +180,8 @@ export function MenHero() {
                 className="men-hero__halfInner"
                 initial={{ y: "108%", opacity: 0.001 }}
                 transition={{
-                  duration: reduce ? 0.3 : 0.9,
-                  delay: reduce ? 0 : T.word + halfIndex * 0.1,
+                  duration: lowMotion ? 0.3 : 0.9,
+                  delay: lowMotion ? 0 : T.word + halfIndex * 0.1,
                   ease: EASE_OUT,
                 }}
               >
@@ -188,7 +200,7 @@ export function MenHero() {
             initial={{ opacity: 0, scale: 0.94, y: 26 }}
             style={{ height: "100%", position: "relative" }}
             transition={{
-              duration: reduce ? 0.35 : 0.95,
+              duration: lowMotion ? 0.35 : 0.95,
               delay: T.rail,
               ease: EASE_OUT,
             }}
@@ -198,18 +210,13 @@ export function MenHero() {
                 rather than three pictures shuffling. Re-keyed on the centre
                 piece so each move replays the flare. */}
             <motion.span
-              animate={
-                reduce
-                  ? { opacity: 1, scale: 1 }
-                  : { opacity: [0.6, 1, 0.85], scale: [0.97, 1.08, 1] }
-              }
+              animate={{ opacity: 1, scale: 1 }}
               aria-hidden
               className="men-hero__glow"
               initial={{ opacity: 0, scale: 0.92 }}
-              key={centre.id}
               transition={{
-                duration: reduce ? 0.3 : 1.4,
-                delay: active === 0 && !driven ? T.glow : 0,
+                duration: lowMotion ? 0.3 : 0.9,
+                delay: T.glow,
                 ease: EASE_OUT,
               }}
             />
@@ -222,7 +229,10 @@ export function MenHero() {
                 <motion.button
                   animate={{
                     x: `${slot * RAIL.offset}%`,
+                    y: isCentre ? "0%" : "7%",
                     scale: isCentre ? 1 : RAIL.flankScale,
+                    rotateY: slot === 0 ? 0 : slot < 0 ? 18 : -18,
+                    rotateZ: slot === 0 ? 0 : slot < 0 ? -2.2 : 2.2,
                     opacity: isCentre ? 1 : RAIL.flankOpacity,
                     /* A flank sits BEHIND the wordmark, the centre piece in
                        front of it. At the same depth the two flanks painted
@@ -236,11 +246,12 @@ export function MenHero() {
                   aria-label={isCentre ? garment.name : `Show ${garment.name}`}
                   className="men-hero__slot"
                   data-flank={isCentre ? undefined : ""}
+                  data-slot={isCentre ? "centre" : slot < 0 ? "left" : "right"}
                   disabled={isCentre}
                   key={garment.id}
                   onClick={() => go(index)}
                   transition={{
-                    duration: reduce ? 0.2 : RAIL.slideSeconds,
+                    duration: lowMotion ? 0.2 : RAIL.slideSeconds,
                     ease: EASE_OUT,
                   }}
                   type="button"

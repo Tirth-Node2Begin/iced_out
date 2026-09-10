@@ -116,6 +116,24 @@ final class SessionManager
             return null;
         }
 
+        /* ---- A BLOCK HAS TO BITE NOW, NOT AT THE NEXT EXPIRY ---------------
+
+           Refusing a blocked account at sign-in (AuthService::login) is only
+           half of it: whoever is being blocked is usually the one holding a live
+           session right now. For the console that is the whole point — revoking
+           a staff account is something you do BECAUSE they are logged in, and a
+           check that waits for the idle window to lapse hands them another
+           fifteen minutes of every permission they held.
+
+           Every request re-reads the row, so this costs nothing extra: the
+           status is already in the SELECT that resolves the session.
+
+           Returning null rather than throwing keeps the shape the caller expects
+           — an unresolvable session, handled exactly like an expired one. */
+        if ((string) ($row['status'] ?? 'ACTIVE') !== 'ACTIVE') {
+            return null;
+        }
+
         $userId = (int) $row['user_id'];
         $sessionId = (int) $row['id'];
         $expiresAt = $row['absolute_expires_at'] === null ? null : (string) $row['absolute_expires_at'];

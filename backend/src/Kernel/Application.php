@@ -9,6 +9,7 @@ use Iced\Integration\BackgroundRemoval\RemoveBgClient;
 use Iced\Integration\BackgroundRemoval\UnconfiguredBackgroundRemover;
 use Iced\Integration\Mail\LogMailer;
 use Iced\Integration\Mail\Mailer;
+use Iced\Integration\Mail\NullMailer;
 use Iced\Integration\Mail\SmtpMailer;
 use Iced\Integration\Payments\RazorpayGateway;
 use Iced\Integration\Tracking\IthinkLogisticsTrackingProvider;
@@ -28,6 +29,7 @@ use Iced\Middleware\OriginCheck;
 use Iced\Middleware\RateLimitByIp;
 use Iced\Middleware\RateLimitByPrincipal;
 use Iced\Middleware\RequestId;
+use Iced\Middleware\RequireStepUp;
 use Iced\Middleware\ResolveRoute;
 use Iced\Middleware\SecurityHeaders;
 use Iced\Middleware\Validate;
@@ -66,6 +68,12 @@ final class Application
         OriginCheck::class,
         RateLimitByPrincipal::class,
         Authorize::class,
+        /* No storefront route sets `step_up` today, and this is in the pipeline
+           anyway. The flag lives on `Route`, which both deployables share, so
+           without the middleware here a `'step_up' => true` added to a shop route
+           would be silently ignored — a security control that reads as present
+           and does nothing. It costs one property check per request. */
+        RequireStepUp::class,
         Validate::class,
         Idempotency::class,
         Audit::class,
@@ -175,6 +183,31 @@ final class Application
             $host = $config->string('app.mail.host');
             $logger = $c->make(Logger::class);
 
+            /* ---- the log driver is a DEVELOPMENT driver ---------------------
+
+               `LogMailer` writes the whole message into storage/logs, body and
+               all — which for the recovery flow means the six-digit reset code,
+               in plain text, in a file that under the flat cPanel layout sits
+               inside the document root. Its own docblock says it "must never be
+               the one running in production" and promised a warning in
+               GET /ready that had never been written.
+
+               It is written now (see SystemController), and so is this: in
+               production the driver is not merely reported, it is REFUSED. A
+               store that cannot send mail is a visible, fixable problem. A store
+               quietly writing every password-reset code to a file it also serves
+               over HTTP is not. */
+            $isProduction = strtolower($config->string('app.env', 'dev')) === 'production';
+
+            if ($isProduction && $driver !== 'smtp') {
+                $logger->error('mail.refused', [
+                    'reason' => 'MAIL_DRIVER=' . $driver . ' in production would write recovery codes to storage/logs. '
+                        . 'No mail will be sent until SMTP is configured.',
+                ]);
+
+                return new NullMailer();
+            }
+
             if ($driver !== 'smtp') {
                 return new LogMailer($logger);
             }
@@ -183,6 +216,10 @@ final class Application
                 $logger->warning('mail.misconfigured', [
                     'reason' => 'MAIL_DRIVER=smtp with a blank SMTP_HOST — falling back to the log driver.',
                 ]);
+
+                if ($isProduction) {
+                    return new NullMailer();
+                }
 
                 return new LogMailer($logger);
             }

@@ -41,22 +41,25 @@
      and a champagne to the same base; the two floors are told apart by
      temperature rather than by a second grey.
      -------------------------------------------------------------------- */
-  --men-steel: #9fb2bd;
-  --men-steel-dim: #6d7d86;
-  --men-graphite: #b9c4c9;
+  --men-steel: #b8c8ca;
+  --men-steel-dim: #748285;
+  --men-graphite: #d5dedb;
+  --men-ice: #bff4e6;
+  --men-amber: #f0d18b;
+  --men-void: #050607;
 
-  --men-line: rgba(226, 238, 245, 0.12);
-  --men-line-soft: rgba(226, 238, 245, 0.07);
-  --men-line-hi: rgba(159, 178, 189, 0.5);
-  --men-fill: rgba(232, 242, 248, 0.045);
-  --men-plate: rgba(17, 20, 22, 0.76);
+  --men-line: rgba(224, 237, 236, 0.14);
+  --men-line-soft: rgba(224, 237, 236, 0.07);
+  --men-line-hi: rgba(191, 244, 230, 0.5);
+  --men-fill: rgba(226, 239, 237, 0.055);
+  --men-plate: rgba(10, 12, 13, 0.72);
   /* The wordmark's ink. Dimmer than --nh-ink on purpose: the word is BEHIND
      the garment and the callouts, and at full ink it was the brightest thing
      on the floor -- brighter than the piece it frames, and bright enough that
      a callout's grey label crossing a letter simply vanished into it. This is
      the weight of a backdrop, not of a heading. */
-  --men-word: rgba(226, 238, 245, 0.46);
-  --men-glow: rgba(159, 178, 189, 0.16);
+  --men-word: rgba(226, 236, 233, 0.4);
+  --men-glow: rgba(191, 244, 230, 0.17);
 
   /* The garment's height. One token: the picture, the rig that frames it and
      the shadow under it all measure against it.
@@ -65,7 +68,8 @@
      between two enormous words — the type was the hero and the product was
      furniture, which is the wrong way round in a shop. The root's hoodie takes
      roughly this much of the screen, and that is the balance that works. */
-  --men-garment-h: clamp(260px, 58svh, 620px);
+  --men-garment-h: clamp(280px, 60svh, 640px);
+  letter-spacing: 0;
 }
 
 /* ---------------------------------------------------------------- primitives */
@@ -165,7 +169,9 @@
   min-height: 100svh;
   margin-top: calc(var(--nh-nav-h, 92px) * -1);
   padding-top: var(--nh-nav-h, 92px);
-  background: var(--nh-surface);
+  background:
+    linear-gradient(180deg, #070808 0%, #0f1111 44%, #080909 100%),
+    var(--nh-surface);
 }
 
 /* ------------------------------------------------------------------- light */
@@ -177,19 +183,67 @@
   position: absolute;
   inset: 0;
   z-index: -3;
+  overflow: hidden;
   pointer-events: none;
   background:
-    radial-gradient(30% 34% at 50% 44%, var(--men-glow) 0%, transparent 70%),
-    radial-gradient(80% 40% at 50% 100%, rgba(120, 140, 152, 0.08) 0%, transparent 72%);
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 14%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 18%),
+    linear-gradient(180deg, rgba(216, 232, 230, 0.05) 0%, transparent 34%),
+    linear-gradient(90deg, rgba(5, 6, 7, 0.92) 0%, transparent 28%, transparent 72%, rgba(5, 6, 7, 0.92) 100%);
 }
 
-/* The vignette, so the stage has edges and the wordmark never floats on flat
-   black. */
+.men-root .men-hero__field::before {
+  display: none;
+}
+
 .men-root .men-hero__field::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: radial-gradient(76% 64% at 50% 46%, transparent 40%, rgba(6, 7, 8, 0.76) 100%);
+  background:
+    radial-gradient(80% 70% at 50% 44%, transparent 36%, rgba(5, 6, 7, 0.82) 100%),
+    linear-gradient(180deg, rgba(5, 6, 7, 0.32), transparent 26%, rgba(5, 6, 7, 0.9) 100%);
+}
+
+.men-root .men-hero__beam {
+  position: absolute;
+  top: 8%;
+  bottom: 34%;
+  width: 34%;
+  background: linear-gradient(
+    180deg,
+    rgba(240, 209, 139, 0.13) 0%,
+    rgba(191, 244, 230, 0.08) 38%,
+    transparent 88%
+  );
+  clip-path: polygon(46% 0, 54% 0, 100% 100%, 0 100%);
+  opacity: 0.44;
+  mix-blend-mode: screen;
+}
+
+.men-root .men-hero__beam--left {
+  display: none;
+}
+
+.men-root .men-hero__beam--centre {
+  display: none;
+}
+
+.men-root .men-hero__beam--right {
+  display: none;
+}
+
+.men-root .men-hero__scan {
+  position: absolute;
+  inset: 0;
+  opacity: 0.18;
+  background-image: repeating-linear-gradient(
+    180deg,
+    transparent 0 10px,
+    rgba(224, 237, 236, 0.08) 10px 11px
+  );
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 18%, #000 72%, transparent 100%);
+  mask-image: linear-gradient(180deg, transparent 0%, #000 18%, #000 72%, transparent 100%);
 }
 
 /* --------------------------------------------------------------- floor grid */
@@ -203,25 +257,50 @@
    itself it does nothing at all. */
 .men-root .men-hero__floor {
   position: absolute;
-  inset: auto -25% 0 -25%;
+  inset: auto -32% -3% -32%;
   z-index: -2;
-  height: 42%;
-  perspective: 420px;
-  perspective-origin: 50% 0%;
+  height: 54%;
+  perspective: 640px;
+  perspective-origin: 50% -6%;
   pointer-events: none;
 }
 
 .men-root .men-hero__floorPlane {
   position: absolute;
   inset: 0;
-  transform: rotateX(74deg);
+  transform: rotateX(69deg) translateY(-5%);
   transform-origin: 50% 0%;
+  border-top: 1px solid rgba(224, 237, 236, 0.18);
   background-image:
-    repeating-linear-gradient(90deg, var(--men-line) 0 1px, transparent 1px 5%),
-    repeating-linear-gradient(0deg, var(--men-line) 0 1px, transparent 1px 7%);
+    linear-gradient(90deg, transparent 0%, rgba(191, 244, 230, 0.08) 50%, transparent 100%),
+    repeating-linear-gradient(90deg, var(--men-line) 0 1px, transparent 1px 6.5%),
+    repeating-linear-gradient(0deg, var(--men-line-soft) 0 1px, transparent 1px 9%);
   /* fades out towards the horizon, which after the rotation is the top edge */
-  -webkit-mask-image: linear-gradient(to top, rgba(0, 0, 0, 0.85) 0%, transparent 62%);
-  mask-image: linear-gradient(to top, rgba(0, 0, 0, 0.85) 0%, transparent 62%);
+  -webkit-mask-image: linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, transparent 68%);
+  mask-image: linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, transparent 68%);
+}
+
+.men-root .men-hero__floorPlane::before,
+.men-root .men-hero__floorPlane::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.men-root .men-hero__floorPlane::before {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(240, 209, 139, 0.04) 43%,
+    rgba(191, 244, 230, 0.08) 50%,
+    rgba(240, 209, 139, 0.04) 57%,
+    transparent 100%
+  );
+}
+
+.men-root .men-hero__floorPlane::after {
+  border-top: 1px solid rgba(240, 209, 139, 0.18);
+  background: linear-gradient(180deg, rgba(224, 237, 236, 0.08), transparent 32%);
 }
 
 /* -------------------------------------------------------------------- type */
@@ -244,7 +323,7 @@
      halves and the piece occupied different bands and the silhouette cut
      nothing — which makes a split wordmark pointless, since being cut is the
      entire reason to split one. */
-  inset: 22% var(--nh-gutter) auto;
+  inset: 18% var(--nh-gutter) auto;
   z-index: 1;
   display: flex;
   align-items: flex-start;
@@ -262,12 +341,14 @@
 
 .men-root .men-hero__halfInner {
   display: block;
-  font-size: clamp(2.6rem, 15vw, 13rem);
+  font-size: clamp(3rem, 16vw, 14.5rem);
   font-weight: 700;
   line-height: 0.82;
-  letter-spacing: -0.045em;
+  letter-spacing: 0;
+  font-stretch: 104%;
   text-transform: uppercase;
   color: var(--men-word);
+  text-shadow: 0 0 34px rgba(191, 244, 230, 0.08);
   white-space: nowrap;
 }
 
@@ -282,7 +363,49 @@
   position: relative;
   z-index: 2;
   flex: 1 1 auto;
-  min-height: clamp(320px, 52svh, 620px);
+  min-height: clamp(340px, 56svh, 650px);
+  perspective: 1100px;
+  perspective-origin: 50% 46%;
+  transform-style: preserve-3d;
+}
+
+.men-root .men-hero__bay {
+  position: absolute;
+  inset: 1% 0 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  transform-style: preserve-3d;
+}
+
+.men-root .men-hero__bayPanel {
+  display: none;
+}
+
+.men-root .men-hero__bayPanel--left {
+  left: -8%;
+  transform: rotateY(64deg) skewY(-3deg);
+  transform-origin: 100% 50%;
+}
+
+.men-root .men-hero__bayPanel--right {
+  right: -8%;
+  transform: rotateY(-64deg) skewY(3deg);
+  transform-origin: 0 50%;
+}
+
+.men-root .men-hero__horizon {
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  bottom: 23%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(224, 237, 236, 0.28), transparent);
+  box-shadow: 0 0 24px rgba(191, 244, 230, 0.16);
+}
+
+.men-root .men-hero__plinth {
+  display: none;
 }
 
 /* -------------------------------------------------------------------- rail */
@@ -301,14 +424,22 @@
 .men-root .men-hero__rail {
   position: absolute;
   left: 50%;
-  bottom: clamp(3.25rem, 7vh, 5rem);
-  width: clamp(220px, 34vw, 470px);
+  bottom: clamp(2.8rem, 6.4vh, 4.6rem);
+  z-index: 3;
+  width: clamp(230px, 32vw, 460px);
   height: var(--men-garment-h);
   /* Centred with `translate`, not `transform`: Motion writes `transform` into
      this element's style attribute for the scroll drift, and a `transform` here
      would simply be overwritten — the rail would jump half its width left the
      moment the page was scrolled. The two properties compose. */
   translate: -50% 0;
+  perspective: 900px;
+  perspective-origin: 50% 52%;
+  transform-style: preserve-3d;
+}
+
+.men-root .men-hero__rail > div {
+  transform-style: preserve-3d;
 }
 
 .men-root .men-hero__slot {
@@ -319,6 +450,9 @@
   background: none;
   transform-origin: 50% 100%;
   cursor: pointer;
+  transform-style: preserve-3d;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
 }
 
 /* The piece in the centre is not a control — there is nowhere for it to go. */
@@ -340,14 +474,25 @@
   /* Two shadows doing different jobs: the dark one drops the piece onto the
      floor, the steel one rims the silhouette so the bloom behind it reads as
      light falling on cloth rather than a lamp sitting behind a sticker. */
-  filter: drop-shadow(0 30px 44px rgba(0, 0, 0, 0.66))
-    drop-shadow(0 0 30px rgba(159, 178, 189, 0.22));
+  filter: brightness(1.04) contrast(1.04)
+    drop-shadow(0 34px 46px rgba(0, 0, 0, 0.7))
+    drop-shadow(0 0 34px rgba(191, 244, 230, 0.24))
+    drop-shadow(0 -10px 26px rgba(240, 209, 139, 0.1));
   pointer-events: none;
 }
 
 /* A flanking piece is set back, so it is lit less and rimmed less. */
 .men-root .men-hero__slot[data-flank] .men-hero__garmentImg {
-  filter: drop-shadow(0 18px 30px rgba(0, 0, 0, 0.6));
+  filter: brightness(0.52) saturate(0.72) contrast(0.96)
+    drop-shadow(0 18px 30px rgba(0, 0, 0, 0.68));
+}
+
+.men-root .men-hero__slot[data-slot="left"] .men-hero__garmentImg {
+  transform: translateX(-2%) rotateY(2deg);
+}
+
+.men-root .men-hero__slot[data-slot="right"] .men-hero__garmentImg {
+  transform: translateX(2%) rotateY(-2deg);
 }
 
 /* The contact shadow where a piece meets the grid — an ellipse, not a blur of
@@ -355,13 +500,18 @@
 .men-root .men-hero__contact {
   position: absolute;
   left: 50%;
-  bottom: -6px;
-  width: 62%;
-  height: clamp(20px, 3.2vh, 38px);
+  bottom: -8px;
+  width: 68%;
+  height: clamp(24px, 3.6vh, 42px);
   translate: -50% 0;
   border-radius: 999px;
-  background: radial-gradient(closest-side, rgba(4, 5, 6, 0.72), transparent 74%);
+  background: radial-gradient(closest-side, rgba(0, 0, 0, 0.78), transparent 74%);
   pointer-events: none;
+}
+
+.men-root .men-hero__slot[data-flank] .men-hero__contact {
+  width: 58%;
+  opacity: 0.55;
 }
 
 /* THE GLOW.
@@ -374,19 +524,20 @@
 .men-root .men-hero__glow {
   position: absolute;
   left: 50%;
-  top: 44%;
+  top: 37%;
   z-index: -1;
-  width: 150%;
-  aspect-ratio: 1;
+  width: 86%;
+  height: 72%;
   translate: -50% -50%;
-  border-radius: 999px;
   pointer-events: none;
-  background: radial-gradient(
-    closest-side,
-    rgba(196, 214, 226, 0.2) 0%,
-    rgba(159, 178, 189, 0.09) 44%,
-    transparent 72%
+  background: linear-gradient(
+    180deg,
+    rgba(176, 204, 196, 0.16) 0%,
+    rgba(128, 170, 158, 0.09) 46%,
+    rgba(92, 124, 116, 0.03) 72%,
+    transparent 100%
   );
+  clip-path: polygon(42% 0, 58% 0, 100% 100%, 0 100%);
 }
 
 /* ---------------------------------------------------------------- controls */
@@ -411,6 +562,12 @@
   display: flex;
   align-items: center;
   gap: clamp(10px, 1.4vw, 18px);
+  padding: 4px;
+  border: 1px solid var(--men-line-soft);
+  border-radius: 6px;
+  background: rgba(5, 6, 7, 0.28);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
 }
 
 .men-root .men-hero__navBtn {
@@ -454,7 +611,7 @@
   gap: 10px;
   margin: 0;
   font-size: clamp(13px, 1.1vw, 15px);
-  letter-spacing: -0.005em;
+  letter-spacing: 0;
   color: var(--nh-ink);
   white-space: nowrap;
 }
@@ -485,6 +642,8 @@
   align-items: end;
   gap: clamp(1rem, 3vw, 2.5rem);
   padding: clamp(1rem, 2.5vh, 2rem) var(--nh-gutter) clamp(1.25rem, 3vh, 2.5rem);
+  border-top: 1px solid rgba(224, 237, 236, 0.06);
+  background: linear-gradient(180deg, rgba(5, 6, 7, 0.06), rgba(5, 6, 7, 0.62));
 }
 
 .men-root .men-hero__aside {
@@ -533,7 +692,7 @@
   font-weight: 300;
   font-stretch: 112%;
   line-height: 1;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
   color: var(--nh-ink);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -595,9 +754,37 @@
   .men-root .men-hero__rail {
     width: clamp(210px, 40vw, 380px);
   }
+
+  .men-root .men-hero__bayPanel {
+    width: 36%;
+  }
 }
 
 @media (max-width: 720px) {
+  .men-root .men-hero__field::before {
+    inset: 8% 4% 22%;
+    opacity: 0.58;
+  }
+
+  .men-root .men-hero__beam--left,
+  .men-root .men-hero__beam--right {
+    opacity: 0.2;
+  }
+
+  .men-root .men-hero__bayPanel {
+    opacity: 0.3;
+  }
+
+  .men-root .men-hero__horizon {
+    left: 5%;
+    right: 5%;
+    bottom: 28%;
+  }
+
+  .men-root .men-hero__plinth {
+    width: 88vw;
+  }
+
   .men-root .men-hero__foot {
     grid-template-columns: minmax(0, 1fr);
     justify-items: start;
@@ -605,8 +792,7 @@
   }
 
   .men-root .men-hero__aside--right {
-    justify-items: start;
-    text-align: left;
+    display: none;
   }
 
   .men-root .men-hero__ctas {
@@ -635,7 +821,7 @@
 
 @media (max-width: 560px) {
   .men-root {
-    --men-garment-h: clamp(180px, 32svh, 300px);
+    --men-garment-h: clamp(170px, 29svh, 255px);
   }
 
   /* Three pieces will not fit across a phone. Left in, the flanks were cropped
@@ -651,12 +837,24 @@
     display: none;
   }
 
+  .men-root .men-hero__beam--left,
+  .men-root .men-hero__beam--right,
+  .men-root .men-hero__bayPanel,
+  .men-root .men-hero__scan {
+    display: none;
+  }
+
   .men-root .men-hero__rail {
-    width: clamp(190px, 58vw, 300px);
+    bottom: clamp(4.6rem, 8.5vh, 5.4rem);
+    width: clamp(190px, 62vw, 300px);
   }
 
   .men-root .men-hero__lede {
     display: none;
+  }
+
+  .men-root .men-hero__nav {
+    gap: 8px;
   }
 }
 
@@ -667,4 +865,17 @@
   .men-root .men-btn:hover .men-btn__arrow {
     transform: none;
   }
+}
+
+html[data-performance-mode="low"] .men-root .men-hero__scan,
+html[data-motion="reduced"] .men-root .men-hero__scan {
+  display: none;
+}
+
+html[data-performance-mode="low"] .men-root .men-hero__nav,
+html[data-performance-mode="low"] .men-root .men-hero__foot,
+html[data-motion="reduced"] .men-root .men-hero__nav,
+html[data-motion="reduced"] .men-root .men-hero__foot {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }

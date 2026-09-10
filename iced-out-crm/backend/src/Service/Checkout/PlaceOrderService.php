@@ -10,10 +10,12 @@ use Iced\Kernel\Database;
 use Iced\Kernel\Exception\ConflictException;
 use Iced\Kernel\Exception\ValidationException;
 use Iced\Repository\OrderRepository;
+use Iced\Repository\PaymentIntentRepository;
 use Iced\Service\Inventory\StockService;
 use Iced\Service\Settings\StoreSettings;
 use Iced\Service\Wallet\WalletService;
 use Iced\Support\Clock;
+use Iced\Support\Config;
 use Iced\Support\IdAllocator;
 use Iced\Support\Validator;
 
@@ -40,15 +42,21 @@ use Iced\Support\Validator;
  */
 final class PlaceOrderService
 {
+    /** Mirrors the storefront's flag; see `settle()`. */
+    private readonly bool $enforceIntents;
+
     public function __construct(
         private readonly Database $db,
         private readonly OrderRepository $orders,
         private readonly StockService $stock,
         private readonly StoreSettings $settings,
         private readonly WalletService $wallet,
+        private readonly PaymentIntentRepository $intents,
         private readonly IdAllocator $ids,
         private readonly Clock $clock,
+        Config $config,
     ) {
+        $this->enforceIntents = $config->bool('app.payments.enforce_intents', true);
     }
 
     /**
@@ -127,7 +135,37 @@ final class PlaceOrderService
             $publicId = $this->ids->allocate('order');
             $number = $this->ids->nextOrderNumber();
 
-            $outcome = (string) ($input['payment']['outcome'] ?? 'due');
+            /* ---- DEAD CODE, KEPT SAFE --------------------------------------
+
+               THIS DEPLOYABLE HAS NO CHECKOUT. No route in config/routes/ points
+               at this class; the storefront backend owns order placement and its
+               copy of this file is the one that runs. This one is a leftover of
+               the split, and it has since diverged — it predates the server-side
+               cart, so it has neither `CartRepository` nor `CouponResolver`.
+
+               It is patched rather than left alone because of what the line
+               below used to be:
+
+                   $outcome = (string) ($input['payment']['outcome'] ?? 'due');
+
+               — the browser's own word, written into `payments` as a captured
+               Razorpay row. Unreachable today, and one route file away from
+               being a second checkout with none of the storefront's checks. A
+               dormant copy of the most dangerous line in the codebase is not
+               something to leave lying next to a live one.
+
+               So it enforces the same rule: a claim of capture needs a VERIFIED
+               payment intent, belonging to this customer, worth exactly the
+               gateway's share. There being no way to reach it, this will always
+               find nothing and settle every gateway claim as failed — which is
+               the correct answer for a service that should not be taking
+               payments at all.
+
+               THE REAL FIX IS DELETION. See SECURITY_IMPLEMENTATION_PLAN.md §23. */
+            $walletWanted = $this->walletWanted($input, $total);
+            $settlement = $this->settle($customer, $input, $total->minus($walletWanted)->atLeastZero());
+
+            $outcome = $settlement['outcome'];
             $failed = $outcome === 'failed';
 
             $placedAt = $this->clock->nowString();
@@ -151,7 +189,7 @@ final class PlaceOrderService
                retry needs. */
             $walletApplied = $failed
                 ? Money::fromRupees(0)
-                : $this->spendWallet($customer, $input, $total, $number);
+                : $this->spendWallet($customer, $walletWanted, $number);
 
             $gatewayAmount = $total->minus($walletApplied)->atLeastZero();
 
@@ -202,7 +240,11 @@ final class PlaceOrderService
 
             $this->orders->appendHistory($orderId, '', 'Placed', 'customer', $customer->userId, 'Order placed');
 
-            $this->writePayment($orderId, $contact['name'], $gatewayAmount, $walletApplied, $input, $outcome);
+            if ($settlement['intent_id'] !== null) {
+                $this->intents->consume($settlement['intent_id'], $orderId);
+            }
+
+            $this->writePayment($orderId, $contact['name'], $gatewayAmount, $walletApplied, $input, $settlement);
 
             $order = $this->db->selectOne('SELECT * FROM orders WHERE id = ?', [$orderId]);
 
@@ -232,16 +274,8 @@ final class PlaceOrderService
      *
      * @param array<string, mixed> $input
      */
-    private function spendWallet(Principal $customer, array $input, Money $total, string $number): Money
+    private function spendWallet(Principal $customer, Money $wanted, string $number): Money
     {
-        $asked = $input['money']['walletApplied'] ?? 0;
-
-        if (!is_numeric($asked) || (int) $asked <= 0) {
-            return Money::fromRupees(0);
-        }
-
-        $wanted = Money::fromRupees((int) $asked)->clampTo($total);
-
         if ($wanted->paise <= 0) {
             return Money::fromRupees(0);
         }
@@ -255,6 +289,123 @@ final class PlaceOrderService
         );
 
         return $wanted;
+    }
+
+    /**
+     * What the browser is ASKING the wallet for, clamped — a quote, not a spend.
+     *
+     * Split out of `spendWallet()` because the gateway's share of the bill
+     * (`total − wallet`) has to be known before `settle()` can look for an
+     * intent worth exactly that, and the intent's verdict decides whether the
+     * wallet is debited at all. Nothing here touches the ledger; the balance is
+     * still re-read under a row lock inside `WalletService::debit()`, which is
+     * what makes it safe for this to be a stale figure.
+     *
+     * @param array<string, mixed> $input
+     */
+    private function walletWanted(array $input, Money $total): Money
+    {
+        $asked = $input['money']['walletApplied'] ?? 0;
+
+        if (!is_numeric($asked) || (int) $asked <= 0) {
+            return Money::fromRupees(0);
+        }
+
+        return Money::fromRupees((int) $asked)->clampTo($total)->atLeastZero();
+    }
+
+    /**
+     * Whether this order was paid for, decided by the server.
+     *
+     * The three ways an order can be settled, and what each requires:
+     *
+     *   nothing payable   the wallet or a full discount covered it. There was no
+     *                     gateway, so there is nothing to verify — the existing
+     *                     store-credit branch of `writePayment()` handles it.
+     *   cash on delivery  the money has not moved and nobody claims it has.
+     *   the gateway       a VERIFIED payment intent, belonging to THIS customer,
+     *                     worth EXACTLY the gateway's share of this order, still
+     *                     inside its fifteen-minute window.
+     *
+     * That last clause is the amount check the old code had nowhere to put. The
+     * browser may ask Razorpay for any figure it likes; the intent records what
+     * was actually asked for, and an order priced from the catalogue at ₹50,000
+     * will not settle against an intent for ₹1. Under-payment stops being
+     * possible without anyone having to compare two numbers by hand.
+     *
+     * A missing intent is not an error. It is an unpaid order — the same shape
+     * as a declined card, which this service has always written rather than
+     * thrown away. The shopper keeps their bag and the order screen offers the
+     * attempt again. That is also, deliberately, what the degraded "amount-only"
+     * checkout now produces: no server-created order means no intent, which
+     * means no capture, however loudly the browser claims one.
+     *
+     * @param array<string, mixed> $input
+     *
+     * @return array{outcome: string, reference: string, note: string, intent_id: int|null, gateway_order_id: string, verified: bool}
+     */
+    private function settle(Principal $customer, array $input, Money $gatewayPayable): array
+    {
+        $claimed = (string) ($input['payment']['outcome'] ?? 'due');
+
+        $unverified = static fn (string $outcome, string $note = ''): array => [
+            'outcome' => $outcome,
+            'reference' => '',
+            'note' => $note,
+            'intent_id' => null,
+            'gateway_order_id' => '',
+            'verified' => false,
+        ];
+
+        /* Nothing for a gateway to take. A wallet that covered the bag outright,
+           or a discount that did. `writePayment()` records it as store credit,
+           captured — unchanged, and correct: no gateway was involved, so there
+           is no gateway receipt to demand. */
+        if ($gatewayPayable->isZero()) {
+            return $unverified($claimed === 'failed' ? 'failed' : 'captured');
+        }
+
+        /* Cash on delivery, or a payment the browser is reporting as declined.
+           Neither claims money moved, so neither needs proof. `due` is also the
+           fallback for anything unrecognised, exactly as the old `match` was. */
+        if ($claimed !== 'captured') {
+            return $unverified($claimed === 'failed' ? 'failed' : 'due');
+        }
+
+        /* The escape hatch, and the only thing in this method that can restore
+           the old behaviour. It exists so a deployment that hits something
+           unforeseen can be put back within one release without a revert, and it
+           is meant to be removed once production has run clean. Setting it is a
+           decision to trust the browser about money again. */
+        if (!$this->settings->bool('payments.enforce_intents', $this->enforceIntents)) {
+            return [
+                'outcome' => 'captured',
+                'reference' => mb_substr((string) ($input['payment']['reference'] ?? ''), 0, 120),
+                'note' => '',
+                'intent_id' => null,
+                'gateway_order_id' => '',
+                'verified' => false,
+            ];
+        }
+
+        $intent = $this->intents->claimable($customer->userId, $gatewayPayable->paise);
+
+        if ($intent === null) {
+            return $unverified(
+                'failed',
+                'This payment could not be confirmed with the gateway, so nothing has been charged for it.',
+            );
+        }
+
+        return [
+            'outcome' => 'captured',
+            // The gateway's id, from OUR row — never the one the request carried.
+            'reference' => (string) ($intent['razorpay_payment_id'] ?? ''),
+            'note' => '',
+            'intent_id' => (int) $intent['id'],
+            'gateway_order_id' => (string) $intent['razorpay_order_id'],
+            'verified' => true,
+        ];
     }
 
     /**
@@ -278,11 +429,12 @@ final class PlaceOrderService
         Money $gatewayAmount,
         Money $walletApplied,
         array $input,
-        string $outcome,
+        array $settlement,
     ): void {
         /** @var array<string, mixed> $payment */
         $payment = is_array($input['payment'] ?? null) ? $input['payment'] : [];
-        $method = (string) ($payment['method'] ?? 'Cash on delivery');
+        $outcome = (string) $settlement['outcome'];
+        $method = mb_substr((string) ($payment['method'] ?? 'Cash on delivery'), 0, 40);
 
         if ($walletApplied->paise > 0) {
             $this->insertPayment(
@@ -325,7 +477,7 @@ final class PlaceOrderService
             $gatewayAmount,
             $status,
             $note,
-            (string) ($payment['reference'] ?? ''),
+            (string) $settlement['reference'],
         );
     }
 
@@ -413,7 +565,7 @@ final class PlaceOrderService
         }
 
         return (string) $coupon['kind'] === 'percent'
-            ? $subtotal->percentFloor((int) (float) $coupon['value'])->clampTo($subtotal)
+            ? $subtotal->percentRounded((int) (float) $coupon['value'])->clampTo($subtotal)
             : Money::fromDecimalString((string) $coupon['value'])->clampTo($subtotal);
     }
 

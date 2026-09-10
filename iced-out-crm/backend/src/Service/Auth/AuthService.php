@@ -6,6 +6,7 @@ namespace Iced\Service\Auth;
 
 use Iced\Domain\Principal;
 use Iced\Kernel\Exception\ApiException;
+use Iced\Kernel\Exception\ForbiddenException;
 use Iced\Kernel\Exception\RateLimitException;
 use Iced\Kernel\Exception\UnauthorizedException;
 use Iced\Kernel\Exception\ValidationException;
@@ -55,11 +56,55 @@ final class AuthService
 
         $userId = (int) $user['id'];
 
+        /* ---- BLOCKED MEANS BLOCKED ----------------------------------------
+
+           `Principal::isBlocked()` has existed since the console shipped and was
+           called from nowhere, so the "Block customer" action wrote BLOCKED to
+           the database and changed precisely nothing. On THIS side of the wall
+           it matters more than on the shop's: the same column is the only thing
+           standing between a staff account somebody has revoked and the console.
+           Deactivating a departing employee has to actually deactivate them.
+
+           Placed AFTER the password check on purpose. Announcing "this account
+           is suspended" to anyone who merely guesses an address turns the block
+           list into an account-enumeration oracle; reaching this line means the
+           caller already proved the password, so there is nothing left to leak.
+
+           Counted as a failed attempt because it produced no session. Anything
+           that is not ACTIVE is refused, not just BLOCKED — the safe reading of
+           an account state nobody taught this method about is "not yet". */
+        if ((string) ($user['status'] ?? 'ACTIVE') !== 'ACTIVE') {
+            $this->attempts->record($email, $audience, $request->ip, false);
+
+            throw new ForbiddenException(
+                'This account has been suspended. Please contact support.',
+                'ICE-AUTH-403-BLOCKED',
+            );
+        }
+
         if ($this->hasher->needsRehash((string) $user['password_hash'])) {
             $this->users->updatePasswordHash($userId, $this->hasher->hash($password));
         }
 
-        $this->attempts->record($email, $audience, $request->ip, true);
+        /* ---- NO SUCCESS ROW HERE. SEE recordCompletedSignIn() --------------
+
+           A correct password is not a completed sign-in on this side of the
+           wall: when the account has MFA enrolled, the caller revokes the
+           session this method just minted and answers with a challenge instead.
+
+           Writing `was_success = 1` at this point broke the lockout outright,
+           because `recentFailures()` counts failures SINCE THE LAST SUCCESS. An
+           attacker holding a phished or reused staff password could therefore
+           reset the counter to zero at will — sign in (success recorded), guess
+           a code, sign in again (counter reset again) — and grind the six digits
+           for as long as they liked without the login lockout ever engaging. The
+           per-account MFA lockout in MfaService still bit, so this was not the
+           only thing standing there, but it disabled one of two independent
+           controls and did it silently.
+
+           It also made the ledger untrue, which matters separately: a table
+           called `login_attempts` recording a success for a sign-in that issued
+           no session is a table nobody can investigate an incident with. */
 
         // Login bumps the register's "seen" column — the server-side half of the
         // frontend's recordCustomerSignIn(). A Blocked account stays Blocked.
@@ -72,6 +117,27 @@ final class AuthService
             'token' => $session['token'],
             'expires_at' => $session['expires_at'],
         ];
+    }
+
+    /**
+     * The success row for the ledger, written when a session is actually HANDED
+     * OVER rather than when a password happened to be right.
+     *
+     * Called at the two places a console sign-in can finish: the no-MFA return
+     * from `AuthController::login`, and `verifyMfa` once the second factor has
+     * been proved. Both hold a resolved Principal by then, so the email is the
+     * account's own rather than whatever string was typed at the form — which is
+     * also what makes the row worth reading afterwards.
+     *
+     * Deliberately separate from `login()`: see the long note in there for what
+     * went wrong when the two were the same step. A caller that forgets this
+     * fails CLOSED — failures stop being cleared, so the account locks out
+     * sooner rather than never, which is the right direction for a mistake in
+     * this particular method to push.
+     */
+    public function recordCompletedSignIn(Principal $principal, Request $request): void
+    {
+        $this->attempts->record($principal->email, $principal->audience, $request->ip, true);
     }
 
     /**

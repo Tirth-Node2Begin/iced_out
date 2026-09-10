@@ -36,7 +36,11 @@ final class AuthController
         $result = $this->auth->register($input['name'], $input['email'], $input['password'], $request);
 
         return $this->withSessionCookie(
-            Response::data(['customer' => $this->presenter->profile($result['user'])], 201),
+            Response::data(
+                $this->nativeSession($request, $result['token'], $result['expires_at'])
+                    + ['customer' => $this->presenter->profile($result['user'])],
+                201,
+            ),
             $result['token'],
             $result['expires_at'],
         );
@@ -56,7 +60,10 @@ final class AuthController
         );
 
         return $this->withSessionCookie(
-            Response::data(['customer' => $this->presenter->profile($result['user'])]),
+            Response::data(
+                $this->nativeSession($request, $result['token'], $result['expires_at'])
+                    + ['customer' => $this->presenter->profile($result['user'])],
+            ),
             $result['token'],
             $result['expires_at'],
         );
@@ -178,5 +185,38 @@ final class AuthController
             'Set-Cookie',
             $this->sessions->cookieHeader(SessionManager::AUDIENCE_CUSTOMER, $token, $expiresAt),
         );
+    }
+
+    /**
+     * The session token in the body — for a native client only.
+     *
+     * The cookie beside it is `HttpOnly`, and that is the whole reason this is
+     * conditional. A browser never needs the token: it holds the cookie and the
+     * cookie is unreadable to script, which is what keeps a 30-day session out
+     * of reach of an XSS. Putting the same token in a JSON body every client can
+     * read would hand that protection back for nothing.
+     *
+     * A native app has the opposite problem. `HttpOnly` means nothing to an HTTP
+     * library — it can read the Set-Cookie header perfectly well — but scraping a
+     * cookie to replay it is fragile, and the app needs the raw token anyway: it
+     * is what goes in `Authorization: Bearer`, which is what gets its writes past
+     * `OriginCheck` (see `SessionManager::resolve`).
+     *
+     * So the client says what it is, in `X-Client-Platform`, and only a native
+     * one is handed the token. A page cannot usefully lie about this — sending
+     * the header from a browser would only put the token somewhere the same
+     * origin's script could already reach.
+     *
+     * @return array<string, mixed>
+     */
+    private function nativeSession(Request $request, string $token, ?string $expiresAt): array
+    {
+        $platform = strtolower(trim($request->header('x-client-platform')));
+
+        if (!in_array($platform, ['android', 'ios', 'app', 'flutter', 'mobile'], true)) {
+            return [];
+        }
+
+        return ['session' => ['token' => $token, 'expiresAt' => $expiresAt]];
     }
 }

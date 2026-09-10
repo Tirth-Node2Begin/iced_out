@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 
 import { reviewByline } from "@/features/11-reviews/reviews";
 import { useReviews } from "@/features/11-reviews/reviews-context";
+import { usePerformanceProfile } from "@/lib/performance-mode";
 
 import { useCopy } from "./copy";
 import { EASE, ScrollWords } from "./motion";
@@ -34,6 +35,8 @@ function Arrow({ dir }: { dir: "prev" | "next" }) {
  */
 export function Testimonials() {
   const { testimonials } = useCopy();
+  const profile = usePerformanceProfile();
+  const reduce = profile.reducedMotion || profile.mode === "low";
   const [[index, dir], setState] = useState<[number, number]>([0, 1]);
   const { published, ready } = useReviews();
 
@@ -125,10 +128,10 @@ export function Testimonials() {
               animate={{ opacity: 1, x: 0 }}
               className="hv2-quote__inner"
               custom={dir}
-              exit={{ opacity: 0, x: dir * -40 }}
-              initial={{ opacity: 0, x: dir * 40 }}
+              exit={{ opacity: 0, x: reduce ? 0 : dir * -40 }}
+              initial={{ opacity: 0, x: reduce ? 0 : dir * 40 }}
               key={item.id}
-              transition={{ duration: 0.5, ease: EASE }}
+              transition={{ duration: reduce ? 0.2 : 0.5, ease: EASE }}
             >
               {/* An initial, not a face.
 

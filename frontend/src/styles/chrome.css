@@ -4362,3 +4362,18 @@
     transparent 11px
   );
 }
+
+html[data-performance-mode="low"] .nh-nav__plate,
+html[data-performance-mode="low"] .io-drawer__overlay,
+html[data-performance-mode="low"] .io-modal__overlay,
+html[data-motion="reduced"] .nh-nav__plate,
+html[data-motion="reduced"] .io-drawer__overlay,
+html[data-motion="reduced"] .io-modal__overlay {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+html[data-performance-mode="low"] .nh-nav__badge[data-pop="true"],
+html[data-motion="reduced"] .nh-nav__badge[data-pop="true"] {
+  animation: none;
+}

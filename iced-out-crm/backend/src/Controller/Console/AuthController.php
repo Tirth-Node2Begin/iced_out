@@ -6,12 +6,19 @@ namespace Iced\Controller\Console;
 
 use Iced\Domain\Principal;
 use Iced\Kernel\Exception\UnauthorizedException;
+use Iced\Kernel\Exception\ValidationException;
 use Iced\Kernel\Request;
 use Iced\Kernel\Response;
+use Iced\Middleware\RequireStepUp;
 use Iced\Presenter\StaffPresenter;
+use Iced\Repository\SessionRepository;
+use Iced\Repository\UserRepository;
 use Iced\Service\Auth\AuthService;
+use Iced\Service\Auth\MfaService;
+use Iced\Service\Auth\PasswordHasher;
 use Iced\Service\Auth\PasswordResetService;
 use Iced\Service\Auth\SessionManager;
+use Iced\Support\SecuritySignals;
 
 /**
  * Spec §8.17 — staff auth.
@@ -28,6 +35,14 @@ final class AuthController
         private readonly SessionManager $sessions,
         private readonly StaffPresenter $presenter,
         private readonly PasswordResetService $reset,
+        /* Step-up needs the session ROW, not the manager: the elevation is a
+           column on `user_sessions`, and SessionManager deliberately owns tokens
+           and cookies rather than session state. */
+        private readonly SessionRepository $sessionRows,
+        private readonly UserRepository $users,
+        private readonly PasswordHasher $hasher,
+        private readonly MfaService $mfa,
+        private readonly SecuritySignals $signals,
     ) {
     }
 
@@ -52,10 +67,138 @@ final class AuthController
             throw new UnauthorizedException('That console session could not be started.');
         }
 
+        /* ---- the second factor, when the account has one --------------------
+
+           `isEnabled()` is false for every account without a CONFIRMED
+           enrolment, which is every account until somebody opts in — so this
+           branch does not exist for anyone by default and sign-in is unchanged.
+
+           When it does apply, the session `AuthService` has already minted is
+           REVOKED rather than returned. A password alone must not leave a usable
+           session lying in the table for the five minutes the challenge lasts,
+           and revoking is cheaper and far harder to get wrong than threading a
+           "do not issue" flag through a service the storefront also uses.
+
+           The reply carries a challenge, not a cookie. It is not a session: it
+           grants nothing, reaches no other endpoint, and expires in five
+           minutes. */
+        if ($this->mfa->isEnabled($principal->userId)) {
+            $this->sessions->revoke($principal->sessionId);
+
+            return Response::data([
+                'mfa_required' => true,
+                'challenge' => $this->mfa->issueChallenge($principal->userId, SessionManager::AUDIENCE_STAFF, $request),
+            ]);
+        }
+
+        // A session is going out, so this sign-in is finished and the ledger
+        // says so. See AuthService::recordCompletedSignIn.
+        $this->auth->recordCompletedSignIn($principal, $request);
+
         return Response::data($this->presenter->session($principal))->withHeader(
             'Set-Cookie',
             $this->sessions->cookieHeader(SessionManager::AUDIENCE_STAFF, $result['token'], $result['expires_at']),
         );
+    }
+
+    /**
+     * #— POST /admin/auth/mfa/verify — the second half of a sign-in.
+     *
+     * Spends the challenge, checks the code, and only then issues the session
+     * cookie that `login` withheld. The response is the SAME shape `login`
+     * returns without MFA, so everything downstream of sign-in is unchanged.
+     *
+     * The challenge is consumed BEFORE the code is checked, and deliberately: a
+     * ticket that survived a wrong code would let somebody with the password
+     * guess codes against one ticket indefinitely. One ticket, one attempt; a
+     * fresh sign-in is the way to try again, and that path is itself throttled.
+     */
+    public function verifyMfa(Request $request): Response
+    {
+        /** @var array{challenge: string, code: string} $input */
+        $input = $request->validated();
+
+        // The request goes in so a challenge redeemed from a different address
+        // than it was issued to is REPORTED. It is not refused — see the note in
+        // consumeChallenge for why that trade lands where it does.
+        $userId = $this->mfa->consumeChallenge($input['challenge'], SessionManager::AUDIENCE_STAFF, $request);
+
+        if ($userId === null) {
+            throw new UnauthorizedException('That sign-in has expired. Please start again.');
+        }
+
+        if (!$this->mfa->check($userId, $input['code'])) {
+            $this->signals->privilegedAction('mfa_failed', ['user_id' => $userId, 'ip' => $request->ip]);
+
+            throw new UnauthorizedException('That code is not right. Please sign in again.');
+        }
+
+        $session = $this->sessions->issue($userId, SessionManager::AUDIENCE_STAFF, $request);
+        $principal = $this->sessions->resolveToken($session['token'], SessionManager::AUDIENCE_STAFF);
+
+        if ($principal === null) {
+            throw new UnauthorizedException('That console session could not be started.');
+        }
+
+        // Both factors are proved and a session is going out: NOW it is a
+        // successful sign-in, and this is the row that clears the lockout.
+        $this->auth->recordCompletedSignIn($principal, $request);
+
+        return Response::data($this->presenter->session($principal))->withHeader(
+            'Set-Cookie',
+            $this->sessions->cookieHeader(SessionManager::AUDIENCE_STAFF, $session['token'], $session['expires_at']),
+        );
+    }
+
+    /** #— POST /admin/auth/mfa/begin — mint a secret to scan. Enables nothing. */
+    public function beginMfa(Request $request): Response
+    {
+        $principal = $this->requireStaff($request);
+
+        return Response::data($this->mfa->begin($principal->userId, $principal->email));
+    }
+
+    /**
+     * #— POST /admin/auth/mfa/confirm — prove a code, switch it on.
+     *
+     * The recovery codes are in this response and in no other, ever. They are
+     * stored hashed, so the server cannot show them again even if asked.
+     */
+    public function confirmMfa(Request $request): Response
+    {
+        $principal = $this->requireStaff($request);
+
+        /** @var array{code: string} $input */
+        $input = $request->validated();
+
+        return Response::data([
+            'enabled' => true,
+            'recovery_codes' => $this->mfa->confirm($principal->userId, $input['code']),
+        ]);
+    }
+
+    /** #— POST /admin/auth/mfa/disable — needs the password AND a current code. */
+    public function disableMfa(Request $request): Response
+    {
+        $principal = $this->requireStaff($request);
+
+        /** @var array{password: string, code: string} $input */
+        $input = $request->validated();
+
+        $this->mfa->disable($principal->userId, $input['password'], $input['code']);
+
+        return Response::data(['enabled' => false]);
+    }
+
+    private function requireStaff(Request $request): Principal
+    {
+        $principal = $request->attribute('principal');
+
+        if (!$principal instanceof Principal) {
+            throw new UnauthorizedException('Your console session has expired. Please sign in again.');
+        }
+
+        return $principal;
     }
 
     /** #84 POST /admin/auth/logout */
@@ -96,6 +239,64 @@ final class AuthController
 
         // Authenticate already slid the window on the way in; report where it landed.
         return Response::data(['expires_at' => StaffPresenter::iso($principal->expiresAt)]);
+    }
+
+    /**
+     * #— POST /admin/auth/step-up
+     *
+     * Proves the password again, so the session may perform an action that a
+     * session alone is not enough for: approving a refund, marking a payout
+     * paid, rewriting store settings. See Middleware\RequireStepUp for why
+     * those and not everything.
+     *
+     * ── IT IS RATE LIMITED AS AN AUTH ENDPOINT ──────────────────────────────
+     *
+     * Because that is what it is. Without it this would be an oracle for
+     * guessing a staff password from INSIDE a stolen session, at whatever speed
+     * the network allows — and unlike the sign-in page it would leave the
+     * account unlocked while it was guessed.
+     *
+     * ── A FAILURE IS NOT A 401 ──────────────────────────────────────────────
+     *
+     * 422, not 401. The session is perfectly valid; what was wrong was the
+     * password just typed. Answering 401 would make the console's own
+     * interceptor sign the operator out for a typo.
+     */
+    public function stepUp(Request $request): Response
+    {
+        $principal = $request->attribute('principal');
+
+        if (!$principal instanceof Principal) {
+            throw new UnauthorizedException('Your console session has expired. Please sign in again.');
+        }
+
+        /** @var array{password: string} $input */
+        $input = $request->validated();
+
+        $user = $this->users->findById($principal->userId);
+
+        if ($user === null || !$this->hasher->verify($input['password'], (string) $user['password_hash'])) {
+            $this->signals->privilegedAction('step_up_failed', [
+                'actor' => $principal->publicId,
+                'request_id' => $request->requestId(),
+                'ip' => $request->ip,
+            ]);
+
+            throw ValidationException::field('password', 'That is not your password.', 'ICE-AUTH-422');
+        }
+
+        $this->sessionRows->markSteppedUp($principal->sessionId);
+
+        $this->signals->privilegedAction('step_up_granted', [
+            'actor' => $principal->publicId,
+            'request_id' => $request->requestId(),
+        ]);
+
+        return Response::data([
+            'confirmed' => true,
+            // Seconds, so the console can grey the prompt out again on time.
+            'expires_in' => RequireStepUp::WINDOW_SECONDS,
+        ]);
     }
 
     /**

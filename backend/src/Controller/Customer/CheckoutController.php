@@ -16,6 +16,7 @@ use Iced\Repository\OrderRepository;
 use Iced\Service\Checkout\PlaceOrderService;
 use Iced\Service\Settings\StoreSettings;
 use Iced\Support\Clock;
+use Iced\Support\SecuritySignals;
 
 /** Spec §8.9 — checkout. The place-order call is the one that matters. */
 final class CheckoutController
@@ -26,6 +27,7 @@ final class CheckoutController
         private readonly CustomerOrderPresenter $presenter,
         private readonly StoreSettings $settings,
         private readonly Database $db,
+        private readonly SecuritySignals $signals,
         private readonly Clock $clock,
     ) {
     }
@@ -45,6 +47,31 @@ final class CheckoutController
 
         $order = $this->placeOrder->place($principal, $body);
         $orderId = (int) $order['id'];
+
+        /* ---- the one signal this endpoint raises --------------------------
+
+           The client said the gateway took the money and the server could not
+           find a verified payment worth what the bag came to, so the order was
+           written unpaid. Two very different things produce that, and an
+           operator needs to see both:
+
+             · somebody probing the old exploit — a request claiming `captured`
+               with nothing behind it;
+             · an honest shopper who really was charged, whose verify call never
+               landed. Their money is at the gateway and their order says
+               unpaid, which is the case that must never pass unnoticed.
+
+           Raised outside the place-order transaction, so a failure to write a
+           signal can never fail an order. */
+        $claimed = is_array($body['payment'] ?? null) ? (string) ($body['payment']['outcome'] ?? '') : '';
+
+        if ($claimed === 'captured' && (string) $order['status'] === 'Payment failed') {
+            $this->signals->paymentIntentMismatch((string) $order['number'], [
+                'request_id' => $request->requestId(),
+                'customer' => $principal->publicId,
+                'total' => (string) $order['total'],
+            ]);
+        }
 
         $request->setAttribute('audit_entity_type', 'order');
         $request->setAttribute('audit_entity_id', (string) $order['number']);

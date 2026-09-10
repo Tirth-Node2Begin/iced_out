@@ -2106,3 +2106,19 @@
     transparent 11px
   );
 }
+
+html[data-performance-mode="low"] .gx-root .gx-hero__track,
+html[data-motion="reduced"] .gx-root .gx-hero__track {
+  animation: none !important;
+  will-change: auto;
+}
+
+html[data-performance-mode="low"] .gx-root .gx-hero__nav,
+html[data-performance-mode="low"] .gx-root .gx-hero__btn--outline,
+html[data-performance-mode="low"] .gx-root .gx-card__meta,
+html[data-motion="reduced"] .gx-root .gx-hero__nav,
+html[data-motion="reduced"] .gx-root .gx-hero__btn--outline,
+html[data-motion="reduced"] .gx-root .gx-card__meta {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}

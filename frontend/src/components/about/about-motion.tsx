@@ -1,8 +1,9 @@
 "use client";
 
-import { motion, useInView, useReducedMotion, type Variants } from "motion/react";
+import { motion, useInView, type Variants } from "motion/react";
 import { Fragment, useRef, useState, type ReactNode } from "react";
 
+import { usePerformanceProfile } from "@/lib/performance-mode";
 import { cn } from "@/lib/utils";
 
 export const ABOUT_EASE = [0.22, 1, 0.36, 1] as const;
@@ -20,7 +21,8 @@ export function AboutReveal({
   y?: number;
   amount?: number;
 }) {
-  const reduceMotion = useReducedMotion();
+  const profile = usePerformanceProfile();
+  const reduceMotion = profile.reducedMotion || profile.mode === "low";
 
   return (
     <motion.div
@@ -89,7 +91,8 @@ export function AboutSplitHeading({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, amount: 0.4 });
-  const reduceMotion = useReducedMotion();
+  const profile = usePerformanceProfile();
+  const reduceMotion = profile.reducedMotion || profile.mode === "low";
   const MotionTag = motion[Tag];
 
   if (reduceMotion) {
@@ -180,7 +183,9 @@ export function AboutBlindsImage({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, amount: 0.2 });
-  const reduceMotion = useReducedMotion();
+  const profile = usePerformanceProfile();
+  const reduceMotion = profile.reducedMotion || profile.mode === "low";
+  const effectiveSlices = profile.mode === "medium" ? Math.min(slices, 7) : slices;
   /* Every slice carries `will-change: clip-path, transform` so the wipe stays
      off the main thread. The page mounts six of these — ~74 slices — and a
      promoted layer that has finished moving is pure cost for the rest of the
@@ -198,21 +203,21 @@ export function AboutBlindsImage({
 
   const order = (index: number) => {
     if (direction === "down") return index;
-    if (direction === "up") return slices - 1 - index;
-    return Math.abs(index - (slices - 1) / 2);
+    if (direction === "up") return effectiveSlices - 1 - index;
+    return Math.abs(index - (effectiveSlices - 1) / 2);
   };
 
   /* The reveal is a stagger, so "finished" is the *last* slice to land, not the
      last callback to arrive — `order` decides which one that is. */
-  const lastToLand = Array.from({ length: slices }, (_, i) => i).reduce((a, b) =>
+  const lastToLand = Array.from({ length: effectiveSlices }, (_, i) => i).reduce((a, b) =>
     order(b) > order(a) ? b : a,
   );
 
   return (
     <div className={cn("nh-blinds", className)} data-settled={settled || undefined} ref={ref}>
-      {Array.from({ length: slices }).map((_, index) => {
-        const top = (index / slices) * 100;
-        const bottom = 100 - ((index + 1) / slices) * 100;
+      {Array.from({ length: effectiveSlices }).map((_, index) => {
+        const top = (index / effectiveSlices) * 100;
+        const bottom = 100 - ((index + 1) / effectiveSlices) * 100;
         const closed = `inset(${top}% 100% ${bottom}% 0)`;
         const open = `inset(${top}% 0% ${bottom}% 0)`;
         const offset = index % 2 === 0 ? -34 : 34;

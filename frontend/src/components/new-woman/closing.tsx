@@ -2,7 +2,7 @@
 
 import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
-import { motion, useInView, useReducedMotion, useScroll, useTransform } from "motion/react";
+import { motion, useInView, useScroll, useTransform } from "motion/react";
 import { useRef, useState, type CSSProperties } from "react";
 
 import { EASE_OUT, Reveal, SplitHeading } from "@/components/new-home/motion-primitives";
@@ -20,7 +20,7 @@ import { useMotionScale } from "@/components/new-woman/use-motion-scale";
 function Quote() {
   const ref = useRef<HTMLQuoteElement>(null);
   const inView = useInView(ref, { once: true, amount: 0.5 });
-  const reduce = useReducedMotion();
+  const reduce = useMotionScale() === 0;
 
   return (
     <blockquote className="nw-close__quote" ref={ref}>

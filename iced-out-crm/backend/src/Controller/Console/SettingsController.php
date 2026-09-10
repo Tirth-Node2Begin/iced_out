@@ -32,6 +32,10 @@ final class SettingsController
         private readonly UserRepository $users,
         private readonly PasswordHasher $hasher,
         private readonly SessionManager $sessions,
+        /* The session ROW, for the step-up column — SessionManager owns tokens
+           and cookies, not session state. */
+        private readonly \Iced\Repository\SessionRepository $sessionRows,
+        private readonly \Iced\Service\Auth\AccountNotices $notices,
     ) {
     }
 
@@ -137,6 +141,17 @@ final class SettingsController
 
         // Everything else signed in as this account is now stale.
         $this->sessions->revokeOtherSessions($actor->userId, SessionManager::AUDIENCE_STAFF, $actor->sessionId);
+
+        /* And so is any step-up elevation. An elevation is a claim that the
+           password was proved a moment ago; once the password is a different
+           one, that claim is about a credential that no longer exists. Without
+           this, a session that was hijacked and elevated would keep its refund
+           and settings privileges straight through the password change meant to
+           take them away. */
+        $this->sessionRows->clearStepUp($actor->userId, SessionManager::AUDIENCE_STAFF);
+
+        // The account is told, to the address on the record.
+        $this->notices->passwordChanged($actor->email, $actor->name);
 
         return Response::noContent();
     }

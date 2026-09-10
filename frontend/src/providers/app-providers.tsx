@@ -1,8 +1,8 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import type { ReactNode } from "react";
 
-import { Toaster } from "@/components/ui/sonner";
 import { AddressesProvider } from "@/features/01-users/addresses-context";
 import { ProfileProvider } from "@/features/01-users/profile-context";
 import { CartProvider } from "@/features/04-cart/cart-context";
@@ -15,6 +15,11 @@ import { WalletProvider } from "@/features/21-wallet/wallet-context";
 import { OrdersProvider } from "@/features/07-orders/orders-context";
 import { AuthProvider } from "@/features/20-auth-security/auth-context";
 import { RouteGuard } from "@/features/20-auth-security/components/route-guard";
+
+const Toaster = dynamic(
+  () => import("@/components/ui/sonner").then((module) => module.Toaster),
+  { ssr: false },
+);
 
 export function AppProviders({ children }: { children: ReactNode }) {
   return (

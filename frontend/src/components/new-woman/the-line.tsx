@@ -1,10 +1,11 @@
 "use client";
 
-import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
+import { motion, useScroll, useTransform } from "motion/react";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 
 import { EASE_OUT, Reveal, SplitHeading } from "@/components/new-home/motion-primitives";
 import { LINE, LINE_COPY, type LinePanel } from "@/components/new-woman/data";
+import { applyPerformanceProfile, getPerformanceProfile } from "@/lib/performance-mode";
 
 /**
  * Below this width the strip stops being scroll-driven.
@@ -83,13 +84,13 @@ export function TheLine() {
   const ref = useRef<HTMLElement>(null);
   const viewport = useRef<HTMLDivElement>(null);
   const track = useRef<HTMLDivElement>(null);
-  const reduce = useReducedMotion();
 
   /** How far the track has to travel for its last panel to land, in pixels. */
   const [distance, setDistance] = useState(0);
 
   useEffect(() => {
     const wide = window.matchMedia(WIDE);
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
 
     const measure = () => {
       const strip = track.current;
@@ -97,7 +98,8 @@ export function TheLine() {
       if (!strip || !frame) return;
       /* Reduced motion keeps the strip still, so it must not be given a
          section three viewports tall to sit still inside. */
-      if (!wide.matches || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      const profile = applyPerformanceProfile(getPerformanceProfile());
+      if (!wide.matches || profile.reducedMotion || profile.mode === "low") {
         setDistance(0);
         return;
       }
@@ -113,12 +115,14 @@ export function TheLine() {
     if (track.current) observer.observe(track.current);
     if (viewport.current) observer.observe(viewport.current);
     wide.addEventListener("change", measure);
+    reduced.addEventListener("change", measure);
 
     return () => {
       observer.disconnect();
       wide.removeEventListener("change", measure);
+      reduced.removeEventListener("change", measure);
     };
-  }, [reduce]);
+  }, []);
 
   const { scrollYProgress } = useScroll({
     target: ref,

@@ -4,12 +4,69 @@ import { motion, useInView, type Variants } from "motion/react";
 import { useRef, type ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
+import { usePerformanceProfile } from "@/lib/performance-mode";
 
 /* ---------------------------------------------------------------------------
    The house reveal: opacity 0 -> 1 with a short rise. Measured off the source
    at ~640ms with a heavy out-quint feel.
    ------------------------------------------------------------------------- */
 export const EASE_OUT = [0.22, 1, 0.36, 1] as const;
+
+function rasterSources(src: string) {
+  if (!src.endsWith(".png")) return null;
+
+  const base = src.slice(0, -4);
+  return {
+    avif: `${base}.avif`,
+    mobileAvif: `${base}-mobile.avif`,
+    mobileWebp: `${base}-mobile.webp`,
+    webp: `${base}.webp`,
+  };
+}
+
+function RasterImage({
+  alt,
+  className,
+  priority,
+  src,
+}: {
+  alt: string;
+  className?: string;
+  priority: boolean;
+  src: string;
+}) {
+  const sources = rasterSources(src);
+
+  if (!sources) {
+    return (
+      /* eslint-disable-next-line @next/next/no-img-element */
+      <img
+        alt={alt}
+        className={className}
+        decoding={priority ? "sync" : "async"}
+        loading={priority ? "eager" : "lazy"}
+        src={src}
+      />
+    );
+  }
+
+  return (
+    <picture>
+      <source media="(max-width: 720px)" srcSet={sources.mobileAvif} type="image/avif" />
+      <source media="(max-width: 720px)" srcSet={sources.mobileWebp} type="image/webp" />
+      <source srcSet={sources.avif} type="image/avif" />
+      <source srcSet={sources.webp} type="image/webp" />
+      <img
+        alt={alt}
+        className={className}
+        decoding={priority ? "sync" : "async"}
+        fetchPriority={priority ? "high" : "auto"}
+        loading={priority ? "eager" : "lazy"}
+        src={src}
+      />
+    </picture>
+  );
+}
 
 export function Reveal({
   children,
@@ -26,13 +83,17 @@ export function Reveal({
   once?: boolean;
   amount?: number;
 }) {
+  const profile = usePerformanceProfile();
+  const shouldAnimate = !profile.reducedMotion && profile.mode !== "low";
+
   return (
     <motion.div
       className={className}
-      initial={{ opacity: 0, y }}
-      whileInView={{ opacity: 1, y: 0 }}
+      animate={shouldAnimate ? undefined : { opacity: 1, y: 0 }}
+      initial={shouldAnimate ? { opacity: 0, y } : false}
+      whileInView={shouldAnimate ? { opacity: 1, y: 0 } : undefined}
       viewport={{ once, amount }}
-      transition={{ duration: 0.72, delay, ease: EASE_OUT }}
+      transition={{ duration: shouldAnimate ? 0.72 : 0.2, delay: shouldAnimate ? delay : 0, ease: EASE_OUT }}
     >
       {children}
     </motion.div>
@@ -48,16 +109,6 @@ export function Reveal({
    weight settles — that weight settle is the detail that sells it.
    ------------------------------------------------------------------------- */
 export type Segment = { text: string; light?: boolean };
-
-const charVariants: Variants = {
-  hidden: { opacity: 0, y: "0.42em", filter: "blur(5px)" },
-  show: {
-    opacity: 1,
-    y: "0em",
-    filter: "blur(0px)",
-    transition: { duration: 0.62, ease: EASE_OUT },
-  },
-};
 
 /**
  * A segment split into words, single spaces, and hard breaks — each kept as its
@@ -93,6 +144,26 @@ export function SplitHeading({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once, amount: 0.4 });
+  const profile = usePerformanceProfile();
+  const mode = profile.mode;
+  const shouldAnimate = !profile.reducedMotion && mode !== "low";
+  const variants: Variants = shouldAnimate
+    ? {
+        hidden:
+          mode === "medium"
+            ? { opacity: 0, y: "0.26em" }
+            : { opacity: 0, y: "0.42em", filter: "blur(5px)" },
+        show: {
+          opacity: 1,
+          y: "0em",
+          filter: "blur(0px)",
+          transition: { duration: mode === "medium" ? 0.46 : 0.62, ease: EASE_OUT },
+        },
+      }
+    : {
+        hidden: { opacity: 1, y: "0em", filter: "none" },
+        show: { opacity: 1, y: "0em", filter: "none" },
+      };
 
   const MotionTag = motion[Tag];
 
@@ -100,9 +171,12 @@ export function SplitHeading({
     <div ref={ref}>
       <MotionTag
         className={cn("nh-display", className)}
-        initial="hidden"
-        animate={inView ? "show" : "hidden"}
-        transition={{ delayChildren: delay, staggerChildren: stagger }}
+        initial={shouldAnimate ? "hidden" : false}
+        animate={inView || !shouldAnimate ? "show" : "hidden"}
+        transition={{
+          delayChildren: shouldAnimate ? delay : 0,
+          staggerChildren: shouldAnimate ? stagger : 0,
+        }}
         aria-label={segments.map((s) => s.text).join("")}
       >
         {segments.map((segment, sIdx) => (
@@ -127,7 +201,7 @@ export function SplitHeading({
                   <motion.span
                     className="inline-block whitespace-pre"
                     key={tIdx}
-                    variants={charVariants}
+                    variants={variants}
                   >
                     {" "}
                   </motion.span>
@@ -140,7 +214,7 @@ export function SplitHeading({
                     <motion.span
                       className="inline-block whitespace-pre"
                       key={cIdx}
-                      variants={charVariants}
+                      variants={variants}
                     >
                       {char}
                     </motion.span>
@@ -186,47 +260,55 @@ export function BlindsImage({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once, amount: 0.2 });
+  const profile = usePerformanceProfile();
+  const mode = profile.mode;
+  const shouldAnimate = !profile.reducedMotion && mode !== "low";
+  const effectiveSlices = shouldAnimate
+    ? mode === "medium"
+      ? Math.min(slices, 7)
+      : slices
+    : 1;
 
   const order = (i: number) => {
     if (direction === "down") return i;
-    if (direction === "up") return slices - 1 - i;
+    if (direction === "up") return effectiveSlices - 1 - i;
     // centre-out: the source opens from the middle band outwards
-    return Math.abs(i - (slices - 1) / 2);
+    return Math.abs(i - (effectiveSlices - 1) / 2);
   };
 
   return (
     <div className={cn("nh-blinds", className)} ref={ref}>
-      {Array.from({ length: slices }).map((_, i) => {
+      {Array.from({ length: effectiveSlices }).map((_, i) => {
         // Each slice is a full-size copy of the image and BOTH the band and
         // the wipe live in one inset(). Sharing a single box means adjacent
         // bands resolve to exactly the same edge; stacking cropped boxes
         // instead leaves white hairlines wherever the percentages round apart.
-        const top = (i / slices) * 100;
-        const bottom = 100 - ((i + 1) / slices) * 100;
+        const top = (i / effectiveSlices) * 100;
+        const bottom = 100 - ((i + 1) / effectiveSlices) * 100;
         const shut = `inset(${top}% 100% ${bottom}% 0)`;
         const open = `inset(${top}% 0% ${bottom}% 0)`;
-        const offset = i % 2 === 0 ? -34 : 34;
+        const offset = shouldAnimate ? (i % 2 === 0 ? -34 : 34) : 0;
 
         return (
           <motion.div
             animate={
-              inView ? { clipPath: open, x: 0 } : { clipPath: shut, x: offset }
+              inView || !shouldAnimate
+                ? { clipPath: open, x: 0 }
+                : { clipPath: shut, x: offset }
             }
             className="nh-blinds__strip"
-            initial={{ clipPath: shut, x: offset }}
+            initial={shouldAnimate ? { clipPath: shut, x: offset } : false}
             key={i}
             transition={{
-              duration: 0.78,
-              delay: delay + order(i) * 0.055,
+              duration: mode === "medium" ? 0.48 : 0.78,
+              delay: shouldAnimate ? delay + order(i) * 0.055 : 0,
               ease: EASE_OUT,
             }}
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <RasterImage
               alt={i === 0 ? alt : ""}
               className={imgClassName}
-              decoding="async"
-              loading={priority ? "eager" : "lazy"}
+              priority={priority && i === 0}
               src={src}
             />
           </motion.div>

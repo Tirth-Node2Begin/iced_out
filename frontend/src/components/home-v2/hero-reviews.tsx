@@ -1,7 +1,7 @@
 "use client";
 
 import { Lock, Plus, Star, X } from "lucide-react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import {
   useEffect,
@@ -12,12 +12,12 @@ import {
   type CSSProperties,
   type FormEvent,
 } from "react";
-import { toast } from "sonner";
 
 import { catalogStore } from "@/features/02-products";
 import { reviewByline, type Review } from "@/features/11-reviews/reviews";
 import { useReviews } from "@/features/11-reviews/reviews-context";
 import { useAuth } from "@/features/20-auth-security/auth-context";
+import { usePerformanceProfile } from "@/lib/performance-mode";
 
 import { EASE } from "./motion";
 
@@ -54,6 +54,15 @@ const SHOWN = 4;
 const TONES = ["#f2ece0", "#cdd8dd", "#e3d4bd", "#b9c4c9"] as const;
 
 const FIT_ANSWERS = ["Runs small", "True to size", "Runs large"] as const;
+
+async function notify(
+  type: "success" | "error",
+  title: string,
+  description: string,
+) {
+  const { toast } = await import("sonner");
+  toast[type](title, { description });
+}
 
 /** The letter on a chip. */
 function monogram(name: string) {
@@ -102,7 +111,8 @@ function HeroStars({ size = 13, value }: { size?: number; value: number }) {
 type Panel = { kind: "read"; id: string } | { kind: "write" } | null;
 
 export function HeroReviews() {
-  const reduce = useReducedMotion();
+  const profile = usePerformanceProfile();
+  const reduce = profile.reducedMotion || profile.mode === "low";
   const { published, mine, ready, submit, refresh, refreshMine } = useReviews();
   const { isAuthenticated, sessionReady } = useAuth();
 
@@ -211,19 +221,22 @@ export function HeroReviews() {
          face into the stack. */
       await refresh().catch(() => {});
 
-      toast.success("Thank you — your review is up", {
-        description: "It is on the piece's own page now, and in this row.",
-      });
+      void notify(
+        "success",
+        "Thank you — your review is up",
+        "It is on the piece's own page now, and in this row.",
+      );
       setPanel(null);
       setRating(5);
     } catch (caught) {
       /* Reported rather than swallowed. The client's normaliser has already
          turned the refusal into a sentence written to be read, including the
          duplicate check's, which names the piece. */
-      toast.error("That review could not be sent", {
-        description:
-          caught instanceof Error ? caught.message : "The server refused it. Please try again.",
-      });
+      void notify(
+        "error",
+        "That review could not be sent",
+        caught instanceof Error ? caught.message : "The server refused it. Please try again.",
+      );
       /* The server knows something this browser does not — almost always "you
          have already reviewed this piece". Re-read rather than argue. */
       await refreshMine().catch(() => {});

@@ -2,15 +2,28 @@
 
 import { useSyncExternalStore } from "react";
 
+import { applyPerformanceProfile, getPerformanceProfile } from "@/lib/performance-mode";
+
 const QUERY = "(prefers-reduced-motion: reduce)";
 
 function subscribe(onChange: () => void) {
   const query = window.matchMedia(QUERY);
+  const connection = (navigator as Navigator & { connection?: EventTarget }).connection;
   query.addEventListener("change", onChange);
-  return () => query.removeEventListener("change", onChange);
+  window.addEventListener("resize", onChange, { passive: true });
+  connection?.addEventListener("change", onChange);
+
+  return () => {
+    query.removeEventListener("change", onChange);
+    window.removeEventListener("resize", onChange);
+    connection?.removeEventListener("change", onChange);
+  };
 }
 
-const clientSnapshot = () => window.matchMedia(QUERY).matches;
+const clientSnapshot = () => {
+  const profile = applyPerformanceProfile(getPerformanceProfile());
+  return profile.reducedMotion || profile.mode === "low";
+};
 
 /**
  * The server cannot know the preference, and neither can the first client

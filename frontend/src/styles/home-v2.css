@@ -3159,3 +3159,64 @@ body:has(.hv2) {
      is how a phone reads a grid. */
   .hv2-season__row { gap: clamp(16px, 4vw, 24px) clamp(9px, 2.6vw, 14px); }
 }
+
+.hv2-fashion-hero__productPicture {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.hv2-fashion-hero__productPicture .hv2-fashion-hero__productImage {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+@supports (content-visibility: auto) {
+  .hv2-home .hv2-philosophy,
+  .hv2-home .hv2-trend,
+  .hv2-home .nh-about-embed,
+  .hv2-home .hv2-season,
+  .hv2-home .hv2-testimonials,
+  .hv2-home + .site-footer {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 760px;
+  }
+}
+
+html[data-performance-mode="medium"] .hv2-fashion-hero__productImage {
+  filter:
+    drop-shadow(0 1.6rem 1.8rem rgba(0, 0, 0, 0.32))
+    drop-shadow(0 0.5rem 0.45rem rgba(0, 0, 0, 0.2));
+}
+
+html[data-performance-mode="low"] .hv2 [data-aos],
+html[data-motion="reduced"] .hv2 [data-aos] {
+  opacity: 1 !important;
+  transform: none !important;
+  transition: none !important;
+}
+
+html[data-performance-mode="low"] .hv2-fashion-hero__productAura,
+html[data-motion="reduced"] .hv2-fashion-hero__productAura {
+  animation: none !important;
+  opacity: 0.54;
+}
+
+html[data-performance-mode="low"] .hv2-fashion-hero__productImage,
+html[data-motion="reduced"] .hv2-fashion-hero__productImage {
+  filter: drop-shadow(0 1.2rem 1.4rem rgba(0, 0, 0, 0.28));
+}
+
+html[data-performance-mode="low"] .hv2-fashion-hero__productShadow,
+html[data-motion="reduced"] .hv2-fashion-hero__productShadow {
+  filter: blur(8px);
+  opacity: 0.58;
+}
+
+html[data-performance-mode="low"] .hv2-fashion-hero__productSwap,
+html[data-motion="reduced"] .hv2-fashion-hero__productSwap {
+  will-change: auto;
+}

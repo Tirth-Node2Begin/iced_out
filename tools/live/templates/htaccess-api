@@ -10,8 +10,30 @@
 
 Options -Indexes -MultiViews
 
+# Authorization has to survive the handoff to PHP.
+#
+# Apache and LiteSpeed strip this header before a CGI/FastCGI handler sees it,
+# so `Authorization: Bearer …` simply is not in $_SERVER — which looks exactly
+# like the client sending a bad token. The native app authenticates this way
+# (see SessionManager::bearerToken), so without this it can sign in and read and
+# cannot write a single thing.
+#
+# Both forms are here because which one works depends on the handler, and
+# neither can break a server that ignores it. `CGIPassAuth On` is the third
+# form; it is deliberately NOT used, because an Apache older than 2.4.13 does
+# not know the directive and would answer every request with a 500.
+<IfModule mod_setenvif.c>
+    SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
+</IfModule>
+
 <IfModule mod_rewrite.c>
     RewriteEngine On
+
+    # The rewrite form of the rule above. Reads the header at the Apache level,
+    # where it still exists, and puts it into the environment PHP is given.
+    # No [L]: this decorates the request and then lets routing carry on.
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule ^ - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
     # A file that exists is served as it is. (bootstrap.php and _backend.php are
     # refused further down — that is an access rule, not a routing one.)

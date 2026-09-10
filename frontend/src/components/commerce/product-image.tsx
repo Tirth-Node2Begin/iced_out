@@ -72,6 +72,8 @@ export function ProductImage({
       <img
         alt={alt}
         className={`product-photo ${className}`}
+        decoding="async"
+        fetchPriority="low"
         loading="lazy"
         onError={() => setFailed(src)}
         src={src}

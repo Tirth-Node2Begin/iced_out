@@ -1,11 +1,11 @@
 "use client";
 
-import { AnimatePresence, motion, useReducedMotion, type Variants } from "motion/react";
-import Image from "next/image";
+import { AnimatePresence, motion, type Variants } from "motion/react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { useHeroSlides } from "@/features/19b-home-hero/hooks/use-hero-slides";
+import { usePerformanceProfile } from "@/lib/performance-mode";
 
 import { HeroReviews } from "./hero-reviews";
 import { DUR, EASE } from "./motion";
@@ -66,6 +66,18 @@ const HOLD_MS = 3000;
  */
 const SWAP_INTERVAL_MS = HOLD_MS + (ENTER_DELAY + DUR.swap) * 1000;
 
+function bundledRasterSources(src: string) {
+  if (!src.endsWith(".png")) return null;
+
+  const base = src.slice(0, -4);
+  return {
+    avif: `${base}.avif`,
+    mobileAvif: `${base}-mobile.avif`,
+    mobileWebp: `${base}-mobile.webp`,
+    webp: `${base}.webp`,
+  };
+}
+
 /**
  * One garment's picture, drawn the way its source requires.
  *
@@ -93,15 +105,30 @@ function GarmentImage({
   sizes: string;
 }) {
   if (bundled) {
+    const sources = bundledRasterSources(garment.src);
+
     return (
-      <Image
-        alt={garment.alt}
-        className="hv2-fashion-hero__productImage"
-        fill
-        priority={priority}
-        sizes={sizes}
-        src={garment.src}
-      />
+      <picture className="hv2-fashion-hero__productPicture">
+        {sources ? (
+          <>
+            <source media="(max-width: 720px)" srcSet={sources.mobileAvif} type="image/avif" />
+            <source media="(max-width: 720px)" srcSet={sources.mobileWebp} type="image/webp" />
+            <source srcSet={sources.avif} type="image/avif" />
+            <source srcSet={sources.webp} type="image/webp" />
+          </>
+        ) : null}
+        <img
+          alt={garment.alt}
+          className="hv2-fashion-hero__productImage"
+          decoding={priority ? "sync" : "async"}
+          fetchPriority={priority ? "high" : "auto"}
+          height={1254}
+          loading={priority ? "eager" : "lazy"}
+          sizes={sizes}
+          src={garment.src}
+          width={1254}
+        />
+      </picture>
     );
   }
 
@@ -110,13 +137,18 @@ function GarmentImage({
     <img
       alt={garment.alt}
       className="hv2-fashion-hero__productImage hv2-fashion-hero__productImage--raw"
+      decoding={priority ? "sync" : "async"}
+      fetchPriority={priority ? "high" : "auto"}
+      loading={priority ? "eager" : "lazy"}
       src={garment.src}
     />
   );
 }
 
 export function FashionHero() {
-  const reduce = useReducedMotion();
+  const profile = usePerformanceProfile();
+  const reduce = profile.reducedMotion;
+  const mode = profile.mode;
   const [productIndex, setProductIndex] = useState(0);
   /**
    * What the console chose, or the bundled run until it has chosen anything.
@@ -139,28 +171,34 @@ export function FashionHero() {
   const at = run.length === 0 ? 0 : productIndex % run.length;
   const currentProduct = run[at] ?? HERO_FALLBACK[0];
   const nextProduct = run[(at + 1) % run.length] ?? HERO_FALLBACK[0];
+  const highMotion = !reduce && mode === "high";
+  const mediumMotion = !reduce && mode === "medium";
+  const motionEnabled = highMotion || mediumMotion;
+  const swapEnabled = motionEnabled && run.length > 1;
+  const rayAngles =
+    mode === "high" ? RAY_ANGLES : mode === "medium" ? ([-64, -33, 33, 64] as const) : ([-48, 48] as const);
 
   useEffect(() => {
     /* Nothing to swap to. A run of one would otherwise remount the same garment
        every four seconds, replaying the sweep against itself. */
-    if (run.length < 2) return;
+    if (!swapEnabled) return;
 
     const timer = window.setTimeout(() => {
       setProductIndex((value) => (value + 1) % run.length);
     }, SWAP_INTERVAL_MS);
 
     return () => window.clearTimeout(timer);
-  }, [productIndex, run.length]);
+  }, [productIndex, run.length, swapEnabled]);
 
-  const lift = reduce ? 0 : 24;
+  const lift = motionEnabled ? 24 : 0;
   const entry: Variants = {
     hidden: { opacity: 0, y: lift },
     show: (delay = 0) => ({
       opacity: 1,
       y: 0,
       transition: {
-        duration: reduce ? 0.3 : DUR.reveal,
-        delay: reduce ? 0 : delay,
+        duration: motionEnabled ? DUR.reveal : 0.22,
+        delay: motionEnabled ? delay : 0,
         ease: EASE,
       },
     }),
@@ -195,7 +233,7 @@ export function FashionHero() {
    * carries the same number and the two must be changed together, or the
    * handoff stops reading as one object leaving the corner.
    */
-  const productOrbit: Variants = reduce
+  const productOrbit: Variants = !motionEnabled
     ? {
         enter: { opacity: 0 },
         center: { opacity: 1, transition: { duration: 0.2, ease: EASE } },
@@ -265,16 +303,18 @@ export function FashionHero() {
           x: ["0%", "0%", "-12%", "-50%", "-92%", "-130%"],
           y: ["0%", "0%", "2%", "5%", "9%", "12%"],
           scale: [1, 1, 0.97, 0.89, 0.79, 0.7],
-          filter: [
-            "blur(0px)",
-            "blur(0px)",
-            "blur(1.5px)",
-            "blur(4px)",
-            "blur(8px)",
-            "blur(12px)",
-          ],
+          filter: highMotion
+            ? [
+                "blur(0px)",
+                "blur(0px)",
+                "blur(1.5px)",
+                "blur(4px)",
+                "blur(8px)",
+                "blur(12px)",
+              ]
+            : "none",
           transition: {
-            duration: 0.5,
+            duration: highMotion ? 0.5 : 0.36,
             times: [0, 0.34, 0.48, 0.7, 0.87, 1],
             ease: "linear",
           },
@@ -286,17 +326,17 @@ export function FashionHero() {
       <div className="hv2-fashion-hero__field" aria-hidden />
       <div aria-hidden className="hv2-fashion-hero__rayClip">
         <div className="hv2-fashion-hero__rays">
-          {RAY_ANGLES.flatMap((angle, index) =>
+          {rayAngles.flatMap((angle, index) =>
             [angle, 180 - angle].map((deg) => (
               <motion.span
                 animate={{ opacity: 1, scaleX: 1 }}
                 className="hv2-fashion-hero__ray"
-                initial={{ opacity: 0, scaleX: reduce ? 1 : 0.2 }}
+                initial={{ opacity: 0, scaleX: motionEnabled ? 0.2 : 1 }}
                 key={deg}
                 style={{ rotate: `${deg}deg` }}
                 transition={{
-                  duration: reduce ? 0.3 : 1.4,
-                  delay: reduce ? 0 : 0.65 + index * 0.05,
+                  duration: motionEnabled ? (highMotion ? 1.4 : 0.8) : 0.18,
+                  delay: motionEnabled ? 0.65 + index * 0.05 : 0,
                   ease: EASE,
                 }}
               />
@@ -318,10 +358,10 @@ export function FashionHero() {
           <span className="hv2-fashion-hero__titleMask" key={word}>
             <motion.span
               animate={{ opacity: 1, y: "0%" }}
-              initial={{ opacity: 0.001, y: reduce ? "0%" : "108%" }}
+              initial={{ opacity: 0.001, y: motionEnabled ? "108%" : "0%" }}
               transition={{
-                duration: reduce ? 0.3 : DUR.strip,
-                delay: reduce ? 0 : 0.06 + index * 0.1,
+                duration: motionEnabled ? DUR.strip : 0.2,
+                delay: motionEnabled ? 0.06 + index * 0.1 : 0,
                 ease: EASE,
               }}
             >
@@ -334,12 +374,12 @@ export function FashionHero() {
       <motion.div
         animate={{ opacity: 1, scale: 1, y: 0 }}
         className="hv2-fashion-hero__product"
-        initial={{ opacity: 0, scale: reduce ? 1 : 0.92, y: reduce ? 0 : 30 }}
-        transition={{ duration: reduce ? 0.35 : 0.9, delay: reduce ? 0 : 0.28, ease: EASE }}
+        initial={{ opacity: 0, scale: motionEnabled ? 0.92 : 1, y: motionEnabled ? 30 : 0 }}
+        transition={{ duration: motionEnabled ? 0.9 : 0.24, delay: motionEnabled ? 0.28 : 0, ease: EASE }}
       >
         <span className="hv2-fashion-hero__productAura" aria-hidden />
         <motion.div
-          animate={reduce ? undefined : { y: [0, -10, 0] }}
+          animate={highMotion ? { y: [0, -10, 0] } : undefined}
           className="hv2-fashion-hero__productFloat"
           transition={{ duration: 5.4, ease: "easeInOut", repeat: Infinity }}
         >
@@ -372,7 +412,7 @@ export function FashionHero() {
             queue, and parking it anyway puts the same piece on screen twice —
             once in the middle and once in the corner — which reads as a
             duplicate rather than as what is coming. */}
-        {run.length > 1 && (
+        {swapEnabled && (
           <motion.div
             animate={{ opacity: 1 }}
             aria-hidden
@@ -382,8 +422,8 @@ export function FashionHero() {
             transition={{
               /* The corner stands empty for a beat after a garment leaves it, as
                  in the capture, rather than restocking the instant it goes. */
-              delay: reduce ? 0 : 0.3,
-              duration: reduce ? 0.2 : 0.45,
+              delay: highMotion ? 0.3 : 0.12,
+              duration: highMotion ? 0.45 : 0.22,
               ease: EASE,
             }}
           >

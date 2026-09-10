@@ -21,7 +21,18 @@ return [
         'rules' => [
             'name' => 'required|string|min:2|max:120',
             'email' => 'required|email|max:190',
-            'password' => 'required|string|min:6|max:200',
+            /* Eight, not six. `POST /me/password` has always demanded eight, so
+               a shopper could register a password they were then forbidden from
+               setting again — the account area refusing the very password it had
+               just accepted. Aligned upwards rather than down, because the lower
+               number was the outlier and the change costs a new customer two
+               keystrokes.
+
+               EXISTING PASSWORDS ARE UNAFFECTED. This is a rule on what may be
+               chosen, not on what may be used: a six-character password set
+               before this still signs in, and is only asked to grow if its owner
+               changes it. */
+            'password' => 'required|string|min:8|max:200',
         ],
     ],
     [
@@ -96,9 +107,11 @@ return [
         'rules' => [
             'email' => 'required|email|max:190',
             'code' => 'required|string|min:6|max:6',
-            // Six, matching /auth/register — a reset that demanded more than
-            // registration does would lock people out of their own accounts.
-            'password' => 'required|string|min:6|max:200',
+            // Eight, matching /auth/register and /me/password — a reset that
+            // demanded more than registration does would lock people out of
+            // their own accounts, and one that demanded less would be the way
+            // round the other two.
+            'password' => 'required|string|min:8|max:200',
         ],
     ],
 ];

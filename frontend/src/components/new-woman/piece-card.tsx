@@ -2,7 +2,7 @@
 
 import { Expand, Heart } from "lucide-react";
 import Link from "next/link";
-import { motion, useReducedMotion } from "motion/react";
+import { motion } from "motion/react";
 import { useCallback, useMemo } from "react";
 
 import {
@@ -13,6 +13,7 @@ import {
 } from "@/components/new-man/data";
 import { CATEGORY_LABELS, productSlug } from "@/components/new-man/product-deck";
 import { ProductFrame } from "@/components/new-man/product-bits";
+import { useMotionScale } from "@/components/new-woman/use-motion-scale";
 import { useWishlist } from "@/features/05-wishlist/wishlist-context";
 
 /**
@@ -51,7 +52,7 @@ export function PieceCard({
   number: number;
   onSelect: (piece: Piece) => void;
 }) {
-  const reduce = useReducedMotion();
+  const reduce = useMotionScale() === 0;
   const frame = useMemo(() => frameFor(piece), [piece]);
   const price = useMemo(() => pricingFor(piece), [piece]);
 
@@ -68,8 +69,7 @@ export function PieceCard({
       className="nw-card"
       data-sold={piece.soldOut ? "true" : undefined}
       // Not branched on `reduce`: `initial` is the one prop Motion writes into
-      // the server-rendered style attribute, and `useReducedMotion` always
-      // reports false on the server — branching it hands React two different
+      // the server-rendered style attribute. Branching it hands React two
       // style attributes and throws a hydration mismatch on every tile. The
       // preference is honoured on the transition, which collapses the move.
       initial={{ opacity: 0, y: 36 }}

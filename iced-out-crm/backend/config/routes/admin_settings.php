@@ -37,6 +37,10 @@ return [
         'rate_limit' => 'console_read', 'name' => 'admin.settings.show',
     ],
     [
+        // Store settings govern session lifetimes, lockout thresholds, media
+        // caps and the payment-enforcement switch. Rewriting them is a change to
+        // the security posture itself, so it needs the password again.
+        'step_up' => true,
         'method' => 'PUT', 'path' => '/admin/settings/store',
         'handler' => [SettingsController::class, 'updateStore'],
         'audience' => Route::AUDIENCE_STAFF, 'permission' => 'settings.manage',

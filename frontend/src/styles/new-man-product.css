@@ -2325,3 +2325,18 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+html[data-performance-mode="low"] .nh-root .nmp-round--onShot,
+html[data-performance-mode="low"] .nh-root .nmp-flag,
+html[data-performance-mode="low"] .nh-root .nmp-panel,
+html[data-motion="reduced"] .nh-root .nmp-round--onShot,
+html[data-motion="reduced"] .nh-root .nmp-flag,
+html[data-motion="reduced"] .nh-root .nmp-panel {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+html[data-performance-mode="low"] .nh-root .nmp-frame img,
+html[data-motion="reduced"] .nh-root .nmp-frame img {
+  transform: none;
+}

@@ -6,6 +6,7 @@ namespace Iced\Service\Auth;
 
 use Iced\Domain\Principal;
 use Iced\Kernel\Exception\ApiException;
+use Iced\Kernel\Exception\ForbiddenException;
 use Iced\Kernel\Exception\RateLimitException;
 use Iced\Kernel\Exception\UnauthorizedException;
 use Iced\Kernel\Exception\ValidationException;
@@ -14,6 +15,7 @@ use Iced\Repository\LoginAttemptRepository;
 use Iced\Repository\UserRepository;
 use Iced\Service\Settings\StoreSettings;
 use Iced\Support\IdAllocator;
+use Iced\Support\SecuritySignals;
 
 /**
  * Sign-in, registration and sign-out for both audiences (spec §5).
@@ -32,6 +34,7 @@ final class AuthService
         private readonly SessionManager $sessions,
         private readonly IdAllocator $ids,
         private readonly StoreSettings $settings,
+        private readonly SecuritySignals $signals,
     ) {
     }
 
@@ -54,6 +57,38 @@ final class AuthService
         }
 
         $userId = (int) $user['id'];
+
+        /* ---- BLOCKED MEANS BLOCKED ----------------------------------------
+
+           `Principal::isBlocked()` has existed since the console shipped and was
+           called from nowhere, so the "Block customer" action wrote BLOCKED to
+           the database and changed precisely nothing: the account signed in,
+           ordered, and spent wallet credit exactly as before. The register even
+           displayed it as Blocked. There are already BLOCKED rows in the
+           development database that would sign in today.
+
+           Placed AFTER the password check on purpose. Announcing "this account
+           is suspended" to anyone who merely guesses an address turns the block
+           list into an account-enumeration oracle; reaching this line means the
+           caller already proved the password, so there is nothing left to leak
+           and a clear message beats a false "wrong password" that sends a real
+           customer round the reset loop for a decision somebody made about them.
+
+           Counted as a failed attempt because it produced no session, and
+           because an account that keeps trying after being blocked is exactly
+           what the lockout is for. Anything that is not ACTIVE is refused, not
+           just BLOCKED: this codebase only ever writes those two values, so an
+           unrecognised one means somebody edited the row by hand or a future
+           migration introduced a state nobody taught this method about, and the
+           safe reading of an unknown account state is "not yet". */
+        if ((string) ($user['status'] ?? 'ACTIVE') !== 'ACTIVE') {
+            $this->attempts->record($email, $audience, $request->ip, false);
+
+            throw new ForbiddenException(
+                'This account has been suspended. Please contact support.',
+                'ICE-AUTH-403-BLOCKED',
+            );
+        }
 
         if ($this->hasher->needsRehash((string) $user['password_hash'])) {
             $this->users->updatePasswordHash($userId, $this->hasher->hash($password));
@@ -128,6 +163,13 @@ final class AuthService
         $window = $this->settings->int('security.login_lockout_window', 900);
 
         if ($this->attempts->recentFailures($email, $audience, $window) >= $after) {
+            /* Counted, not just refused. A lockout is either somebody working
+               through a password list or somebody deliberately locking a known
+               account out of its own shop, and only the RATE of them tells the
+               two apart. The address is not logged — an alert needs the shape,
+               not the target. */
+            $this->signals->authLockout(['audience' => $audience, 'window' => $window, 'threshold' => $after]);
+
             throw new RateLimitException(
                 $window,
                 sprintf(

@@ -1109,3 +1109,23 @@ button {
     transform: none;
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+html[data-performance-mode="low"] {
+  scroll-behavior: auto;
+}
+
+html[data-performance-mode="low"] .route-progress,
+html[data-motion="reduced"] .route-progress {
+  display: none;
+}
+
+html[data-performance-mode="low"] .site-header,
+html[data-performance-mode="low"] .button--glass {
+  backdrop-filter: none;
+}

@@ -98,9 +98,58 @@ final class PasswordHasher
             : '$argon2id$v=19$m=65536,t=4,p=1$aaaaaaaaaaaaaaaa$aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
     }
 
+    /**
+     * The pepper, from its OWN secret rather than from the session key.
+     *
+     * ── THE TRAP THIS CLOSES ────────────────────────────────────────────────
+     *
+     * This used to read `app.session.secret` directly, so one value did two
+     * unrelated jobs: it signed session tokens at rest AND it peppered every
+     * password hash. That coupling is invisible until the day it matters, and
+     * the day it matters is the worst possible day.
+     *
+     * Rotating a leaked `SESSION_SECRET` is the standard, obvious response to
+     * an exposed `.env`. Doing it here would have signed everyone out — fine,
+     * intended — and ALSO made every password hash in the database
+     * unverifiable, permanently. Not "everyone must sign in again": everyone
+     * must reset their password through a recovery flow that is itself rate
+     * limited at five requests an hour per IP. The one control you most want to
+     * reach for during an incident was the one that took the shop down.
+     *
+     * ── WHY A DEFAULT AND NOT A MIGRATION ───────────────────────────────────
+     *
+     * `PASSWORD_PEPPER` falls back to `SESSION_SECRET`, so on every existing
+     * deployment this computes byte-for-byte what it computed before and every
+     * stored hash keeps verifying. There is nothing to migrate and no version
+     * marker to carry, because nothing about the hashes changes.
+     *
+     * What changes is that the two CAN now be separated, which is all the
+     * incident needs:
+     *
+     *   1. set PASSWORD_PEPPER to the current SESSION_SECRET value
+     *   2. mint a new SESSION_SECRET
+     *
+     * Sessions all die, passwords all keep working. See the runbook in
+     * SECURITY_IMPLEMENTATION_PLAN.md §21.
+     *
+     * ── THE PEPPER ITSELF STILL CANNOT BE ROTATED ───────────────────────────
+     *
+     * Changing PASSWORD_PEPPER invalidates every hash, and no amount of
+     * indirection avoids that — a pepper is an input to a one-way function.
+     * Rotating it means a forced reset for everyone, and it is only warranted if
+     * the pepper itself leaked. Doing that gracefully needs a per-hash version
+     * column and a two-key verify; it is deliberately not built here, because it
+     * is real complexity in the most dangerous method in the codebase for a case
+     * this change makes far less likely to arise.
+     */
     private function pepper(string $password): string
     {
-        $secret = $this->config->string('app.session.secret');
+        $secret = $this->config->string('app.password_pepper');
+
+        if ($secret === '') {
+            // Unset ⇒ the historic behaviour, exactly.
+            $secret = $this->config->string('app.session.secret');
+        }
 
         return hash_hmac('sha256', $password, 'pwd:' . $secret);
     }

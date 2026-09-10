@@ -30,6 +30,13 @@ final class Route
         public readonly ?string $name = null,
         public readonly array $rules = [],
         public readonly bool $audit = false,
+        /**
+         * Whether this action needs the password again, not merely a session.
+         *
+         * Opt-in and default false, so every route that does not say otherwise
+         * behaves exactly as it always has. See Middleware\RequireStepUp.
+         */
+        public readonly bool $stepUp = false,
     ) {
     }
 
@@ -57,6 +64,7 @@ final class Route
             name: is_string($definition['name'] ?? null) ? $definition['name'] : null,
             rules: $rules,
             audit: (bool) ($definition['audit'] ?? ($audience === self::AUDIENCE_STAFF && !in_array($method, ['GET', 'HEAD'], true))),
+            stepUp: (bool) ($definition['step_up'] ?? false),
         );
     }
 

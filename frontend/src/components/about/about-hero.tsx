@@ -1,12 +1,13 @@
 "use client";
 
-import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
+import { motion, useScroll, useTransform } from "motion/react";
 import { Fragment, useRef } from "react";
 
 import { ABOUT_EASE, AboutBlindsImage } from "@/components/about/about-motion";
 import { useBrandMorph } from "@/components/home-v2/brand-morph";
 import { HERO_TITLE } from "@/components/home-v2/data";
 import { DUR, EASE } from "@/components/home-v2/motion";
+import { usePerformanceProfile } from "@/lib/performance-mode";
 
 /**
  * About hero.
@@ -22,7 +23,8 @@ import { DUR, EASE } from "@/components/home-v2/motion";
  */
 export function AboutHero() {
   const sectionRef = useRef<HTMLElement>(null);
-  const reduceMotion = useReducedMotion();
+  const profile = usePerformanceProfile();
+  const reduceMotion = profile.reducedMotion || profile.mode === "low";
   const { scrollYProgress } = useScroll({
     target: sectionRef,
     offset: ["start start", "end start"],

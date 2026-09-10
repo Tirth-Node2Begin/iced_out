@@ -52,6 +52,26 @@ Options -Indexes -MultiViews
     RewriteRule ^(bin|config|database|migrations|seeds|src|storage)(/|$) - [F,L]
     RewriteRule ^(autoload\.php|composer\.json)$ - [F,L]
 
+    # A path is not the only way in. The list above names FOLDERS, and the one
+    # thing that has actually been found sitting in a document root here was
+    # `LIVE.zip` — the whole deployment, `.env` included, in a single file at
+    # the top level that no rule mentioned.
+    #
+    # So extensions are refused too, wherever they appear. None of these is ever
+    # something the storefront serves: the export is .html, .js, .css, .json for
+    # RSC payloads, and images. A .sql, .log, .zip or editor backup in the web
+    # root is always either a mistake or a leak.
+    #
+    # `.json` is deliberately NOT here — Next's RSC payloads are JSON and the
+    # site would stop navigating. The dot-file rule at the foot of this file is
+    # what covers `.env`; this is for the ones with real names.
+    RewriteRule \.(sql|zip|tar|tar\.gz|tgz|gz|bak|old|orig|swp|swo|log|ini|lock|dist|sample)$ - [F,L]
+
+    # Version-control and dependency metadata, at any depth. `.git` is caught by
+    # the dot-file rule below as well; this is the belt to that brace, because a
+    # `.git` directory in a document root gives away the entire history.
+    RewriteRule (^|/)(\.git|\.svn|\.hg|node_modules|vendor|tests)(/|$) - [F,L]
+
     # Harmless where the backend was deployed above the document root instead;
     # kept so that moving it back in cannot silently expose it.
     RewriteRule ^iced-out-api(/|$) - [F,L]
@@ -96,9 +116,54 @@ ErrorDocument 404 /404.html
     Header always set Referrer-Policy "strict-origin-when-cross-origin"
     Header always set X-Frame-Options "SAMEORIGIN"
 
+    # ── Content-Security-Policy ──────────────────────────────────────────────
+    #
+    # GENERATED. `{{CSP_MODE}}` is `Content-Security-Policy-Report-Only` unless
+    # the build was run with --csp-enforce, and `{{SCRIPT_HASHES}}` is the
+    # SHA-256 of every inline <script> found in the export that is being
+    # shipped. Both are filled in by tools/live/build-live.mjs.
+    #
+    # WHY HASHES AND NOT A NONCE. A nonce has to be different per response, and
+    # a static export has no response to differ per — the HTML is written once
+    # at build time. So the one inline script this site has (the performance
+    # probe in app/layout.tsx) is allowed by the hash of its exact contents, and
+    # the build recomputes that from the built files so the two cannot drift.
+    #
+    # WHY THE RAZORPAY WILDCARD. Checkout is routed through per-method and
+    # per-bank subdomains that cannot be enumerated in advance. It is scoped to
+    # one vendor's domain and appears only in img-src and frame-src — never in
+    # script-src, where the only external origin is checkout.razorpay.com.
+    #
+    # WHY 'unsafe-inline' IS IN style-src. Tailwind v4 and `motion` set styles
+    # from JavaScript at runtime, and a static build cannot hash what has not
+    # been generated yet. It does not weaken script-src: inline STYLE cannot
+    # execute, and script-src carries no 'unsafe-inline'.
+    #
+    # ROLL IT OUT REPORT-ONLY FIRST. Rebuild without --csp-enforce, open the
+    # site, run a full test-mode Razorpay purchase with the console open, and
+    # fix anything the console reports. A CSP that is one directive short does
+    # not degrade — it breaks the page.
+    Header always set {{CSP_MODE}} "default-src 'self'; script-src 'self' {{SCRIPT_HASHES}} https://checkout.razorpay.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.razorpay.com; font-src 'self' data:; connect-src 'self' https://api.razorpay.com https://lumberjack.razorpay.com; frame-src https://api.razorpay.com https://*.razorpay.com; form-action 'self' https://*.razorpay.com; base-uri 'none'; object-src 'none'; frame-ancestors 'self'"
+
+    # Features this site never uses. Razorpay needs the Payment Request API, so
+    # `payment` is delegated to its frame and nothing else is.
+    Header always set Permissions-Policy "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), usb=(), interest-cohort=(), payment=(self \"https://checkout.razorpay.com\")"
+
+    # `same-origin-allow-popups`, NOT `same-origin`: several Razorpay methods
+    # open a popup for the bank's own page, and the stricter value severs the
+    # opener reference the gateway needs to report the result back.
+    Header always set Cross-Origin-Opener-Policy "same-origin-allow-popups"
+
+    # The API already sends its own; this is for the static assets.
+    Header always set Cross-Origin-Resource-Policy "same-origin"
+
     # HSTS — uncomment ONLY once https is working and you are sure you will
     # never serve this host over http again. Browsers remember it for a year
     # and there is no way to take it back from someone who already has it.
+    #
+    # Do NOT add `preload` until the CRM subdomain is also https, because
+    # `includeSubDomains` plus preload would make crm.<domain> unreachable over
+    # http with no way to undo it for months.
     # Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
 </IfModule>
 

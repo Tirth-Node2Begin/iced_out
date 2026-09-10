@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowUpRight } from "lucide-react";
-import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
+import { motion, useScroll, useTransform } from "motion/react";
 import Link from "next/link";
 import { useRef } from "react";
 
@@ -10,10 +10,12 @@ import {
   AboutReveal,
   AboutSplitHeading,
 } from "@/components/about/about-motion";
+import { usePerformanceProfile } from "@/lib/performance-mode";
 
 export function AboutClosing() {
   const sectionRef = useRef<HTMLElement>(null);
-  const reduceMotion = useReducedMotion();
+  const profile = usePerformanceProfile();
+  const reduceMotion = profile.reducedMotion || profile.mode === "low";
   const { scrollYProgress } = useScroll({
     target: sectionRef,
     offset: ["start end", "end start"],

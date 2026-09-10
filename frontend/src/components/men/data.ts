@@ -37,21 +37,21 @@ export const HERO_GARMENTS: HeroGarment[] = [
   {
     id: "varsity",
     name: "Varsity jacket",
-    src: `${GHOST}/ghost-varsity.png`,
+    src: `${GHOST}/ghost-varsity.webp`,
     alt: "Navy and cream varsity jacket, ghost mannequin cutout",
     chest: "Chest 62 cm",
   },
   {
     id: "hoodie",
     name: "Heavyweight hood",
-    src: `${GHOST}/ghost-hoodie.png`,
+    src: `${GHOST}/ghost-hoodie.webp`,
     alt: "Black hooded sweatshirt, ghost mannequin cutout",
     chest: "Chest 64 cm",
   },
   {
     id: "knit",
     name: "Ribbed knit polo",
-    src: `${GHOST}/ghost-knit.png`,
+    src: `${GHOST}/ghost-knit.webp`,
     alt: "Cream ribbed knit polo, ghost mannequin cutout",
     chest: "Chest 58 cm",
   },
@@ -67,16 +67,16 @@ export const RAIL = {
    */
   holdMs: 5200,
   /** how long one slide takes, in seconds */
-  slideSeconds: 0.78,
+  slideSeconds: 0.82,
   /**
    * How far a flanking piece sits from the centre, as a percentage of its own
    * width — so the spacing scales with the garment instead of being a pixel
    * figure that only holds at one viewport.
    */
-  offset: 82,
+  offset: 88,
   /** how much smaller a flanking piece is, and how far it fades back */
-  flankScale: 0.6,
-  flankOpacity: 0.3,
+  flankScale: 0.58,
+  flankOpacity: 0.42,
 } as const;
 
 export const HERO = {
@@ -88,14 +88,14 @@ export const HERO = {
    * the split pair is marked decorative, exactly as every other hero does
    * behind its own oversized type.
    */
-  title: "Menswear",
-  kicker: "The men's edit",
+  title: "Men's wear",
+  kicker: "Iced_out men's floor",
   /** the two halves the rail stands between */
-  split: ["Mens", "Wear"] as [string, string],
-  lede: "Heavyweight shells, dry canvas, and a shoulder cut that never fights the sleeve.",
+  split: ["Men's", "Edit"] as [string, string],
+  lede: "Oversized shells, ribbed knits, and varsity weight staged for late-night movement.",
   ctas: [
-    { label: "Shop the edit", href: "#edit" },
-    { label: "View collections", href: "/collections" },
+    { label: "Shop men's edit", href: "#edit" },
+    { label: "View new drop", href: "/new-drop" },
   ],
   /**
    * The ledger, bottom-left. Both figures are read from the catalogue at

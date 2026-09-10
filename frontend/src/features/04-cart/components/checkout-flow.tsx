@@ -70,7 +70,8 @@ import { applicableCredit } from "@/features/21-wallet/wallet";
 import { useWallet } from "@/features/21-wallet/wallet-context";
 import { cardLabel, type CardDraft } from "@/features/09-payment/card";
 import { CardPaymentSheet } from "@/features/09-payment/card-payment-sheet";
-import { isTestKey, loadRazorpay, openRazorpayCheckout } from "@/features/09-payment/razorpay";
+import { isLiveKey, isTestKey, loadRazorpay, openRazorpayCheckout } from "@/features/09-payment/razorpay";
+import { useStorefrontConfig } from "@/features/04-cart/storefront-config";
 import { useHydrated } from "@/lib/use-hydrated";
 
 /**
@@ -317,6 +318,55 @@ export function CheckoutFlow({
   useEffect(() => {
     if (step.id === "payment" && draft.paymentMethod === "razorpay") void loadRazorpay();
   }, [draft.paymentMethod, step.id]);
+
+  /* ---- the card sheet is a DEVELOPMENT affordance ------------------------
+
+     `payWithCard` below settles the order as captured with the reference
+     "Authorised on device". There is no acquirer behind it: the authorisation
+     is simulated, and it says so in the note it writes. That is a reasonable
+     thing to keep while the store is on a test key and there is no gateway
+     account to exercise — and it is a free-order button on a live one.
+
+     The server refuses it either way now (a capture needs a verified payment
+     intent, and a sheet that never spoke to a gateway produces none), so what
+     this removes is not a hole but the ability to walk into one: a shopper
+     choosing "Credit or debit card" on a live store would otherwise reach the
+     order screen and find the order unpaid.
+
+     Hidden rather than deleted, because the sheet is still how the flow is
+     demonstrated without Razorpay credentials. */
+  const storefrontConfig = useStorefrontConfig();
+
+  /* The key comes from the API at runtime — `NEXT_PUBLIC_RAZORPAY_KEY_ID` is
+     deliberately blank in production so a preview can point elsewhere. So this
+     has to be REACTIVE and it has to FAIL CLOSED, and the first version was
+     neither: `useMemo` with an empty dependency array, computed once at mount,
+     reading a config that had not arrived yet. `isLiveKey("")` is false, so on a
+     live store the card option was on screen — permanently if the config fetch
+     ever failed, since nothing would recompute.
+
+     Unknown is now treated as live. A shopper on a genuinely test-keyed store
+     loses the simulated card sheet for the few hundred milliseconds before the
+     config lands; a shopper on a live store never sees it. */
+  const razorpayKey = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || storefrontConfig.razorpayKeyId;
+
+  const availablePaymentOptions = useMemo(
+    () =>
+      razorpayKey === "" || isLiveKey(razorpayKey)
+        ? PAYMENT_OPTIONS.filter((option) => option.id !== "card")
+        : PAYMENT_OPTIONS,
+    [razorpayKey],
+  );
+
+  /* A draft restored from the server can still name a method this build no
+     longer offers — the shopper chose "card" on a test deployment and came back
+     to a live one. Left alone it would be selected, invisible, and would settle
+     nothing. */
+  useEffect(() => {
+    if (!availablePaymentOptions.some((option) => option.id === draft.paymentMethod)) {
+      updateDraft({ paymentMethod: "cod" });
+    }
+  }, [availablePaymentOptions, draft.paymentMethod, updateDraft]);
 
   /* ---------------------------------------------------------- step moving */
   const stepState = useMemo(
@@ -1180,7 +1230,7 @@ export function CheckoutFlow({
                   <div className="co-group">
                     <p className="co-group__label">Payment method</p>
                     <div className="co-choices">
-                      {PAYMENT_OPTIONS.map((method) => {
+                      {availablePaymentOptions.map((method) => {
                         const Icon = method.icon;
                         const selected = draft.paymentMethod === method.id;
 

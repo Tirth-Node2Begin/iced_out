@@ -4,7 +4,6 @@ import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import {
   motion,
-  useReducedMotion,
   useScroll,
   useTransform,
 } from "motion/react";
@@ -61,8 +60,8 @@ const T = {
  */
 export function WomanHero() {
   const ref = useRef<HTMLElement>(null);
-  const reduce = useReducedMotion();
   const scale = useMotionScale();
+  const lowMotion = scale === 0;
 
   /* The same set the grid further down will draw — womenswear only. */
   const { pieces, loaded } = useGenderPieces("women", { unisex: false });
@@ -114,8 +113,8 @@ export function WomanHero() {
                   key={deg}
                   style={{ rotate: `${deg}deg` }}
                   transition={{
-                    duration: reduce ? 0.3 : 1.5,
-                    delay: reduce ? 0 : T.rays + index * 0.08,
+                    duration: lowMotion ? 0.3 : 1.5,
+                    delay: lowMotion ? 0 : T.rays + index * 0.08,
                     ease: EASE_OUT,
                   }}
                 />
@@ -145,7 +144,7 @@ export function WomanHero() {
             initial={{ opacity: 0, scaleX: 1.06 }}
             style={{ y: ghostY }}
             transition={{
-              duration: reduce ? 0.3 : 1.15,
+              duration: lowMotion ? 0.3 : 1.15,
               delay: T.ghost,
               ease: EASE_OUT,
             }}
@@ -167,8 +166,8 @@ export function WomanHero() {
                   className="nw-hero__wordInner"
                   initial={{ y: "108%", opacity: 0.001 }}
                   transition={{
-                    duration: reduce ? 0.3 : 0.9,
-                    delay: reduce ? 0 : T.words + index * 0.1,
+                    duration: lowMotion ? 0.3 : 0.9,
+                    delay: lowMotion ? 0 : T.words + index * 0.1,
                     ease: EASE_OUT,
                   }}
                 >
@@ -187,7 +186,7 @@ export function WomanHero() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               initial={{ opacity: 0, scale: 0.94, y: 28 }}
               transition={{
-                duration: reduce ? 0.35 : 0.95,
+                duration: lowMotion ? 0.35 : 0.95,
                 delay: T.garment,
                 ease: EASE_OUT,
               }}
@@ -195,7 +194,7 @@ export function WomanHero() {
               <span aria-hidden className="nw-hero__aura" />
 
               <motion.div
-                animate={reduce ? undefined : { y: [0, -9, 0] }}
+                animate={lowMotion ? undefined : { y: [0, -9, 0] }}
                 className="nw-hero__garmentFloat"
                 transition={{
                   duration: 5.6,
@@ -237,7 +236,7 @@ export function WomanHero() {
             className="nw-hero__plinth"
             initial={{ scaleX: 0, opacity: 0 }}
             transition={{
-              duration: reduce ? 0.3 : 1.1,
+              duration: lowMotion ? 0.3 : 1.1,
               delay: T.plinth,
               ease: EASE_OUT,
             }}

@@ -67,10 +67,43 @@ final class Money
         return new self($this->paise * $factor, $this->currency);
     }
 
-    /** Percent discounts round DOWN, matching the frontend's discountFor(). */
-    public function percentFloor(int $percent): self
+    /**
+     * A percentage of this amount, as WHOLE RUPEES, rounded half-up.
+     *
+     * ── WHY THIS IS NOT `intdiv($this->paise * $percent, 100)` ──────────────
+     *
+     * That is what it used to be, and it floored to PAISE. Its docblock claimed
+     * it rounded down "matching the frontend's discountFor()", and the frontend
+     * does no such thing — `coupons.ts` computes in rupees and rounds half-up.
+     * The two disagreed by up to a rupee on any subtotal where the percentage
+     * did not divide evenly.
+     *
+     * That drift was survivable while nothing compared the figures precisely.
+     * `crossCheckMoney()` compares `->rupees()`, so it could not see it, and the
+     * shopper was simply charged whatever the browser said.
+     *
+     * It stopped being survivable the moment payment intents began matching
+     * `amount_paise` EXACTLY. A ₹7,999 bag with a 10% code gave the browser
+     * ₹7,199 (so an intent for 719900 paise) and the server ₹7,199.10 (719910
+     * paise). No intent could ever match, so a genuine shopper was charged and
+     * their order was written "Payment failed" — or, when the rupee figures also
+     * differed, refused outright with ICE-CHK-409 after the card had cleared,
+     * leaving no order row at all and therefore no signal.
+     *
+     * So the server now computes what the browser computes: whole rupees,
+     * half-up. Every price, fee and discount in this application is a whole
+     * number of rupees, which is what makes the gateway amount expressible and
+     * the intent check meaningful.
+     *
+     * `+ 5000` before dividing by 10000 is half-up on the rupee: the discount in
+     * paise is `paise * percent / 100`, and turning that into rounded rupees is
+     * `paise * percent / 10000`.
+     */
+    public function percentRounded(int $percent): self
     {
-        return new self(intdiv($this->paise * $percent, 100), $this->currency);
+        $rupees = intdiv($this->paise * $percent + 5000, 10000);
+
+        return new self($rupees * 100, $this->currency);
     }
 
     public function clampTo(self $ceiling): self

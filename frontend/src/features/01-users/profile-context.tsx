@@ -105,7 +105,13 @@ type ProfileContextValue = {
   /** False until the account has been read back from the API. */
   ready: boolean;
   initials: string;
-  save: (next: CustomerProfile) => Promise<void>;
+  /**
+   * `currentPassword` is required by the API when — and only when — the email
+   * is changing. The address on an account is where a password reset is sent,
+   * so changing it on nothing but a session cookie turned a borrowed session
+   * into permanent ownership. Everything else about a save is unchanged.
+   */
+  save: (next: CustomerProfile, currentPassword?: string) => Promise<void>;
 };
 
 const ProfileContext = createContext<ProfileContextValue | null>(null);
@@ -124,11 +130,14 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   const { customer, sessionReady, refreshCustomer } = useAuth();
 
   const save = useCallback(
-    async (next: CustomerProfile) => {
+    async (next: CustomerProfile, currentPassword?: string) => {
       await customerClient.patch("/me", {
         name: next.name,
         email: next.email,
         mobile: next.mobile,
+        // Sent only when it is actually needed, so a name edit never carries a
+        // password it has no use for.
+        ...(currentPassword ? { currentPassword } : {}),
       });
       await refreshCustomer();
     },

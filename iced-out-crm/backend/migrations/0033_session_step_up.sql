@@ -1,0 +1,31 @@
+-- Step-up authentication for the console's most dangerous actions.
+--
+-- WHAT IT IS FOR.
+--
+-- A staff session is a fifteen-minute idle window, and inside that window every
+-- permission the account holds is available with no further proof. For most of
+-- the console that is right — an operator moving twenty orders through dispatch
+-- should not retype a password twenty times.
+--
+-- It is not right for the handful of actions that move money or change who can
+-- act: approving a refund, marking a payout paid, editing store settings. An
+-- unlocked laptop for two minutes is enough for all three, and the audit log
+-- would faithfully record that the account did it.
+--
+-- So those actions ask for the password again, and this column records when the
+-- session last proved itself. `RequireStepUp` refuses when it is null or older
+-- than ten minutes.
+--
+-- WHY ON THE SESSION AND NOT IN A TOKEN.
+--
+-- Because it must be revocable and it must not travel. A session row is already
+-- the thing that ends when somebody signs out or is blocked; hanging the
+-- elevation off it means the elevation ends at exactly the same moment, with no
+-- second mechanism to remember. A cookie or a bearer token carrying "recently
+-- verified" would outlive the session that earned it.
+--
+-- NULLABLE, so every existing session simply has not stepped up — which is the
+-- correct starting state and needs no backfill.
+
+ALTER TABLE user_sessions
+    ADD COLUMN stepped_up_at DATETIME(6) NULL AFTER last_active_at;

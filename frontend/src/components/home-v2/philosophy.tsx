@@ -1,7 +1,9 @@
 "use client";
 
-import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
+import { motion, useScroll, useTransform } from "motion/react";
 import { useRef } from "react";
+
+import { usePerformanceProfile } from "@/lib/performance-mode";
 
 import { useCopy } from "./copy";
 import { RevealImage, ScrollWords } from "./motion";
@@ -20,7 +22,8 @@ import { RevealImage, ScrollWords } from "./motion";
 export function Philosophy() {
   const { philosophy } = useCopy();
   const ref = useRef<HTMLElement>(null);
-  const reduce = useReducedMotion();
+  const profile = usePerformanceProfile();
+  const reduce = profile.reducedMotion || profile.mode === "low";
   const { scrollYProgress } = useScroll({
     target: ref,
     offset: ["start end", "end start"],

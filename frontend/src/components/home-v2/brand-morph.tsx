@@ -3,7 +3,6 @@
 import {
   motion,
   useMotionValue,
-  useReducedMotion,
   useScroll,
   useTransform,
   type MotionValue,
@@ -17,6 +16,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
+
+import { usePerformanceProfile } from "@/lib/performance-mode";
 
 import { HERO_TITLE } from "./data";
 import { DUR, EASE } from "./motion";
@@ -121,7 +122,8 @@ export function useBrandMorph() {
 }
 
 export function BrandMorph({ children }: { children: ReactNode }) {
-  const reduce = useReducedMotion();
+  const profile = usePerformanceProfile();
+  const reduce = profile.reducedMotion || profile.mode === "low";
   const [heroSlot, registerHero] = useState<HTMLElement | null>(null);
   const [navSlot, registerNav] = useState<HTMLElement | null>(null);
   const [geometry, setGeometry] = useState<Geometry | null>(null);

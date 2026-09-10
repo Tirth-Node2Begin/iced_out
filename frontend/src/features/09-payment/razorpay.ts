@@ -60,6 +60,23 @@ export function isTestKey(key: string = razorpayKeyId()): boolean {
   return key.startsWith("rzp_test");
 }
 
+/**
+ * Whether this build is pointed at an account that takes REAL money.
+ *
+ * Not `!isTestKey()`: an empty key is neither, and an unconfigured store must
+ * not be treated as a live one. Only the explicit `rzp_live_` prefix counts.
+ *
+ * Everything this gates is a path that used to end with the browser announcing
+ * a payment nothing had checked. Those paths are all refused by the server now —
+ * `PlaceOrderService` settles a capture only against a verified payment intent —
+ * so what these guards buy is not safety but HONESTY: the shopper is told the
+ * gateway is unavailable while they can still choose cash on delivery, instead
+ * of paying, waiting, and being shown an order marked unpaid.
+ */
+export function isLiveKey(key: string = razorpayKeyId()): boolean {
+  return key.startsWith("rzp_live");
+}
+
 type GatewayOrder = {
   /** `order_...` */
   id: string;
@@ -284,6 +301,28 @@ export function openRazorpayCheckout(request: PaymentRequest): Promise<PaymentRe
       } satisfies PaymentResult;
     }
 
+    /* ---- THE AMOUNT-ONLY FLOW IS NOT ALLOWED TO TAKE REAL MONEY -----------
+
+       `createGatewayOrder` resolves to null whenever the API could not make one
+       — it is down, the session expired, the server has no credentials. The
+       checkout used to carry on regardless: the gateway opened without an
+       `order_id`, took a real payment, and handed back a `razorpay_payment_id`
+       with no signature to check it against. The result was reported as
+       `verified: false` and then recorded as captured anyway.
+
+       On a test key that is a useful thing to keep — it is how the flow is
+       exercised without an API running. On a LIVE key it is a shopper being
+       charged for an order that cannot be confirmed, so it stops here, while
+       the checkout is still on screen and cash on delivery is still a choice. */
+    if (!order && isLiveKey(key)) {
+      return {
+        ok: false,
+        reason: "unavailable",
+        message:
+          "The payment could not be started securely. Nothing has been charged — please try again, or choose cash on delivery.",
+      } satisfies PaymentResult;
+    }
+
     return new Promise<PaymentResult>((resolve) => {
       let settled = false;
       const settle = (result: PaymentResult) => {
@@ -325,8 +364,23 @@ export function openRazorpayCheckout(request: PaymentRequest): Promise<PaymentRe
 
           /* Nothing to check against on the amount-only flow, so it settles
              immediately and says so. The frame has already closed by now; the
-             shopper is looking at the order screen either way. */
+             shopper is looking at the order screen either way.
+
+             Unreachable on a live key — the guard above refuses to open a
+             gateway with no server-created order behind it — but stated rather
+             than assumed, because the two are far apart in the file and the
+             consequence of them drifting is an unverifiable payment. */
           if (orderId === "" || signature === "") {
+            if (isLiveKey(key)) {
+              settle({
+                ok: false,
+                reason: "failed",
+                message:
+                  "This payment could not be confirmed, so nothing has been recorded as paid. If you were charged, it will be released automatically.",
+              });
+              return;
+            }
+
             settle({
               ok: true,
               paymentId: response.razorpay_payment_id,

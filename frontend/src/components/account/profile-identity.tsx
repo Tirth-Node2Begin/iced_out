@@ -38,7 +38,16 @@ export function ProfileIdentity() {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<CustomerProfile>(profile);
   const [photoError, setPhotoError] = useState<string | null>(null);
+  const [password, setPassword] = useState("");
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
+
+  /* The address on an account is where a password reset is sent, so changing it
+     is a credential change and the API asks for the current password to prove
+     the person doing it is the owner rather than a borrowed session. Nothing
+     else on this form needs one. */
+  const changingEmail = draft.email.trim().toLowerCase() !== profile.email.trim().toLowerCase();
 
   const dirty =
     draft.photo !== profile.photo ||
@@ -49,12 +58,16 @@ export function ProfileIdentity() {
        left in the draft. */
     setDraft(profile);
     setPhotoError(null);
+    setSaveError(null);
+    setPassword("");
     setEditing(true);
   }
 
   function cancel() {
     setDraft(profile);
     setPhotoError(null);
+    setSaveError(null);
+    setPassword("");
     setEditing(false);
   }
 
@@ -78,21 +91,53 @@ export function ProfileIdentity() {
     }
   }
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  /**
+   * The save is AWAITED now, and that is the substantive change.
+   *
+   * It used to be fire-and-forget with an unconditional success toast, so a
+   * rejected save — a duplicate email, and now a missing or wrong password —
+   * closed the form and announced success while nothing had been written. The
+   * shopper's next reload silently undid what they thought they had done.
+   */
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    save({
-      name: draft.name.trim(),
-      email: draft.email.trim(),
-      mobile: draft.mobile.trim(),
-      photo: draft.photo,
-    });
+
+    if (saving) return;
+
+    setSaving(true);
+    setSaveError(null);
+
+    try {
+      await save(
+        {
+          name: draft.name.trim(),
+          email: draft.email.trim(),
+          mobile: draft.mobile.trim(),
+          photo: draft.photo,
+        },
+        changingEmail ? password : undefined,
+      );
+    } catch (error) {
+      setSaveError(
+        error instanceof Error && error.message
+          ? error.message
+          : "That could not be saved. Please check the details and try again.",
+      );
+      setSaving(false);
+      return;
+    }
+
+    setSaving(false);
     setEditing(false);
     setPhotoError(null);
+    setPassword("");
     /* An id, so a second save replaces the first toast instead of stacking an
        identical one under it. */
     toast.success("Profile saved.", {
       id: "profile-saved",
-      description: "Orders placed from now on carry the updated details.",
+      description: changingEmail
+        ? "We have told your previous email address about the change."
+        : "Orders placed from now on carry the updated details.",
     });
   }
 
@@ -182,12 +227,33 @@ export function ProfileIdentity() {
             </label>
           ))}
 
+          {/* Only when the email is actually changing. Asking for a password to
+              correct a typo in a mobile number would train people to type it
+              into any box that asks. */}
+          {changingEmail && (
+            <label className="io-field">
+              <span>
+                Current password
+                <em>changing your email needs it</em>
+              </span>
+              <input
+                autoComplete="current-password"
+                onChange={(event) => setPassword(event.target.value)}
+                required
+                type="password"
+                value={password}
+              />
+            </label>
+          )}
+
+          {saveError && <p className="io-photo__error">{saveError}</p>}
+
           <div className="io-actions io-actions--end">
             <button className="io-btn io-btn--ghost" onClick={cancel} type="button">
               Cancel
             </button>
-            <button className="io-btn io-btn--solid" disabled={!dirty} type="submit">
-              Save profile
+            <button className="io-btn io-btn--solid" disabled={!dirty || saving} type="submit">
+              {saving ? "Saving…" : "Save profile"}
             </button>
           </div>
         </form>

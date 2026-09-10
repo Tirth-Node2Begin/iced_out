@@ -225,6 +225,131 @@ for (const app of APPS) {
   }
 }
 
+/* ----------------------------------------------------------- 5. dependencies */
+heading("5 · Dependencies — known vulnerabilities");
+
+/**
+ * Only PRODUCTION dependencies fail the run.
+ *
+ * A dev-only advisory is worth knowing and is not worth blocking a deploy for:
+ * nothing in `devDependencies` reaches a shopper's browser, and an SSRF in a
+ * build tool cannot be triggered by someone visiting the shop. They are reported
+ * and counted separately.
+ *
+ * The backend needs no equivalent because it has no runtime Composer
+ * dependencies at all — `composer.json` requires PHP and five bundled
+ * extensions. That is checked below rather than assumed, because it is a
+ * genuine security property and the kind that erodes the first time somebody
+ * needs a quick library.
+ */
+for (const app of APPS) {
+  const cwd = path.join(ROOT, app.frontend);
+
+  const audit = (flags, label, fatal) => {
+    let raw;
+    try {
+      raw = execSync(`npm audit --json ${flags}`, { cwd, stdio: "pipe", maxBuffer: 1 << 26 });
+    } catch (error) {
+      // npm exits non-zero when it FINDS something; the JSON is still on stdout.
+      raw = error.stdout;
+    }
+
+    let report;
+    try {
+      report = JSON.parse(String(raw));
+    } catch {
+      bad(`${app.label}: ${label} — npm audit produced no readable report`);
+      return;
+    }
+
+    const counts = report?.metadata?.vulnerabilities ?? {};
+    const serious = (counts.high ?? 0) + (counts.critical ?? 0);
+    const rest = (counts.moderate ?? 0) + (counts.low ?? 0);
+
+    if (serious === 0) {
+      ok(`${app.label}: ${label} — no high or critical (${rest} moderate/low)`);
+      return;
+    }
+
+    const names = Object.entries(report.vulnerabilities ?? {})
+      .filter(([, v]) => v.severity === "high" || v.severity === "critical")
+      .map(([name, v]) => `${name} (${v.severity})`)
+      .slice(0, 8);
+
+    const line = `${app.label}: ${label} — ${serious} high/critical: ${names.join(", ")}`;
+    fatal ? bad(line) : console.log(`  \x1b[33m!\x1b[0m ${line}`);
+  };
+
+  audit("--omit=dev", "production deps", true);
+  audit("--include=dev", "dev deps", false);
+}
+
+for (const app of APPS) {
+  const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, app.backend, "composer.json"), "utf8"));
+  const runtime = Object.keys(manifest.require ?? {}).filter((n) => n !== "php" && !n.startsWith("ext-"));
+
+  if (runtime.length === 0) {
+    ok(`${app.label}: backend has no runtime Composer dependencies`);
+  } else {
+    bad(
+      `${app.label}: backend gained runtime Composer dependencies (${runtime.join(", ")}). ` +
+        `That is a new supply-chain surface in production — deliberate, or an accident?`,
+    );
+  }
+}
+
+/* ------------------------------------------------------------------ 6. XSS */
+heading("6 · Frontends — dangerous DOM sinks");
+
+/**
+ * React escapes everything it renders, so the only way to get raw HTML into
+ * these pages is to ask for it. This audit found exactly one place that does —
+ * `app/layout.tsx`, whose content is a compile-time constant — and the value of
+ * that fact is entirely in it staying true.
+ *
+ * A grep rather than a linter rule, because it also catches the sinks ESLint has
+ * no rule for (`innerHTML`, `document.write`, `eval`) and because it reports
+ * WHERE, which is what somebody reviewing a new one needs.
+ */
+const SINKS = /dangerouslySetInnerHTML|\.innerHTML\s*=|document\.write\(|new Function\(|eval\(/;
+const ALLOWED = new Set(["src/app/layout.tsx"]);
+
+for (const app of APPS) {
+  const root = path.join(ROOT, app.frontend, "src");
+  const found = [];
+
+  const walk = (dir) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        walk(full);
+        continue;
+      }
+      if (!/\.(ts|tsx|js|jsx)$/.test(entry.name)) continue;
+
+      const relative = path.relative(path.join(ROOT, app.frontend), full).replace(/\\/g, "/");
+      if (ALLOWED.has(relative)) continue;
+
+      fs.readFileSync(full, "utf8")
+        .split("\n")
+        .forEach((line, i) => {
+          if (SINKS.test(line)) found.push(`${relative}:${i + 1}`);
+        });
+    }
+  };
+
+  if (fs.existsSync(root)) walk(root);
+
+  if (found.length === 0) {
+    ok(`${app.label}: no unreviewed HTML sinks`);
+  } else {
+    bad(
+      `${app.label}: ${found.length} unreviewed HTML sink(s): ${found.slice(0, 6).join(", ")}. ` +
+        `Each one is a place API data could become markup — review it, then add the path to ALLOWED here.`,
+    );
+  }
+}
+
 fs.rmSync(TMP, { recursive: true, force: true });
 
 console.log(

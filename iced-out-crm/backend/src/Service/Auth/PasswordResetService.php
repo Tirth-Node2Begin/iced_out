@@ -76,6 +76,7 @@ final class PasswordResetService
         private readonly PasswordHasher $hasher,
         private readonly Mailer $mailer,
         private readonly RecoveryEmail $email,
+        private readonly AccountNotices $notices,
         private readonly StoreSettings $settings,
         private readonly Config $config,
         private readonly Clock $clock,
@@ -133,7 +134,7 @@ final class PasswordResetService
         $this->tokens->issue(
             $userId,
             AuthTokenRepository::PURPOSE_PASSWORD_RESET,
-            AuthTokenRepository::hash($audience, UserRepository::normalizeEmail($email), $code),
+            $this->tokens->hash($audience, UserRepository::normalizeEmail($email), $code),
             $ttl,
             (string) json_encode(['audience' => $audience]),
         );
@@ -209,6 +210,17 @@ final class PasswordResetService
         $this->sessions->revokeAllForUser($userId, $audience);
 
         $this->logger->info('password.reset.completed', ['audience' => $audience, 'user_id' => $userId]);
+
+        /* The account is told its password was reset. Best effort, after the
+           write, and it goes to the same mailbox the code did — so it is not
+           news to whoever asked for it, but it IS the record the owner needs if
+           they did not: the reset flow is the loudest possible signal that
+           somebody else can read this mailbox. */
+        $account = $this->users->findById($userId);
+
+        if ($account !== null) {
+            $this->notices->passwordReset((string) $account['email'], (string) $account['name']);
+        }
     }
 
     /**
@@ -228,7 +240,7 @@ final class PasswordResetService
         $digits = preg_replace('/\D+/', '', $code) ?? '';
 
         $token = $this->tokens->findLive(
-            AuthTokenRepository::hash($audience, $normalized, $digits),
+            $this->tokens->hash($audience, $normalized, $digits),
             AuthTokenRepository::PURPOSE_PASSWORD_RESET,
         );
 

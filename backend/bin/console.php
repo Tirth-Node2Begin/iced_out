@@ -396,6 +396,39 @@ try {
 
             break;
 
+        /**
+         * The periodic tidy. Run it hourly from cron:
+         *
+         *   cd /home/<user>/iced-out-api && php bin/console.php sweep >> storage/logs/sweep.log 2>&1
+         *
+         * `--dry-run` first, always, on a database you care about: the stock
+         * release is the one step somebody would notice, and seeing what it
+         * intends to give back before it does is worth the extra minute.
+         */
+        case 'sweep':
+            $dryRun = in_array('--dry-run', $flags, true);
+
+            $out($dryRun ? 'Sweeping (dry run — nothing will be written)…' : 'Sweeping…');
+
+            $counts = $container->make(\Iced\Service\Maintenance\SweepService::class)
+                ->run($out, $dryRun, $root . '/storage/logs');
+
+            $out('');
+            $out(sprintf(
+                '%s: %d reservation unit(s), %d intent(s), %d session(s), %d token(s), %d key(s), %d ticket(s), %d cache entr(ies), %d log file(s).',
+                $dryRun ? 'Would release' : 'Released',
+                $counts['reservations_released'],
+                $counts['intents_expired'],
+                $counts['sessions_purged'],
+                $counts['auth_tokens_purged'],
+                $counts['idempotency_keys_purged'],
+                $counts['mfa_challenges_purged'],
+                $counts['cache_entries_pruned'],
+                $counts['logs_deleted'],
+            ));
+
+            break;
+
         case 'help':
         default:
             $out('Iced_out backend console');
@@ -411,6 +444,7 @@ try {
             $out('  make:endpoints        generate the api/ file tree from the route table');
             $out('  routes:check          verify every route has a real handler, name and file');
             $out('  preflight             mint a secret, create + migrate the database, seed if empty');
+            $out('  sweep [--dry-run]     release expired stock holds, purge dead sessions/keys/logs');
 
             break;
     }

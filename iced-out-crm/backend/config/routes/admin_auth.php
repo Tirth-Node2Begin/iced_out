@@ -43,6 +43,112 @@ return [
         'rate_limit' => 'console_read',
         'name' => 'admin.auth.session',
     ],
+    /**
+     * Two-factor authentication for console accounts (opt-in, off by default).
+     *
+     * `verify` is PUBLIC audience, necessarily: it completes a sign-in, so there
+     * is no session yet to present. What authorises it is the challenge ticket
+     * `login` issued moments earlier, which is single-use, five minutes long, and
+     * grants nothing on its own. It carries the `auth` rate limit for the same
+     * reason the login route does.
+     *
+     * The other three are staff-audience — they manage the enrolment of an
+     * account already signed in — and audited, because turning a second factor
+     * off is exactly the change an attacker who got in would make.
+     */
+    [
+        'method' => 'POST',
+        'path' => '/admin/auth/mfa/verify',
+        'handler' => [AuthController::class, 'verifyMfa'],
+        'audience' => Route::AUDIENCE_PUBLIC,
+        'rate_limit' => 'auth',
+        'name' => 'admin.auth.mfa.verify',
+        'rules' => [
+            'challenge' => 'required|string|min:16|max:128',
+            /* 21, because that is what a RECOVERY code is: `10hex-10hex`, and
+               this route accepts one in place of a TOTP code. The bound is a
+               length guard, not a format check — MfaService decides the shape.
+               It read `max:16` while recovery codes were four hex either side of
+               the dash; lengthening them to ten made the API reject every code
+               it had just issued, with a 422 that named the field and not the
+               reason. Anything that changes RECOVERY_CODES' shape changes this. */
+            'code' => 'required|string|min:6|max:21',
+        ],
+    ],
+    [
+        'method' => 'POST',
+        'path' => '/admin/auth/mfa/begin',
+        'handler' => [AuthController::class, 'beginMfa'],
+        'audience' => Route::AUDIENCE_STAFF,
+        'rate_limit' => 'auth',
+        'audit' => true,
+        /* STEP-UP REQUIRED. Without it a borrowed staff session could enrol its
+           OWN authenticator: `disable` needs the password AND a current code, so
+           the real owner — who has the password but not the attacker's secret —
+           could never undo it. A password reset does not clear `user_mfa` either.
+           The victim is locked out permanently and the attacker walks back in the
+           moment they learn the new password. */
+        'step_up' => true,
+        'name' => 'admin.auth.mfa.begin',
+    ],
+    [
+        'method' => 'POST',
+        'path' => '/admin/auth/mfa/confirm',
+        'handler' => [AuthController::class, 'confirmMfa'],
+        'audience' => Route::AUDIENCE_STAFF,
+        'rate_limit' => 'auth',
+        'audit' => true,
+        /* STEP-UP REQUIRED. Without it a borrowed staff session could enrol its
+           OWN authenticator: `disable` needs the password AND a current code, so
+           the real owner — who has the password but not the attacker's secret —
+           could never undo it. A password reset does not clear `user_mfa` either.
+           The victim is locked out permanently and the attacker walks back in the
+           moment they learn the new password. */
+        'step_up' => true,
+        'name' => 'admin.auth.mfa.confirm',
+        'rules' => ['code' => 'required|string|min:6|max:16'],
+    ],
+    [
+        'method' => 'POST',
+        'path' => '/admin/auth/mfa/disable',
+        'handler' => [AuthController::class, 'disableMfa'],
+        'audience' => Route::AUDIENCE_STAFF,
+        'rate_limit' => 'auth',
+        'audit' => true,
+        /* STEP-UP REQUIRED. Without it a borrowed staff session could enrol its
+           OWN authenticator: `disable` needs the password AND a current code, so
+           the real owner — who has the password but not the attacker's secret —
+           could never undo it. A password reset does not clear `user_mfa` either.
+           The victim is locked out permanently and the attacker walks back in the
+           moment they learn the new password. */
+        'step_up' => true,
+        'name' => 'admin.auth.mfa.disable',
+        'rules' => [
+            'password' => 'required|string|min:1|max:200',
+            /* 21 for the same reason as `verify` above: a recovery code is the
+               honest way to turn MFA off when the authenticator is the thing you
+               lost, so this route has to accept one. */
+            'code' => 'required|string|min:6|max:21',
+        ],
+    ],
+
+    /**
+     * Proving the password again, for the actions a session alone is not enough
+     * for. `auth` rate limit, because that is exactly what it is: without one it
+     * would be a way to guess a staff password from inside a stolen session, at
+     * network speed, leaving the account unlocked the whole time.
+     */
+    [
+        'method' => 'POST',
+        'path' => '/admin/auth/step-up',
+        'handler' => [AuthController::class, 'stepUp'],
+        'audience' => Route::AUDIENCE_STAFF,
+        'rate_limit' => 'auth',
+        'name' => 'admin.auth.step_up',
+        'audit' => true,
+        'rules' => ['password' => 'required|string|min:1|max:200'],
+    ],
+
     [
         'method' => 'POST',
         'path' => '/admin/auth/touch',

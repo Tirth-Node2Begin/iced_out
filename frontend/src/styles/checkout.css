@@ -1358,6 +1358,14 @@
   white-space: nowrap;
 }
 
+html[data-performance-mode="low"] .io-modal__overlay,
+html[data-performance-mode="low"] .co-summary__media i,
+html[data-motion="reduced"] .io-modal__overlay,
+html[data-motion="reduced"] .co-summary__media i {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
 .co-summary__body small {
   color: var(--nh-muted);
   font-size: 11.5px;

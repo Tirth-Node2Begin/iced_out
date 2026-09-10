@@ -10,6 +10,7 @@ import { useRef } from "react";
 
 import { EASE_OUT } from "@/components/new-home/motion-primitives";
 import { SHOWCASE, type ShowcaseSlide } from "@/components/new-home/data";
+import { usePerformanceProfile } from "@/lib/performance-mode";
 
 const PHRASE = "Fresh fits for your next workout";
 const COUNT = SHOWCASE.length;
@@ -98,7 +99,12 @@ function Slide({
 
       <motion.div className="nh-card3d__shot" style={{ scale: shotScale }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img alt={slide.left.replace(/\n/g, " ")} src={slide.image} />
+        <img
+          alt={slide.left.replace(/\n/g, " ")}
+          decoding="async"
+          loading="lazy"
+          src={slide.image}
+        />
       </motion.div>
 
       {slide.intro ? (
@@ -145,6 +151,65 @@ function Slide({
   );
 }
 
+function StaticSlide({ slide }: { slide: ShowcaseSlide }) {
+  return (
+    <article className="nh-card3d nh-card3d--static">
+      <div className="nh-card3d__plate" />
+
+      <div className="nh-card3d__shot">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          alt={slide.left.replace(/\n/g, " ")}
+          decoding="async"
+          loading="lazy"
+          src={slide.image}
+        />
+      </div>
+
+      {slide.intro ? (
+        <div className="nh-card3d__intro">
+          <p className="nh-eyebrow nh-card3d__kicker">{slide.kicker}</p>
+          <p className="nh-display nh-card3d__introTitle">
+            With the latest in <span className="nh-light">workout wear</span>
+          </p>
+        </div>
+      ) : null}
+
+      <p className="nh-card3d__label nh-card3d__label--tl">
+        {slide.left.split("\n").map((l) => (
+          <span className="block" key={l}>
+            {l}
+          </span>
+        ))}
+      </p>
+      <p className="nh-card3d__label nh-card3d__label--tr">
+        {slide.right.split("\n").map((l) => (
+          <span className="block" key={l}>
+            {l}
+          </span>
+        ))}
+      </p>
+      <p className="nh-card3d__label nh-card3d__label--bl">
+        {slide.season.split("\n").map((l) => (
+          <span className="block" key={l}>
+            {l}
+          </span>
+        ))}
+      </p>
+      <p className="nh-card3d__label nh-card3d__label--br">
+        <span className="nh-card3d__dot" />
+        <span>
+          {slide.extra.split("\n").map((l) => (
+            <span className="block" key={l}>
+              {l}
+            </span>
+          ))}
+        </span>
+      </p>
+    </article>
+  );
+}
+
 /**
  * 04 — the pinned showcase. One viewport stays pinned for the length of the
  * slide stack; scroll drives both the card swap and two counter-running bands
@@ -152,6 +217,8 @@ function Slide({
  */
 export function Showcase() {
   const ref = useRef<HTMLElement>(null);
+  const profile = usePerformanceProfile();
+  const staticMode = profile.reducedMotion || profile.mode === "low";
   const { scrollYProgress } = useScroll({
     target: ref,
     offset: ["start start", "end end"],
@@ -159,6 +226,18 @@ export function Showcase() {
 
   const topX = useTransform(scrollYProgress, [0, 1], ["4%", "-44%"]);
   const bottomX = useTransform(scrollYProgress, [0, 1], ["-44%", "4%"]);
+
+  if (staticMode) {
+    return (
+      <section className="nh-showcase nh-showcase--static" id="showcase" ref={ref}>
+        <div className="nh-showcase__staticList">
+          {SHOWCASE.map((slide) => (
+            <StaticSlide key={slide.id} slide={slide} />
+          ))}
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section

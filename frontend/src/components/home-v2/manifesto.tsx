@@ -2,13 +2,14 @@
 
 import {
   motion,
-  useReducedMotion,
   useScroll,
   useTransform,
   type MotionValue,
   type Variants,
 } from "motion/react";
 import { useRef } from "react";
+
+import { usePerformanceProfile } from "@/lib/performance-mode";
 
 import { useCopy } from "./copy";
 import { DUR, EASE, ScrollWords } from "./motion";
@@ -24,7 +25,8 @@ import { DUR, EASE, ScrollWords } from "./motion";
  */
 export function Manifesto({ compact = false }: { compact?: boolean }) {
   const { manifesto } = useCopy();
-  const reduce = useReducedMotion();
+  const profile = usePerformanceProfile();
+  const reduce = profile.reducedMotion || profile.mode === "low";
 
   const railMotion = {
     hidden: (side: "left" | "right") => ({
@@ -81,7 +83,8 @@ export function Manifesto({ compact = false }: { compact?: boolean }) {
 
 function CompactManifestoText({ text }: { text: string }) {
   const ref = useRef<HTMLDivElement>(null);
-  const reduce = useReducedMotion();
+  const profile = usePerformanceProfile();
+  const reduce = profile.reducedMotion || profile.mode === "low";
   const { scrollYProgress } = useScroll({
     target: ref,
     offset: ["start 0.9", "end 0.45"],

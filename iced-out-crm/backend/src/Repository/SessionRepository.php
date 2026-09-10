@@ -106,6 +106,49 @@ final class SessionRepository
         );
     }
 
+    /**
+     * Whether this session proved its password within the window.
+     *
+     * Read rather than trusted from anything the client sent: the elevation
+     * lives on the session row, so signing out or being blocked ends it at the
+     * same instant, with no second mechanism to remember.
+     */
+    public function isSteppedUp(int $sessionId, int $windowSeconds): bool
+    {
+        $row = $this->db->selectOne(
+            'SELECT stepped_up_at FROM user_sessions
+              WHERE id = ? AND revoked_at IS NULL AND stepped_up_at IS NOT NULL AND stepped_up_at > ?
+              LIMIT 1',
+            [$sessionId, $this->clock->addSeconds(-$windowSeconds)->format(Clock::STORAGE_FORMAT)],
+        );
+
+        return $row !== null;
+    }
+
+    /** Records that the password was just re-proved on this session. */
+    public function markSteppedUp(int $sessionId): void
+    {
+        $this->db->statement(
+            'UPDATE user_sessions SET stepped_up_at = ? WHERE id = ? AND revoked_at IS NULL',
+            [$this->clock->nowString(), $sessionId],
+        );
+    }
+
+    /**
+     * Ends an elevation early.
+     *
+     * Called when the password CHANGES: an elevation earned with the old
+     * password must not survive it, or a session that was hijacked and elevated
+     * keeps its privileges through the very act meant to take them back.
+     */
+    public function clearStepUp(int $userId, string $audience): void
+    {
+        $this->db->statement(
+            'UPDATE user_sessions SET stepped_up_at = NULL WHERE user_id = ? AND audience = ?',
+            [$userId, $audience],
+        );
+    }
+
     public function purgeExpired(): int
     {
         return $this->db->statement(

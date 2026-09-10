@@ -112,8 +112,20 @@ final class PaymentRepository
     public function nextRefundId(): string
     {
         $series = $this->settings->series('refund', 'ref_ICE', 1, 3);
-        $row = $this->db->selectOne('SELECT public_id FROM refunds ORDER BY public_id DESC LIMIT 1');
-        $highest = $row === null ? 0 : (int) preg_replace('/\D/', '', (string) $row['public_id']);
+
+        /* Ordered as a NUMBER. `public_id` is VARCHAR, so `ORDER BY public_id
+           DESC` is lexicographic — once `ref_ICE1000` exists, `ref_ICE999` sorts
+           above it, the highest reads as 999, and the next id duplicates a row
+           `uq_refunds_public_id` already holds. Every refund after that throws.
+           `str_pad` to a fixed width hides it for the first order of magnitude
+           and no longer. Same defect as IdAllocator::nextOrderNumber. */
+        $row = $this->db->selectOne(
+            "SELECT public_id, CAST(REGEXP_REPLACE(public_id, '[^0-9]', '') AS UNSIGNED) AS serial
+               FROM refunds
+              ORDER BY serial DESC
+              LIMIT 1",
+        );
+        $highest = $row === null ? 0 : (int) $row['serial'];
 
         return $series['prefix'] . str_pad((string) max($series['from'], $highest + 1), max(1, $series['width']), '0', STR_PAD_LEFT);
     }
@@ -147,7 +159,7 @@ final class PaymentRepository
         );
     }
 
-    /** Total already refunded against a payment — what decides "fully refunded". */
+    /** Total already refunded against a payment — what the register displays. */
     public function refundedTotal(int $paymentId): string
     {
         $row = $this->db->selectOne(
@@ -156,6 +168,51 @@ final class PaymentRepository
         );
 
         return $row === null ? '0.00' : (string) $row['total'];
+    }
+
+    /**
+     * Money already SPOKEN FOR against a payment — what decides whether another
+     * refund may be raised at all.
+     *
+     * Deliberately different from `refundedTotal()` above, and the difference is
+     * the bug it fixes. That method counts only `Succeeded`, and every refund is
+     * born `Requested`. So the guard in `createRefund` — "is this more than is
+     * still refundable?" — compared a new refund against a total that ignored
+     * every refund not yet approved. Three refunds for the full amount could all
+     * be raised, because at the moment each was checked none of them had
+     * succeeded yet, and then all three could be approved.
+     *
+     * Anything not `Failed` is money committed: `Requested` and `Processing` are
+     * both on their way out of the door. A `Failed` refund released nothing, so
+     * it correctly frees its amount for another attempt.
+     *
+     * Both methods stay, because they answer different questions. The register
+     * shows what has actually gone back; this decides what may still be sent.
+     */
+    public function committedRefundTotal(int $paymentId): string
+    {
+        $row = $this->db->selectOne(
+            "SELECT COALESCE(SUM(amount), 0) AS total FROM refunds WHERE payment_id = ? AND status <> 'Failed'",
+            [$paymentId],
+        );
+
+        return $row === null ? '0.00' : (string) $row['total'];
+    }
+
+    /**
+     * The payment row, locked for the duration of the caller's transaction.
+     *
+     * Refund creation reads "how much is left" and then writes a refund, and
+     * without a lock two console requests can both read the same remaining
+     * balance and both write. Holding the PAYMENT row — not the refunds —
+     * serialises every refund decision about that payment, which is the only
+     * thing that makes the arithmetic above trustworthy.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function lockPayment(int $paymentId): ?array
+    {
+        return $this->db->selectOne('SELECT * FROM payments WHERE id = ? FOR UPDATE', [$paymentId]);
     }
 
     /* ------------------------------------------------------------- payouts */

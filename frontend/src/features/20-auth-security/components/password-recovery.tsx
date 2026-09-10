@@ -39,7 +39,7 @@ type Step = "email" | "code" | "password" | "done";
 /** Matches the server's per-account resend cooldown. */
 const RESEND_SECONDS = 60;
 
-const MIN_PASSWORD = 6;
+const MIN_PASSWORD = 8;
 
 /** What the API calls a wrong or expired code (backend ValidationException). */
 const OTP_REJECTED = "ICE-AUTH-OTP-422";

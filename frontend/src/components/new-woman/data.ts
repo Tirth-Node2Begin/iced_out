@@ -60,7 +60,7 @@ export const RIBBON = [
  * the colour this floor actually sells — bone, ivory, cream.
  */
 export const HERO_GARMENT = {
-  src: "/images/generated/ghost-products/ghost-knit.png",
+  src: "/images/generated/ghost-products/ghost-knit.webp",
   alt: "Cream ribbed knit polo, ghost mannequin cutout",
 } as const;
 

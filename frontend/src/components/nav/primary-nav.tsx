@@ -23,6 +23,11 @@ import { EASE_OUT } from "@/components/new-home/motion-primitives";
 import { useCart } from "@/features/04-cart/cart-context";
 import { useWishlist } from "@/features/05-wishlist/wishlist-context";
 import { useAuth } from "@/features/20-auth-security/auth-context";
+import {
+  getPerformanceProfile,
+  runWhenIdle,
+  shouldWarmNonCriticalChunks,
+} from "@/lib/performance-mode";
 
 /** Hover opens instantly; a grace period on close survives the diagonal mouse
  * move from a rail item down into the panel hanging below it. */
@@ -228,7 +233,10 @@ export function PrimaryNav({
 
   const warmRoute = useCallback(
     (href: string) => {
-      if (intentPrefetch) router.prefetch(href);
+      const profile = getPerformanceProfile();
+      if (intentPrefetch && profile.mode !== "low" && !profile.saveData) {
+        router.prefetch(href);
+      }
     },
     [intentPrefetch, router],
   );
@@ -255,18 +263,15 @@ export function PrimaryNav({
      exactly the modules they will ask for; webpack answers the second request
      from its module cache. */
   useEffect(() => {
+    const profile = getPerformanceProfile();
+    if (!shouldWarmNonCriticalChunks(profile)) return;
+
     const warm = () => {
       void import("@/components/nav/search-dock");
       void import("@/components/nav/nav-sheet");
     };
 
-    if (typeof window.requestIdleCallback !== "function") {
-      const timer = setTimeout(warm, 1200);
-      return () => clearTimeout(timer);
-    }
-
-    const handle = window.requestIdleCallback(warm, { timeout: 2500 });
-    return () => window.cancelIdleCallback(handle);
+    return runWhenIdle(warm, 2500);
   }, []);
 
   /* What makes the bar legible over page content, and whether the bar is on

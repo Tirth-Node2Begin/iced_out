@@ -11,12 +11,13 @@ import {
   type Segment,
 } from "@/components/new-home/motion-primitives";
 import {
-  HERO_FACES,
   HERO_META,
   HERO_MODEL,
   SHOTS,
   type HeroMetaLabel,
 } from "@/components/new-home/data";
+import { HeroReviews } from "@/components/new-home/hero-reviews";
+import { usePerformanceProfile } from "@/lib/performance-mode";
 
 const RAY_ANGLES = [-64, -48, -33, -19, 19, 33, 48, 64];
 
@@ -69,6 +70,12 @@ export function Hero({
   ctas?: { label: string; href: string }[];
 } = {}) {
   const ref = useRef<HTMLElement>(null);
+  const profile = usePerformanceProfile();
+  const reduce = profile.reducedMotion;
+  const mode = profile.mode;
+  const motionEnabled = !reduce && mode !== "low";
+  const highMotion = motionEnabled && mode === "high";
+  const rayAngles = highMotion ? RAY_ANGLES : motionEnabled ? [-64, -33, 33, 64] : [-48, 48];
   const { scrollYProgress } = useScroll({
     target: ref,
     offset: ["start start", "end start"],
@@ -91,22 +98,29 @@ export function Hero({
               ever fills the right half. `180 - angle` is the same ray mirrored
               across the vertical axis; the pair shares one delay so the two
               sides open together. */}
-          {RAY_ANGLES.flatMap((angle, i) =>
+          {rayAngles.flatMap((angle, i) =>
             [angle, 180 - angle].map((deg) => (
               <motion.div
                 animate={{ opacity: 1, scaleX: 1 }}
                 className="nh-hero__ray"
-                initial={{ opacity: 0, scaleX: 0.2 }}
+                initial={{ opacity: 0, scaleX: motionEnabled ? 0.2 : 1 }}
                 key={deg}
                 style={{ rotate: `${deg}deg` }}
-                transition={{ duration: 1.4, delay: T.settle + i * 0.05, ease: EASE_OUT }}
+                transition={{
+                  duration: highMotion ? 1.4 : motionEnabled ? 0.8 : 0.2,
+                  delay: motionEnabled ? T.settle + i * 0.05 : 0,
+                  ease: EASE_OUT,
+                }}
               />
             )),
           )}
         </div>
       </div>
 
-      <motion.div className="nh-hero__copy" style={{ y: copyY, opacity: fade }}>
+      <motion.div
+        className="nh-hero__copy"
+        style={motionEnabled ? { y: copyY, opacity: fade } : undefined}
+      >
         <SplitHeading
           as="h1"
           className="nh-hero__title"
@@ -118,8 +132,12 @@ export function Hero({
         <motion.div
           animate={{ opacity: 1, y: 0 }}
           className="nh-hero__cta"
-          initial={{ opacity: 0, y: 14 }}
-          transition={{ duration: 0.6, delay: T.cta, ease: EASE_OUT }}
+          initial={motionEnabled ? { opacity: 0, y: 14 } : false}
+          transition={{
+            duration: motionEnabled ? 0.6 : 0.2,
+            delay: motionEnabled ? T.cta : 0,
+            ease: EASE_OUT,
+          }}
         >
           {ctas.map((cta, i) => (
             <Link
@@ -139,14 +157,17 @@ export function Hero({
             Centring lives on the wrapper; the settle rides on an inner element
             so it never fights the scroll parallax on the outer one. */}
         <div className="nh-hero__modelWrap">
-          <motion.div className="nh-hero__modelParallax" style={{ y: modelY }}>
+          <motion.div
+            className="nh-hero__modelParallax"
+            style={motionEnabled ? { y: modelY } : undefined}
+          >
             <motion.div
               animate={{ scale: 1, y: "0%" }}
               className="nh-hero__model"
-              initial={{ scale: 1.24, y: "-7%" }}
+              initial={motionEnabled ? { scale: 1.24, y: "-7%" } : false}
               transition={{
-                duration: T.settleDur,
-                delay: T.settle,
+                duration: motionEnabled ? T.settleDur : 0.2,
+                delay: motionEnabled ? T.settle : 0,
                 ease: EASE_OUT,
               }}
             >
@@ -165,16 +186,16 @@ export function Hero({
 
         {/* spec labels pinned around the subject, in the same register the
             showcase card uses for its product meta */}
-        <motion.div className="nh-hero__meta" style={{ opacity: fade }}>
+        <motion.div className="nh-hero__meta" style={motionEnabled ? { opacity: fade } : undefined}>
           {meta.map((label, i) => (
             <motion.p
               animate={{ opacity: 1, y: 0 }}
               className={`nh-hero__metaItem nh-hero__metaItem--${label.corner}`}
-              initial={{ opacity: 0, y: 12 }}
+              initial={motionEnabled ? { opacity: 0, y: 12 } : false}
               key={label.id}
               transition={{
-                duration: 0.7,
-                delay: T.meta + i * 0.09,
+                duration: motionEnabled ? 0.7 : 0.2,
+                delay: motionEnabled ? T.meta + i * 0.09 : 0,
                 ease: EASE_OUT,
               }}
             >
@@ -202,33 +223,36 @@ export function Hero({
           two elements: wrapper fades on scroll, inner plays the entrance */}
       <motion.div
         className="nh-hero__aside nh-hero__aside--left"
-        style={{ opacity: fade }}
+        style={motionEnabled ? { opacity: fade } : undefined}
       >
         <motion.div
           animate={{ opacity: 1, y: 0 }}
-          initial={{ opacity: 0, y: 22 }}
-          transition={{ duration: 0.7, delay: T.review, ease: EASE_OUT }}
+          initial={motionEnabled ? { opacity: 0, y: 22 } : false}
+          transition={{
+            duration: motionEnabled ? 0.7 : 0.2,
+            delay: motionEnabled ? T.review : 0,
+            ease: EASE_OUT,
+          }}
         >
-          <div className="nh-avatars">
-            {HERO_FACES.map((src, i) => (
-              <span key={src} style={{ zIndex: HERO_FACES.length - i }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img alt="" src={src} />
-              </span>
-            ))}
-          </div>
+          {/* Real reviewers, or nothing at all — see `hero-reviews.tsx`. This
+              was three stock portraits until the register could answer for it. */}
+          <HeroReviews />
           <p className="nh-body">{intro}</p>
         </motion.div>
       </motion.div>
 
       <motion.div
         className="nh-hero__aside nh-hero__aside--right"
-        style={{ opacity: fade }}
+        style={motionEnabled ? { opacity: fade } : undefined}
       >
         <motion.div
           animate={{ opacity: 1, y: 0 }}
-          initial={{ opacity: 0, y: 22 }}
-          transition={{ duration: 0.75, delay: T.review, ease: EASE_OUT }}
+          initial={motionEnabled ? { opacity: 0, y: 22 } : false}
+          transition={{
+            duration: motionEnabled ? 0.75 : 0.2,
+            delay: motionEnabled ? T.review : 0,
+            ease: EASE_OUT,
+          }}
         >
           <button
             aria-label="Play the campaign film"
@@ -236,7 +260,7 @@ export function Hero({
             type="button"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img alt="" src={SHOTS.drop} />
+            <img alt="" decoding="async" loading="lazy" src={SHOTS.drop} />
             <span className="nh-videocard__play">
               <svg
                 aria-hidden

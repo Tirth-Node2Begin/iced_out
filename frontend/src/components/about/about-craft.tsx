@@ -1,9 +1,10 @@
 "use client";
 
-import { motion, useInView, useReducedMotion, useScroll } from "motion/react";
+import { motion, useInView, useScroll } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 
 import { ABOUT_EASE, AboutReveal, AboutSplitHeading } from "@/components/about/about-motion";
+import { usePerformanceProfile } from "@/lib/performance-mode";
 
 /**
  * Each step owns a frame. The sticky panel holds all four stacked, and the one
@@ -52,7 +53,8 @@ const steps = [
 
 export function AboutCraft() {
   const sectionRef = useRef<HTMLElement>(null);
-  const reduceMotion = useReducedMotion();
+  const profile = usePerformanceProfile();
+  const reduceMotion = profile.reducedMotion || profile.mode === "low";
   const [active, setActive] = useState(0);
 
   /* Only the rail reads scroll directly — which frame is showing is decided by
@@ -143,7 +145,8 @@ function CraftStep({
   onEnter: (index: number) => void;
 }) {
   const ref = useRef<HTMLElement>(null);
-  const reduceMotion = useReducedMotion();
+  const profile = usePerformanceProfile();
+  const reduceMotion = profile.reducedMotion || profile.mode === "low";
   /* The band is the middle of the viewport, so a step claims the frame when it
      is the one being read — not when its top edge clips in at the bottom. */
   const inBand = useInView(ref, { margin: "-45% 0px -45% 0px" });

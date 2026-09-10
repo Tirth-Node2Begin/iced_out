@@ -15,6 +15,7 @@ import {
   Reveal,
 } from "@/components/new-home/motion-primitives";
 import { SHOTS } from "@/components/new-home/data";
+import { usePerformanceProfile } from "@/lib/performance-mode";
 
 const FRAMES = [
   {
@@ -63,30 +64,34 @@ function GhostWord({
   x,
   y,
   inView,
+  motionEnabled,
 }: {
   tone: "page" | "over";
   word: string;
   x: MotionValue<string>;
   y: MotionValue<number>;
   inView: boolean;
+  motionEnabled: boolean;
 }) {
   return (
     <div aria-hidden className="nh-editorial__ghostWrap">
       {/* the drift lives on the outer element and the entrance on the inner
           one, so the scroll transform and the reveal never overwrite each
           other's `transform` */}
-      <motion.div style={{ x, y }}>
+      <motion.div style={motionEnabled ? { x, y } : undefined}>
         <motion.p
-          animate={inView ? "show" : "hidden"}
+          animate={inView || !motionEnabled ? "show" : "hidden"}
           className={`nh-editorial__ghost nh-editorial__ghost--${tone}`}
-          initial="hidden"
+          initial={motionEnabled ? "hidden" : false}
           variants={{
-            hidden: { opacity: 0, y: "34%", scaleX: 1.08 },
+            hidden: motionEnabled
+              ? { opacity: 0, y: "34%", scaleX: 1.08 }
+              : { opacity: 1, y: "0%", scaleX: 1 },
             show: {
               opacity: 1,
               y: "0%",
               scaleX: 1,
-              transition: { duration: 1.15, ease: EASE_OUT },
+              transition: { duration: motionEnabled ? 1.15 : 0.2, ease: EASE_OUT },
             },
           }}
           // the stylesheet sizes the line down from its length — both copies
@@ -119,6 +124,8 @@ export function Editorial({
   notes?: [string, string];
 } = {}) {
   const ref = useRef<HTMLElement>(null);
+  const profile = usePerformanceProfile();
+  const motionEnabled = !profile.reducedMotion && profile.mode !== "low";
   const { scrollYProgress } = useScroll({
     target: ref,
     offset: ["start end", "end start"],
@@ -137,6 +144,7 @@ export function Editorial({
         <div className="nh-editorial">
           <GhostWord
             inView={ghostInView}
+            motionEnabled={motionEnabled}
             tone="page"
             word={word}
             x={ghostX}
@@ -159,6 +167,7 @@ export function Editorial({
               <div aria-hidden className="nh-editorial__ghostClip">
                 <GhostWord
                   inView={ghostInView}
+                  motionEnabled={motionEnabled}
                   tone="over"
                   word={word}
                   x={ghostX}

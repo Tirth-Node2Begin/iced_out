@@ -3,11 +3,19 @@
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, type ReactNode } from "react";
 
+import { getPerformanceProfile } from "@/lib/performance-mode";
+
 export function RouteExperience({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const progressRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    const profile = getPerformanceProfile();
+    if (profile.mode === "low" || profile.reducedMotion) {
+      if (progressRef.current) progressRef.current.style.transform = "scaleX(0)";
+      return;
+    }
+
     let animationFrame = 0;
     const updateProgress = () => {
       animationFrame = 0;

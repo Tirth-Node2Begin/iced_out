@@ -9,6 +9,21 @@ use Iced\Kernel\Route;
 
 /** Spec §8.3 profile (9) and §8.4 addresses (5). Customer audience throughout. */
 
+/**
+ * Customer routes whose use must leave a trace in `audit_logs`.
+ *
+ * `Route::fromArray()` defaults `audit` to true for STAFF mutations only, which
+ * meant the console was fully accountable and the shop was not: a password
+ * change, an email change and a session revocation — the exact three actions an
+ * account takeover performs — produced no audit row anywhere. When a customer
+ * reported losing their account there was nothing to read.
+ *
+ * Deliberately a short list. Auditing every customer write would turn
+ * `audit_logs` into a second orders table and bury the rows that matter; these
+ * are the ones that change WHO CAN GET IN.
+ */
+$AUDITED = ['me.update', 'me.password', 'me.sessions.revoke', 'me.sessions.revoke_others'];
+
 $customer = static fn (string $verb, string $path, string $method, string $name, array $rules = []): array => [
     'method' => $verb,
     'path' => $path,
@@ -16,6 +31,7 @@ $customer = static fn (string $verb, string $path, string $method, string $name,
     'audience' => Route::AUDIENCE_CUSTOMER,
     'name' => $name,
     'rules' => $rules,
+    'audit' => in_array($name, $AUDITED, true),
 ];
 
 // Server-side mirror of checkout-validation.ts, so the browser and the API
@@ -40,17 +56,39 @@ $requiredAddressRules['pincode'] = 'required|pincode';
 
 return [
     $customer('GET', '/me', 'show', 'me.show'),
+    /*
+     * `currentPassword` is optional HERE and required in the controller, and
+     * only when `email` is being changed — a rule language with no conditionals
+     * cannot say "required if", and marking it required outright would break
+     * every name and mobile edit.
+     *
+     * Why it is demanded at all: this endpoint moved the address a password
+     * reset is sent to, with no re-authentication, no verification of the new
+     * address, and no notice to the old one. A session someone else briefly held
+     * — a shared laptop, a stolen cookie — could therefore be turned into
+     * permanent ownership of the account: change the email, then use "forgot
+     * password" against the new one. Knowing the password is what separates the
+     * owner from a borrowed session.
+     */
     $customer('PATCH', '/me', 'update', 'me.update', [
         'name' => 'string|min:2|max:120',
         'email' => 'email|max:190',
         'mobile' => 'string|max:20',
+        'currentPassword' => 'string|max:200',
     ]),
-    $customer('PUT', '/me/photo', 'uploadPhoto', 'me.photo.upload'),
+    /* Its own bucket: an upload decodes and re-encodes an image, and this
+       route had no rate_limit key at all — it fell through to `default`, 240 a
+       minute. See config/app.php → rate_limits.uploads. */
+    $customer('PUT', '/me/photo', 'uploadPhoto', 'me.photo.upload') + ['rate_limit' => 'uploads'],
     $customer('DELETE', '/me/photo', 'deletePhoto', 'me.photo.delete'),
+    /* `password_change`, because this route had NO bucket — not `default`, not
+       anything. It takes the current password and reports whether it was right,
+       so a stolen session cookie could be used to guess the password behind it
+       at whatever rate the host would answer. See config/app.php. */
     $customer('POST', '/me/password', 'changePassword', 'me.password', [
         'current' => 'required|string|min:1|max:200',
         'next' => 'required|string|min:8|max:200',
-    ]),
+    ]) + ['rate_limit' => 'password_change'],
     $customer('GET', '/me/sessions', 'sessions', 'me.sessions.index'),
     $customer('DELETE', '/me/sessions/{id}', 'revokeSession', 'me.sessions.revoke'),
     $customer('POST', '/me/sessions/revoke-others', 'revokeOtherSessions', 'me.sessions.revoke_others'),
@@ -90,6 +128,9 @@ return [
         // A double-tap on a slow connection must not try to add the code twice.
         'idempotent' => true,
         'rate_limit' => 'payments',
+        // Money entering a wallet. The ledger says what moved; this says who
+        // asked, from which address, under which request id.
+        'audit' => true,
         'name' => 'me.wallet.redeem',
         'rules' => ['code' => 'required|string|min:3|max:40'],
     ],

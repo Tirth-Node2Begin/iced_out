@@ -16,6 +16,7 @@ use Iced\Kernel\Response;
 use Iced\Presenter\PaymentPresenter;
 use Iced\Repository\PaymentRepository;
 use Iced\Support\Clock;
+use Iced\Support\Csv;
 use Iced\Support\Paginator;
 
 /** Spec §8.25 — console payments, refunds, payouts (10 endpoints). */
@@ -187,29 +188,89 @@ final class PaymentController
         }
 
         $payment = $this->find($input['payment']);
-
-        $alreadyRefunded = Money::fromDecimalString($this->payments->refundedTotal((int) $payment['id']));
-        $paid = Money::fromDecimalString((string) $payment['amount']);
         $asked = Money::fromRupees($input['amount']);
 
-        if ($alreadyRefunded->plus($asked)->isGreaterThan($paid)) {
-            throw ValidationException::field(
-                'amount',
-                sprintf('That is more than the ₹%d still refundable.', $paid->minus($alreadyRefunded)->rupees()),
-                'ICE-REF-422',
+        /* ---- one refund decision at a time, per payment --------------------
+
+           This used to read the refunded total and then insert, with no lock and
+           no transaction. Two console requests could both read the same
+           remaining balance and both write, and the arithmetic that was supposed
+           to stop an over-refund never saw the other one coming.
+
+           Worse than the race was what was being counted: `refundedTotal()` sums
+           only `Succeeded` refunds, and every refund is born `Requested`. So the
+           check ignored every refund that had been raised and not yet approved —
+           three refunds for the full amount could each pass it, and then all
+           three could be approved.
+
+           Both are closed here: the payment row is held for the duration, and
+           the total counts everything that is not `Failed`. */
+        $publicId = $this->db->transaction(function () use ($payment, $asked, $input, $request): string {
+            $locked = $this->payments->lockPayment((int) $payment['id']);
+
+            if ($locked === null) {
+                throw new NotFoundException('ICE-REF-404', 'We could not find that payment.');
+            }
+
+            /* ---- YOU CAN ONLY SEND BACK MONEY YOU ACTUALLY TOOK -------------
+
+               Every guard below this line is about AMOUNT, and each one assumed
+               the money had arrived. Nothing asked whether it had.
+
+               `payments.status` is one of Captured, Due, Failed, Refunded.
+               Only the first means money was received. `Due` is a
+               cash-on-delivery order that has not been collected yet and `Failed`
+               is a payment that did not go through — both carry a perfectly good
+               `amount`, which is the number the refundable arithmetic works
+               from, so both passed every check and produced a refund in
+               `Requested`. Approve it and real money leaves the merchant account
+               against money that never entered it. The development database has
+               five Due and one Failed payment sitting there right now, each
+               refundable in full today.
+
+               It reads the LOCKED row, not the one fetched before the
+               transaction: `collectCod` flips Due to Captured and a refund
+               decision must not be made from a status that was true a moment ago.
+
+               `Refunded` is refused too, and says so in its own words rather
+               than as an arithmetic complaint — that status is set only when a
+               payment has been refunded in full, so there is nothing left. */
+            $status = (string) $locked['status'];
+
+            if ($status !== 'Captured') {
+                throw ValidationException::field(
+                    'payment',
+                    $status === 'Refunded'
+                        ? 'That payment has already been refunded in full.'
+                        : sprintf('That payment is %s, so there is nothing to refund yet.', strtolower($status)),
+                    'ICE-REF-422',
+                );
+            }
+
+            $committed = Money::fromDecimalString($this->payments->committedRefundTotal((int) $payment['id']));
+            $paid = Money::fromDecimalString((string) $locked['amount']);
+
+            if ($committed->plus($asked)->isGreaterThan($paid)) {
+                throw ValidationException::field(
+                    'amount',
+                    sprintf('That is more than the ₹%d still refundable.', $paid->minus($committed)->rupees()),
+                    'ICE-REF-422',
+                );
+            }
+
+            $id = $this->payments->nextRefundId();
+
+            $this->payments->insertRefund(
+                $id,
+                (int) $payment['id'],
+                (string) $payment['order_number'],
+                $asked->toDecimalString(),
+                $input['reason'],
+                $this->actorId($request),
             );
-        }
 
-        $publicId = $this->payments->nextRefundId();
-
-        $this->payments->insertRefund(
-            $publicId,
-            (int) $payment['id'],
-            (string) $payment['order_number'],
-            $asked->toDecimalString(),
-            $input['reason'],
-            $this->actorId($request),
-        );
+            return $id;
+        });
 
         $request->setAttribute('audit_entity_type', 'refund');
         $request->setAttribute('audit_entity_id', $publicId);
@@ -247,10 +308,38 @@ final class PaymentController
         }
 
         return $this->db->transaction(function () use ($id, $refund, $input, $request): Response {
+            $paymentId = (int) $refund['payment_id'];
+
+            /* The last gate before money leaves. Creation already checks the
+               committed total under this same lock, but a refund can sit in
+               `Requested` for days while other refunds are raised and approved
+               against the same payment — so the sum is re-proved here, at the
+               moment it actually matters, rather than trusted from whenever the
+               row happened to be created. */
+            if ($input['status'] === 'Succeeded') {
+                $locked = $this->payments->lockPayment($paymentId);
+
+                if ($locked !== null) {
+                    $paid = Money::fromDecimalString((string) $locked['amount']);
+                    $alreadySucceeded = Money::fromDecimalString($this->payments->refundedTotal($paymentId));
+                    $thisOne = Money::fromDecimalString((string) $refund['amount']);
+
+                    if ($alreadySucceeded->plus($thisOne)->isGreaterThan($paid)) {
+                        throw new ConflictException(
+                            'ICE-REF-409',
+                            sprintf(
+                                'Approving this would refund more than the ₹%d that was taken. ₹%d has already gone back.',
+                                $paid->rupees(),
+                                $alreadySucceeded->rupees(),
+                            ),
+                        );
+                    }
+                }
+            }
+
             $this->payments->setRefundStatus($id, $input['status'], $this->actorId($request));
 
             if ($input['status'] === 'Succeeded') {
-                $paymentId = (int) $refund['payment_id'];
                 $payment = $this->db->selectOne('SELECT amount FROM payments WHERE id = ?', [$paymentId]);
                 $refunded = Money::fromDecimalString($this->payments->refundedTotal($paymentId));
 
@@ -317,16 +406,22 @@ final class PaymentController
         fputcsv($handle, ['payment_id', 'order', 'gateway', 'method', 'amount', 'status', 'reference', 'created_at']);
 
         foreach ($this->payments->forExport($from, $to) as $row) {
-            fputcsv($handle, [
-                (string) $row['public_id'],
-                (string) $row['order_number'],
-                (string) $row['gateway'],
-                (string) $row['method'],
-                (string) $row['amount'],
-                (string) $row['status'],
-                (string) $row['reference'],
-                (string) $row['created_at'],
-            ]);
+            /* Csv::row, because a spreadsheet treats a cell starting `=`, `+`,
+               `-` or `@` as a formula and `reference` is not ours: on the
+               non-captured path PlaceOrderService takes it from the checkout
+               request body. An anonymous cash-on-delivery order is enough to put
+               `=HYPERLINK(...)` in this column and have it run on the finance
+               workstation that opens the month's export. See Support\Csv. */
+            fputcsv($handle, Csv::row([
+                $row['public_id'],
+                $row['order_number'],
+                $row['gateway'],
+                $row['method'],
+                $row['amount'],
+                $row['status'],
+                $row['reference'],
+                $row['created_at'],
+            ]));
         }
 
         rewind($handle);

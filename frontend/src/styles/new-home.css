@@ -1006,9 +1006,72 @@
   object-fit: cover;
 }
 
+/* A reviewer's initial, where a stock portrait used to be. Same 44px circle
+   and same ring as the image chips above, so the stack reads identically
+   whether a face or a letter is standing in it.
+
+   Selected as `.nh-avatars span.nh-avatars__chip` rather than on the class
+   alone: `.nh-avatars span` above sets `display: block`, and on a bare class
+   that wins on specificity — which leaves `place-items` inert and the letter
+   sitting in the top-left corner of the circle instead of its middle. */
+.nh-avatars span.nh-avatars__chip {
+  display: grid;
+  place-items: center;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+  /* Dark ink: every tone in TONES is a light one, chosen to sit on the hero's
+     graphite. Reading this from --nh-ink would put near-white on near-white. */
+  color: #14171a;
+  text-indent: 0;
+  user-select: none;
+}
+
+/* The overflow count is the one chip that is not somebody, so it drops the
+   tint and takes the surface instead. */
+.nh-avatars span.nh-avatars__chip--more {
+  background: var(--nh-surface-3);
+  color: var(--nh-muted);
+  box-shadow: 0 0 0 2px var(--nh-ring), inset 0 0 0 1px var(--nh-hairline);
+  font-size: 13px;
+}
+
+/* The proof block owns the gap down to the body copy, so the avatar row can
+   drop the bottom margin it carries when it stands alone. Two elements each
+   holding half the spacing is how a stack ends up with an accidental 3rem. */
+.nh-proof {
+  margin-bottom: clamp(1.5rem, 4vw, 2.75rem);
+}
+
+.nh-proof .nh-avatars {
+  margin-bottom: 0.7rem;
+}
+
+.nh-proof__line {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45em;
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--nh-muted);
+}
+
+.nh-proof__score {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--nh-ink);
+}
+
 .nh-hero__aside p {
   text-indent: 5.5em;
   margin: 0;
+}
+
+/* The rating line is a <p> inside the aside, so it inherits the first-line
+   indent meant for the hero's body copy. It is a label, not prose. */
+.nh-hero__aside .nh-proof__line {
+  text-indent: 0;
 }
 
 .nh-videocard {
@@ -1984,4 +2047,53 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+.nh-blinds picture {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.nh-showcase--static {
+  padding: clamp(56px, 9vw, 112px) var(--nh-gutter);
+}
+
+.nh-showcase__staticList {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 320px));
+  justify-content: center;
+  gap: clamp(18px, 4vw, 42px);
+}
+
+.nh-card3d--static {
+  width: 100%;
+}
+
+.nh-card3d--static .nh-card3d__shot {
+  transform: none !important;
+}
+
+@media (max-width: 700px) {
+  .nh-showcase__staticList {
+    grid-template-columns: minmax(0, 320px);
+  }
+}
+
+html[data-performance-mode="low"] .nh-root .nh-nav__plate,
+html[data-performance-mode="low"] .nh-root .nh-nav__rail,
+html[data-motion="reduced"] .nh-root .nh-nav__plate,
+html[data-motion="reduced"] .nh-root .nh-nav__rail {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+html[data-performance-mode="low"] .nh-root .nh-blinds__strip,
+html[data-motion="reduced"] .nh-root .nh-blinds__strip {
+  will-change: auto;
+}
+
+html[data-performance-mode="low"] .nh-root .nh-hero__rays,
+html[data-motion="reduced"] .nh-root .nh-hero__rays {
+  opacity: 0.58;
 }

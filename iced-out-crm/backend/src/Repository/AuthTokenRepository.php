@@ -6,6 +6,7 @@ namespace Iced\Repository;
 
 use Iced\Kernel\Database;
 use Iced\Support\Clock;
+use Iced\Support\Config;
 
 /**
  * `auth_tokens` — the single-use, hashed, expiring credentials of spec §5.6.
@@ -34,15 +35,60 @@ final class AuthTokenRepository
     public function __construct(
         private readonly Database $db,
         private readonly Clock $clock,
+        private readonly Config $config,
     ) {
     }
 
     /**
      * The stored form of one code. BINARY(32), so the raw digest, not hex.
+     *
+     * ── KEYED, AND WHY THAT IS THE WHOLE POINT ──────────────────────────────
+     *
+     * This was a bare `hash('sha256', …)`, and the docblock above — "a dump of
+     * this table cannot be replayed against the reset endpoint" — was not true
+     * while it was.
+     *
+     * The secret being protected is SIX DIGITS. Every input to the digest except
+     * those digits is either public or guessable: the audience is one of two
+     * fixed strings and the email is the account being attacked. So anyone
+     * holding the table could compute all one million candidate digests for a
+     * given address and match the row in well under a second on a laptop. That
+     * turns any read-only exposure — a leaked nightly backup, a SQL injection
+     * that reads but cannot write, a shared-host neighbour reaching the data
+     * directory — into a live account takeover: recover the code for a targeted
+     * account, and walk in through the front door with a password YOU set.
+     * Short expiry does not help, because deriving the code takes less time than
+     * reading the row did.
+     *
+     * `hash_hmac` with a server-side key breaks that. The key is in the
+     * environment and not in the database, so the offline search is impossible
+     * without a second, independent compromise — which is the same argument that
+     * puts a pepper on the password hashes, applied to the credential that can
+     * REPLACE a password.
+     *
+     * ── THE KEY, AND WHAT ROTATING IT COSTS ─────────────────────────────────
+     *
+     * `PASSWORD_PEPPER`, falling back to `SESSION_SECRET` exactly as
+     * PasswordHasher does, so a deployment that has never heard of the new
+     * variable still gets a key. Sharing the pepper is safe here: the two uses
+     * are domain-separated by the `pwreset:` prefix, so neither can be used as
+     * an oracle for the other.
+     *
+     * Changing either variable invalidates outstanding reset codes. That is
+     * worth stating and not worth avoiding — these live fifteen minutes, and the
+     * remedy is to ask for another one. Contrast the password hashes, where the
+     * same rotation would be catastrophic; that asymmetry is why this method can
+     * afford to be keyed and simple.
      */
-    public static function hash(string $audience, string $emailNormalized, string $code): string
+    public function hash(string $audience, string $emailNormalized, string $code): string
     {
-        return hash('sha256', $audience . '|' . $emailNormalized . '|' . $code, true);
+        $secret = $this->config->string('app.password_pepper');
+
+        if ($secret === '') {
+            $secret = $this->config->string('app.session.secret');
+        }
+
+        return hash_hmac('sha256', $audience . '|' . $emailNormalized . '|' . $code, 'pwreset:' . $secret, true);
     }
 
     /**

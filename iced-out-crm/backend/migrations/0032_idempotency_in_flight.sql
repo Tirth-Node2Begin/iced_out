@@ -1,0 +1,45 @@
+-- Idempotency that survives CONCURRENCY, not just repetition.
+--
+-- WHAT WAS WRONG.
+--
+-- The middleware read, then wrote:
+--
+--     SELECT ... FROM idempotency_keys WHERE scope = ? AND endpoint = ? AND key_hash = ?
+--     ... if nothing came back, run the handler ...
+--     INSERT INTO idempotency_keys ...
+--
+-- Two requests carrying the same Idempotency-Key and arriving together both miss
+-- that SELECT, both run the handler, and both insert. The double-tap it was
+-- written to stop is exactly the case that produces them: a shopper on a slow
+-- connection presses CHECKOUT twice and the two requests are milliseconds apart,
+-- not seconds. The unique index underneath meant the second INSERT collapsed
+-- onto the first — so the table looked right afterwards while two orders had
+-- been placed.
+--
+-- WHAT THIS COLUMN CHANGES.
+--
+-- The row is now claimed BEFORE the handler runs, with status IN_FLIGHT, and the
+-- unique index arbitrates instead of a SELECT. The second request loses the
+-- insert, finds an IN_FLIGHT row, and is refused with a retryable 409 rather
+-- than being allowed to do the work again. When the first finishes, the row is
+-- updated to DONE and carries the stored response; a later retry replays it,
+-- exactly as before.
+--
+-- A handler that FAILS deletes its own claim, so a card that was declined can be
+-- tried again with the same key. Without that, one failure would poison the key
+-- for the full 48-hour TTL and the shopper could never retry.
+--
+-- WHY THE DEFAULT IS 'DONE'.
+--
+-- Every row that exists when this runs is a COMPLETED response — the old code
+-- only ever inserted after the handler returned. Defaulting to DONE describes
+-- them truthfully and means the replay path keeps working for keys issued before
+-- the deployment. A default of IN_FLIGHT would make every historic key look like
+-- a request still in progress and refuse every legitimate retry.
+--
+-- Additive: one nullable-in-practice column with a default. No index is dropped,
+-- no type changed, and `uq_idempotency_keys (scope, endpoint, key_hash)` — which
+-- is what actually does the work — is left exactly as it was.
+
+ALTER TABLE idempotency_keys
+    ADD COLUMN status VARCHAR(12) NOT NULL DEFAULT 'DONE' AFTER request_hash;

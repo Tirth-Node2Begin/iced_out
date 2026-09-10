@@ -27,6 +27,36 @@ const archivo = Archivo({
   display: "swap",
 });
 
+const PERFORMANCE_MODE_BOOTSTRAP = `
+(function () {
+  try {
+    var nav = navigator || {};
+    var connection = nav.connection || {};
+    var memory = typeof nav.deviceMemory === "number" ? nav.deviceMemory : undefined;
+    var cores = typeof nav.hardwareConcurrency === "number" ? nav.hardwareConcurrency : undefined;
+    var saveData = !!connection.saveData;
+    var slowConnection = /(^slow-2g$|^2g$)/.test(connection.effectiveType || "");
+    var reducedMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    var coarse = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
+    var viewportWidth = Math.min(window.innerWidth || Infinity, (window.screen && window.screen.width) || Infinity);
+    var viewportHeight = Math.min(window.innerHeight || Infinity, (window.screen && window.screen.height) || Infinity);
+    var smallScreen = viewportWidth <= 700 || viewportHeight <= 560;
+    var phone = coarse && viewportWidth <= 780;
+    var lowMemory = memory !== undefined && memory <= 3;
+    var constrainedMemory = memory !== undefined && memory <= 4;
+    var weakCpu = cores !== undefined && cores <= 4;
+    var modestCpu = cores !== undefined && cores <= 6;
+    var modestMemory = memory !== undefined && memory <= 6;
+    var low = reducedMotion || saveData || slowConnection || lowMemory || (phone && (constrainedMemory || weakCpu || viewportWidth <= 430)) || (smallScreen && constrainedMemory && weakCpu);
+    var medium = !low && (phone || viewportWidth <= 1024 || modestCpu || modestMemory || smallScreen);
+    var root = document.documentElement;
+    root.dataset.performanceMode = low ? "low" : medium ? "medium" : "high";
+    root.dataset.motion = reducedMotion ? "reduced" : "full";
+    root.dataset.saveData = saveData ? "true" : "false";
+  } catch (_) {}
+})();
+`;
+
 export const metadata: Metadata = {
   metadataBase: new URL("https://iced-out.example"),
   /** `Iced Out • <page>` — see `@/lib/tab-title` for the rule and its exception. */
@@ -62,7 +92,15 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <html lang="en" data-scroll-behavior="smooth">
+    <html
+      lang="en"
+      data-performance-mode="high"
+      data-scroll-behavior="smooth"
+      suppressHydrationWarning
+    >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: PERFORMANCE_MODE_BOOTSTRAP }} />
+      </head>
       <body className={archivo.variable}>
         <AppProviders>{children}</AppProviders>
       </body>

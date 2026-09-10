@@ -4,11 +4,12 @@ import {
   AnimatePresence,
   motion,
   useMotionValueEvent,
-  useReducedMotion,
   useScroll,
   useTransform,
 } from "motion/react";
 import { useRef, useState } from "react";
+
+import { usePerformanceProfile } from "@/lib/performance-mode";
 
 import { useCopy, type HighlightCard } from "./copy";
 import { DUR, EASE, RevealImage, ScrollWords } from "./motion";
@@ -52,7 +53,8 @@ export function Highlights() {
   const { highlights } = useCopy();
   const cards = highlights.cards;
   const ref = useRef<HTMLElement>(null);
-  const reduce = useReducedMotion() ?? false;
+  const profile = usePerformanceProfile();
+  const reduce = profile.reducedMotion || profile.mode === "low";
   const [active, setActive] = useState(0);
 
   const { scrollYProgress } = useScroll({

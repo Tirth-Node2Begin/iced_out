@@ -267,6 +267,52 @@ final class CatalogRepository
     }
 
     /**
+     * Several published products by slug, keyed by slug.
+     *
+     * The bag's read needs the full storefront `Product` behind every line, and
+     * a `findStorefrontProduct` per line would be a query per line on a page
+     * that renders them all at once — the same reason `variantsForProducts`
+     * and `photosForProducts` are shaped for a whole page rather than a card.
+     *
+     * Slugs that name nothing published simply do not come back, which is what
+     * lets the cart drop a line whose product has left the catalogue.
+     *
+     * @param list<string> $slugs
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    public function storefrontProductsBySlugs(array $slugs): array
+    {
+        $slugs = array_values(array_unique($slugs));
+
+        if ($slugs === []) {
+            return [];
+        }
+
+        $rows = $this->db->select(
+            "SELECT p.*, col.name AS collection_name, cat.name AS taxonomy_name,
+                    m.public_id AS image_public_id,
+                    rs.review_count, rs.rating_avg
+               FROM products p
+               LEFT JOIN collections col ON col.public_id = p.collection_slug
+               LEFT JOIN categories cat ON cat.id = p.category_id AND cat.deleted_at IS NULL
+               LEFT JOIN media_assets m ON m.id = p.image_media_id
+               LEFT JOIN product_rating_summaries rs ON rs.product_id = p.id
+              WHERE p.public_id IN (" . implode(', ', array_fill(0, count($slugs), '?')) . ")
+                AND p.deleted_at IS NULL AND p.status = 'Published'",
+            $slugs,
+        );
+
+        $keyed = [];
+
+        foreach ($rows as $row) {
+            $keyed[(string) $row['public_id']] = $row;
+        }
+
+        return $keyed;
+    }
+
+    /**
      * The published catalogue, ordered by what is actually selling.
      *
      * "Trending" is DERIVED, never a column an operator ticks: it is units

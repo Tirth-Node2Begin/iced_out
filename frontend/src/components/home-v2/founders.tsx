@@ -4,12 +4,13 @@ import {
   AnimatePresence,
   motion,
   useMotionValueEvent,
-  useReducedMotion,
   useScroll,
   useTransform,
   type MotionValue,
 } from "motion/react";
 import { useRef, useState } from "react";
+
+import { usePerformanceProfile } from "@/lib/performance-mode";
 
 import { useCopy, type Founder } from "./copy";
 import { DUR, EASE, MaskLines } from "./motion";
@@ -124,7 +125,8 @@ export function Founders() {
   const { founders } = useCopy();
   const count = founders.length;
   const ref = useRef<HTMLElement>(null);
-  const reduce = useReducedMotion() ?? false;
+  const profile = usePerformanceProfile();
+  const reduce = profile.reducedMotion || profile.mode === "low";
   const [active, setActive] = useState(0);
 
   const { scrollYProgress } = useScroll({
@@ -147,7 +149,7 @@ export function Founders() {
       className="hv2-founders"
       id="team"
       ref={ref}
-      style={{ height: `${count * 100}svh` }}
+      style={reduce ? undefined : { height: `${count * 100}svh` }}
     >
       <div className="hv2-founders__pin hv2-shell">
         {/* No AOS in this section. It is a pinned stage: everything inside is

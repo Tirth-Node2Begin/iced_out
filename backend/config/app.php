@@ -21,6 +21,36 @@ return [
 
     'cors_allowed_origins' => Env::list('CORS_ALLOWED_ORIGINS'),
 
+    /**
+     * Origins allowed to drive a COOKIE-AUTHENTICATED WRITE (spec §5.2).
+     *
+     * Held apart from the CORS list on purpose. That one answers "who may
+     * read a response cross-site"; this answers "who may spend this
+     * shopper's money", and they were the same variable — so widening CORS
+     * to fix a preflight during development silently widened who was
+     * trusted to place orders and change passwords.
+     *
+     * EMPTY IS THE PRODUCTION SETTING. The site and its API are one origin,
+     * so `app.url` alone is the whole list and OriginCheck adds it itself.
+     * Left unset this falls back to the CORS list, which is exactly the old
+     * behaviour — nothing that works today stops working.
+     */
+    'trusted_origins' => Env::list('TRUSTED_ORIGINS'),
+
+    /**
+     * The password pepper — held apart from the session key, and defaulting to
+     * it so that nothing changes until somebody deliberately separates them.
+     *
+     * They used to be the same value doing two jobs, which meant rotating a
+     * leaked SESSION_SECRET also made every stored password hash unverifiable.
+     * Set this to the OLD SESSION_SECRET before minting a new one and passwords
+     * survive the rotation; see PasswordHasher::pepper().
+     *
+     * Once set it can never change without forcing every customer and every
+     * staff member through a password reset.
+     */
+    'password_pepper' => Env::string('PASSWORD_PEPPER'),
+
     'session' => [
         'customer_cookie' => Env::string('SESSION_COOKIE_CUSTOMER', 'io_csess'),
         'staff_cookie' => Env::string('SESSION_COOKIE_STAFF', 'io_ssess'),
@@ -43,8 +73,33 @@ return [
         // guards the six digits, and this is the ceiling on how fast an IP can
         // work through accounts.
         'password_otp' => ['limit' => 30, 'window' => 3600, 'scope' => 'ip'],
+        /* CHANGING a password while signed in, which is a different risk from
+           resetting a forgotten one and had no bucket at all — `/me/password`
+           fell through to nothing, not even `default`.
+
+           It takes the CURRENT password and says whether it was right, so it is
+           a credential oracle reachable by anyone holding a stolen session
+           cookie or an XSS foothold. Unthrottled, that is an offline-speed
+           guessing attack run online against the one password the session did
+           not already give them — and the reward is a password that unlocks the
+           account again after the session is revoked, plus whatever else it was
+           reused on.
+
+           Ten an hour is far more than a person changing their own password
+           needs and far less than a search. Scoped `both` because either half
+           alone has an obvious hole: by IP only, a botnet walks around it; by
+           principal only, so does anyone working through a list of stolen
+           cookies. */
+        'password_change' => ['limit' => 10, 'window' => 3600, 'scope' => 'both'],
         'catalog' => ['limit' => 120, 'window' => 60, 'scope' => 'ip'],
         'cart' => ['limit' => 30, 'window' => 60, 'scope' => 'principal'],
+        /* Placing an order RESERVES STOCK, and it used to fall through to
+           `default` — 240 a minute, counted by IP alone. Ten is well above what
+           a person does and far below what it takes to hold a catalogue hostage
+           with cash-on-delivery orders that never get paid. `both`, so neither
+           one account from many addresses nor one address with many accounts
+           gets a fresh allowance. */
+        'checkout' => ['limit' => 10, 'window' => 60, 'scope' => 'both'],
         // Gateway calls cost money and time on someone else's API. A shopper
         // retrying a declined card a few times fits comfortably; a script
         // opening orders in a loop does not.
@@ -54,6 +109,16 @@ return [
         'console_write' => ['limit' => 60, 'window' => 60, 'scope' => 'principal'],
         'exports' => ['limit' => 5, 'window' => 3600, 'scope' => 'principal'],
         'webhooks' => ['limit' => 1000, 'window' => 60, 'scope' => 'ip'],
+        /* Every upload decodes and re-encodes an image, which is the most
+           expensive thing an authenticated request can ask this server to do.
+           `PUT /me/photo` had no class at all and fell through to `default` —
+           240 a minute. */
+        'uploads' => ['limit' => 10, 'window' => 3600, 'scope' => 'principal'],
+        /* Requests for paths that do not exist. Counted in ResolveRoute, on the
+           way out through the 404, because rate limiting proper sits below the
+           router and so never saw them — endpoint enumeration was free. Generous
+           on purpose: stale bookmarks and spiders make honest 404s. */
+        'unmatched' => ['limit' => 60, 'window' => 60, 'scope' => 'ip'],
     ],
 
     /** Storefront knobs the UI reads from GET /config/storefront (endpoint #4). */
@@ -87,6 +152,25 @@ return [
         // Seconds. A shopper is watching a spinner behind this call, so it is
         // deliberately far shorter than the media-side integrations.
         'timeout' => Env::int('RAZORPAY_TIMEOUT', 20),
+    ],
+
+    /**
+     * Payment integrity.
+     *
+     * `enforce_intents` is what stops the browser being the authority on whether
+     * money moved. With it on — the default, and the only setting fit for a live
+     * key — `PlaceOrderService` records a capture only when a VERIFIED
+     * `payment_intents` row of exactly the right amount exists for that
+     * customer. With it off, the old behaviour returns and `payment.outcome`
+     * from the request body is believed again.
+     *
+     * It exists solely so a deployment that hits something unforeseen can be put
+     * back inside one release without a revert. Turning it off in production is
+     * a decision to accept free orders; `GET /ready` reports it as unhealthy so
+     * the state cannot be forgotten.
+     */
+    'payments' => [
+        'enforce_intents' => Env::bool('PAYMENT_INTENTS_ENFORCE', true),
     ],
 
     'media' => [
